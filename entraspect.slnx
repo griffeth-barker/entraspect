@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Entraspect.App/Entraspect.App.csproj" />
+    <Project Path="src/Entraspect.Core/Entraspect.Core.csproj" />
+    <Project Path="src/Entraspect.Graph/Entraspect.Graph.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Entraspect.Core.Tests/Entraspect.Core.Tests.csproj" />
+  </Folder>
+</Solution>

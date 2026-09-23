@@ -11,7 +11,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 1: Scaffold
 
-- Create `entraspect.sln` and the four projects from the AGENTS.md layout. Create the App project from the `avalonia.mvvm` template.
+- Create `entraspect.slnx` and the four projects from the AGENTS.md layout. Create the App project from the `avalonia.mvvm` template.
 - Add `Directory.Build.props` enabling nullable, latest C#, and `TreatWarningsAsErrors`.
 - Wire up project references in the allowed dependency direction only.
 - Add one placeholder test so `dotnet test` runs.

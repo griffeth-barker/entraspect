@@ -20,7 +20,7 @@ Cross-platform desktop app (C# / .NET 10 / Avalonia) that scans a Microsoft Entr
 ## Solution layout
 
 ```
-entraspect.sln
+entraspect.slnx
 Directory.Build.props
 src/Entraspect.Core/          models, checks, IDirectoryReader. No UI, no Graph SDK reference.
 src/Entraspect.Graph/         IDirectoryReader implementation + authentication

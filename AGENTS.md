@@ -25,7 +25,8 @@ Directory.Build.props
 src/Entraspect.Core/          models, checks, IDirectoryReader. No UI, no Graph SDK reference.
 src/Entraspect.Graph/         IDirectoryReader implementation + authentication
 src/Entraspect.App/           Avalonia UI (views, view models)
-tests/Entraspect.Core.Tests/
+tests/Entraspect.Core.Tests/   check tests against fake IDirectoryReader
+tests/Entraspect.Graph.Tests/  pure mapping/helper tests only; never create a Graph client or credential
 docs/specs/                   numbered feature specs
 ```
 

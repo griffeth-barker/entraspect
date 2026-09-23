@@ -1,10 +1,9 @@
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using Azure.Identity;
 using Entraspect.Core;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
+using Microsoft.Kiota.Abstractions;
 
 namespace Entraspect.Graph;
 
@@ -12,19 +11,40 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 {
     private readonly GraphServiceClient _client;
 
-    public GraphDirectoryReader(GraphServiceClient client) => _client = client;
+    internal GraphDirectoryReader(GraphServiceClient client) => _client = client;
 
     public async Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
         CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await ReadAppRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (ApiException ex)
+        {
+            var detail = ex is ODataError { Error.Message: { } message } ? message : ex.Message;
+            throw new DirectoryReadException(
+                $"Microsoft Graph returned HTTP {ex.ResponseStatusCode}: {detail}",
+                ex.ResponseStatusCode,
+                ex);
+        }
+        catch (AuthenticationFailedException ex)
+        {
+            throw new DirectoryReadException($"Sign-in failed: {ex.Message}", innerException: ex);
+        }
+    }
+
+    private async Task<IReadOnlyList<AppRegistration>> ReadAppRegistrationsAsync(CancellationToken cancellationToken)
     {
         var result = new List<AppRegistration>();
 
         ApplicationCollectionResponse? response = await _client.Applications.GetAsync(config =>
         {
-            config.QueryParameters.Select = new[]
-            {
+            config.QueryParameters.Select =
+            [
                 "id", "appId", "displayName", "passwordCredentials", "keyCredentials",
-            };
+            ];
+            config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
 
         while (response is not null)
@@ -69,7 +89,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         return new AppRegistration
         {
             Id = application.Id ?? string.Empty,
-            AppId = application.AppId is null ? Guid.Empty : Guid.Parse(application.AppId),
+            AppId = Guid.TryParse(application.AppId, out var appId) ? appId : Guid.Empty,
             DisplayName = application.DisplayName ?? string.Empty,
             Credentials = credentials,
         };
@@ -85,7 +105,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         {
             KeyId = keyId ?? Guid.Empty,
             Type = type,
-            DisplayName = displayName ?? string.Empty,
+            // Graph often omits credential display names; fall back to the key ID so messages stay identifiable.
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? (keyId ?? Guid.Empty).ToString() : displayName,
             StartDateTime = start ?? default,
             EndDateTime = end,
         };

@@ -35,10 +35,10 @@
                     <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
                 </StackPanel>
 
-                <TextBlock Text="Certificate password (app-only, never saved)"
-                           IsVisible="{Binding IsAppOnly}" />
+                <TextBlock Text="Certificate (.pfx) password (never saved)"
+                           IsVisible="{Binding ShowPassword}" />
                 <TextBox Text="{Binding Password}" PasswordChar="*"
-                         IsVisible="{Binding IsAppOnly}" PlaceholderText="password" />
+                         IsVisible="{Binding ShowPassword}" PlaceholderText="password" />
 
                 <Separator Margin="0,8" />
 

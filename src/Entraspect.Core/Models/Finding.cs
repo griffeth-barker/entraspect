@@ -23,7 +23,9 @@ public sealed class Finding
 
     public DateTimeOffset? DueDate { get; init; }
 
-    public string? CredentialDisplayName { get; init; }
+    /// <summary>Type of the item inside the object the finding is about, e.g. "Secret" for an app's client secret.</summary>
+    public string? SubObjectType { get; init; }
 
-    public AppCredentialType? CredentialType { get; init; }
+    /// <summary>Display name of the item inside the object the finding is about, e.g. the credential's name.</summary>
+    public string? SubObjectDisplayName { get; init; }
 }

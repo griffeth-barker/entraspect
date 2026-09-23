@@ -11,4 +11,23 @@ public sealed class CredentialFactoryTests
     {
         Assert.Equal("ABCDEF0123456789ABCDEF0123456789ABCDEF01", CredentialFactory.NormalizeThumbprint(input));
     }
+
+    [Fact]
+    public void Create_with_missing_pfx_file_throws_clear_error()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pfx");
+        var profile = new ConnectionProfile
+        {
+            Name = "test",
+            TenantId = "contoso.onmicrosoft.com",
+            ClientId = "00000000-0000-0000-0000-000000000000",
+            AuthMode = AuthMode.AppOnly,
+            CertificatePath = path,
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CredentialFactory.Create(profile));
+
+        Assert.Contains("was not found", ex.Message);
+        Assert.Contains(path, ex.Message);
+    }
 }

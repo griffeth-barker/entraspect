@@ -62,6 +62,8 @@ public sealed class AppCredentialExpiryCheckTests
         Assert.Contains("Secret", f.Message);
         Assert.Contains("expired 5 days ago", f.Message);
         Assert.Equal(Now.AddDays(-5), f.DueDate);
+        Assert.Equal("Secret", f.SubObjectType);
+        Assert.Equal("secret", f.SubObjectDisplayName);
     }
 
     [Fact]

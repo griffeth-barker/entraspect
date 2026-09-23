@@ -1,32 +1,28 @@
-using System;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Entraspect.App.Services;
-using Entraspect.App.ViewModels;
-using Entraspect.Core;
 using Entraspect.Graph;
 
 namespace Entraspect.App.ViewModels;
 
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly ProfileStore _profileStore = new();
-
-    [ObservableProperty]
-    private ViewModelBase _currentView;
+    private readonly ConnectionViewModel _connection;
 
     public MainViewModel()
     {
-        _currentView = new ConnectionViewModel(Connect, _profileStore);
+        _connection = new ConnectionViewModel(Connect, new ProfileStore());
+        CurrentView = _connection;
     }
+
+    [ObservableProperty]
+    public partial ViewModelBase CurrentView { get; set; }
 
     private void Connect(ConnectionProfile profile, string? password)
     {
-        var reader = ReaderFactory.Create(profile, password);
+        var reader = DirectoryReaderFactory.Create(profile, password);
         CurrentView = new ResultsViewModel(reader, GoToConnection);
     }
 
-    private void GoToConnection()
-    {
-        CurrentView = new ConnectionViewModel(Connect, _profileStore);
-    }
+    // Reuses the same connection view model so the form keeps its values.
+    private void GoToConnection() => CurrentView = _connection;
 }

@@ -1,7 +1,4 @@
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Entraspect.App.Services;
@@ -14,49 +11,51 @@ public partial class ConnectionViewModel : ViewModelBase
     private readonly Action<ConnectionProfile, string?> _onConnect;
     private readonly ProfileStore _store;
 
-    [ObservableProperty]
-    private string _name = string.Empty;
-
-    [ObservableProperty]
-    private string _tenantId = string.Empty;
-
-    [ObservableProperty]
-    private string _clientId = string.Empty;
-
-    [ObservableProperty]
-    private AuthMode _authMode = AuthMode.Interactive;
-
-    [ObservableProperty]
-    private string _certificatePath = string.Empty;
-
-    [ObservableProperty]
-    private string _certificateThumbprint = string.Empty;
-
-    [ObservableProperty]
-    private string _password = string.Empty;
-
-    [ObservableProperty]
-    private string _errorText = string.Empty;
-
-    [ObservableProperty]
-    private bool _isAppOnly;
-
-    [ObservableProperty]
-    private ConnectionProfile? _selectedProfile;
-
-    [ObservableProperty]
-    private ObservableCollection<ConnectionProfile> _savedProfiles = new();
-
-    partial void OnAuthModeChanged(AuthMode value) => IsAppOnly = value == AuthMode.AppOnly;
-
     public ConnectionViewModel(Action<ConnectionProfile, string?> onConnect, ProfileStore store)
     {
         _onConnect = onConnect;
         _store = store;
-        SavedProfiles = new ObservableCollection<ConnectionProfile>(store.Load());
+        SavedProfiles = new ObservableCollection<ConnectionProfile>(store.Load(out var error));
+        ErrorText = error ?? string.Empty;
     }
 
-    public IEnumerable<AuthMode> AuthModes => System.Enum.GetValues<AuthMode>();
+    [ObservableProperty]
+    public partial string Name { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string TenantId { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ClientId { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsAppOnly), nameof(ShowPassword))]
+    public partial AuthMode AuthMode { get; set; } = AuthMode.Interactive;
+
+    [ObservableProperty]
+    public partial string CertificatePath { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPassword))]
+    public partial string CertificateThumbprint { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string Password { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ErrorText { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial ConnectionProfile? SelectedProfile { get; set; }
+
+    public ObservableCollection<ConnectionProfile> SavedProfiles { get; }
+
+    public IEnumerable<AuthMode> AuthModes => Enum.GetValues<AuthMode>();
+
+    public bool IsAppOnly => AuthMode == AuthMode.AppOnly;
+
+    // The password only applies to a .pfx file; a thumbprint takes precedence over the path.
+    public bool ShowPassword => IsAppOnly && string.IsNullOrWhiteSpace(CertificateThumbprint);
 
     [RelayCommand]
     private void LoadProfile(ConnectionProfile? profile)
@@ -86,10 +85,25 @@ public partial class ConnectionViewModel : ViewModelBase
         }
 
         var profile = BuildProfile();
-        var list = SavedProfiles.Where(p => p.Name != profile.Name).ToList();
-        list.Add(profile);
-        SavedProfiles = new ObservableCollection<ConnectionProfile>(list);
-        _store.Save(list);
+        var existing = SavedProfiles.FirstOrDefault(p => p.Name == profile.Name);
+        var list = SavedProfiles.Where(p => p != existing).Append(profile).ToList();
+
+        try
+        {
+            _store.Save(list);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ErrorText = $"Could not save profiles: {ex.Message}";
+            return;
+        }
+
+        if (existing is not null)
+        {
+            SavedProfiles.Remove(existing);
+        }
+
+        SavedProfiles.Add(profile);
         ErrorText = string.Empty;
     }
 
@@ -102,7 +116,7 @@ public partial class ConnectionViewModel : ViewModelBase
             return;
         }
 
-        if (AuthMode == AuthMode.AppOnly &&
+        if (IsAppOnly &&
             string.IsNullOrWhiteSpace(CertificatePath) &&
             string.IsNullOrWhiteSpace(CertificateThumbprint))
         {
@@ -114,7 +128,16 @@ public partial class ConnectionViewModel : ViewModelBase
         var password = Password;
         Password = string.Empty;
         ErrorText = string.Empty;
-        _onConnect(profile, password);
+
+        // Certificate loading happens here, so bad paths, passwords and thumbprints surface on this view.
+        try
+        {
+            _onConnect(profile, password);
+        }
+        catch (Exception ex)
+        {
+            ErrorText = ex.Message;
+        }
     }
 
     private ConnectionProfile BuildProfile() => new()
@@ -123,7 +146,7 @@ public partial class ConnectionViewModel : ViewModelBase
         TenantId = TenantId.Trim(),
         ClientId = ClientId.Trim(),
         AuthMode = AuthMode,
-        CertificatePath = string.IsNullOrWhiteSpace(CertificatePath) ? null : CertificatePath.Trim(),
-        CertificateThumbprint = string.IsNullOrWhiteSpace(CertificateThumbprint) ? null : CertificateThumbprint.Trim(),
+        CertificatePath = IsAppOnly && !string.IsNullOrWhiteSpace(CertificatePath) ? CertificatePath.Trim() : null,
+        CertificateThumbprint = IsAppOnly && !string.IsNullOrWhiteSpace(CertificateThumbprint) ? CertificateThumbprint.Trim() : null,
     };
 }

@@ -11,7 +11,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 {
     private readonly GraphServiceClient _client;
 
-    public GraphDirectoryReader(GraphServiceClient client) => _client = client;
+    internal GraphDirectoryReader(GraphServiceClient client) => _client = client;
 
     public async Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
         CancellationToken cancellationToken = default)

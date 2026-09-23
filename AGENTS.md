@@ -36,7 +36,7 @@ Dependency direction: App → Graph → Core, and App → Core. Core references 
 
 - **`IDirectoryReader`**: async read methods returning simple Core-owned models (e.g. `AppRegistration`, `AppCredential`). Entraspect.Graph is the only place Graph is touched.
 - **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `RequiredPermissions`, and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
-- **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`.
+- **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`, optional `SubObjectType` / `SubObjectDisplayName` (the item inside the object, e.g. a credential inside an app registration).
 - Checks get "now" from an injected `TimeProvider`, never `DateTime.Now`, so date logic is testable.
 
 ## Authentication

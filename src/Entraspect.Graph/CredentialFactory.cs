@@ -2,11 +2,10 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Azure.Core;
 using Azure.Identity;
-using Microsoft.Graph;
 
 namespace Entraspect.Graph;
 
-public static class CredentialFactory
+internal static class CredentialFactory
 {
     public const string GraphScope = "https://graph.microsoft.com/.default";
 
@@ -26,9 +25,6 @@ public static class CredentialFactory
         var certificate = LoadCertificate(profile, certificatePassword);
         return new ClientCertificateCredential(profile.TenantId, profile.ClientId, certificate);
     }
-
-    public static GraphServiceClient CreateGraphClient(TokenCredential credential) =>
-        new(credential, new[] { GraphScope });
 
     /// <summary>
     /// Keeps only hex digits, so thumbprints pasted from Windows certmgr (leading U+200E,
@@ -59,6 +55,12 @@ public static class CredentialFactory
         var flags = OperatingSystem.IsMacOS()
             ? X509KeyStorageFlags.DefaultKeySet
             : X509KeyStorageFlags.EphemeralKeySet;
+
+        // The loader reports a missing file as a CryptographicException, which reads like a bad password.
+        if (!File.Exists(path))
+        {
+            throw new InvalidOperationException($"The certificate file '{path}' was not found.");
+        }
 
         X509Certificate2 certificate;
         try

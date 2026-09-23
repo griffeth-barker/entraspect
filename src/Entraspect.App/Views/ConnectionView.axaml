@@ -1,0 +1,61 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             x:Class="Entraspect.App.Views.ConnectionView"
+             x:DataType="vm:ConnectionViewModel">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <Button Content="Connect" Command="{Binding ConnectCommand}" />
+            <Button Content="Save profile" Command="{Binding SaveProfileCommand}" />
+            <TextBlock Text="{Binding ErrorText}" Foreground="Red" VerticalAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <ScrollViewer>
+            <StackPanel Spacing="8" MaxWidth="520">
+                <TextBlock Text="Connect to a tenant" FontSize="18" FontWeight="Bold" />
+                <TextBlock Text="Profile name" />
+                <TextBox Text="{Binding Name}" PlaceholderText="My tenant" />
+
+                <TextBlock Text="Tenant ID" />
+                <TextBox Text="{Binding TenantId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+
+                <TextBlock Text="Client ID" />
+                <TextBox Text="{Binding ClientId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+
+                <TextBlock Text="Authentication mode" />
+                <ComboBox ItemsSource="{Binding AuthModes}"
+                          SelectedItem="{Binding AuthMode}"
+                          HorizontalAlignment="Stretch" />
+
+                <StackPanel IsVisible="{Binding IsAppOnly}" Spacing="8">
+                    <TextBlock Text="Certificate (.pfx) path" />
+                    <TextBox Text="{Binding CertificatePath}" PlaceholderText="/path/to/cert.pfx" />
+
+                    <TextBlock Text="Or certificate thumbprint" />
+                    <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
+                </StackPanel>
+
+                <TextBlock Text="Certificate password (app-only, never saved)"
+                           IsVisible="{Binding IsAppOnly}" />
+                <TextBox Text="{Binding Password}" PasswordChar="*"
+                         IsVisible="{Binding IsAppOnly}" PlaceholderText="password" />
+
+                <Separator Margin="0,8" />
+
+                <TextBlock Text="Saved profiles" FontWeight="Bold" />
+                <ListBox ItemsSource="{Binding SavedProfiles}"
+                         SelectedItem="{Binding SelectedProfile}"
+                         MaxHeight="160">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <Button Content="Load selected profile"
+                        Command="{Binding LoadProfileCommand}"
+                        CommandParameter="{Binding SelectedProfile}" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

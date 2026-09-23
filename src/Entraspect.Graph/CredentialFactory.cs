@@ -2,10 +2,11 @@ using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Azure.Core;
 using Azure.Identity;
+using Microsoft.Graph;
 
 namespace Entraspect.Graph;
 
-internal static class CredentialFactory
+public static class CredentialFactory
 {
     public const string GraphScope = "https://graph.microsoft.com/.default";
 
@@ -25,6 +26,9 @@ internal static class CredentialFactory
         var certificate = LoadCertificate(profile, certificatePassword);
         return new ClientCertificateCredential(profile.TenantId, profile.ClientId, certificate);
     }
+
+    public static GraphServiceClient CreateGraphClient(TokenCredential credential) =>
+        new(credential, new[] { GraphScope });
 
     /// <summary>
     /// Keeps only hex digits, so thumbprints pasted from Windows certmgr (leading U+200E,

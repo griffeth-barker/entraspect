@@ -113,5 +113,7 @@ public sealed class AppCredentialExpiryCheck : ICheck
             ObjectDisplayName = app.DisplayName,
             Message = message,
             DueDate = dueDate,
+            CredentialDisplayName = credential.DisplayName,
+            CredentialType = credential.Type,
         };
 }

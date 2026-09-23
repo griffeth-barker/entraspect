@@ -22,4 +22,8 @@ public sealed class Finding
     public required string Message { get; init; }
 
     public DateTimeOffset? DueDate { get; init; }
+
+    public string? CredentialDisplayName { get; init; }
+
+    public AppCredentialType? CredentialType { get; init; }
 }

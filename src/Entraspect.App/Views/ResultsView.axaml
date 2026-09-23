@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+             x:Class="Entraspect.App.Views.ResultsView"
+             x:DataType="vm:ResultsViewModel">
+    <DockPanel Margin="16">
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
+            <Button Content="Run Scan" Command="{Binding RunScanCommand}" IsEnabled="{Binding !IsBusy}" />
+            <Button Content="Cancel" Command="{Binding CancelScanCommand}" IsEnabled="{Binding IsBusy}" />
+            <Button Content="Back" Command="{Binding BackCommand}" />
+            <TextBlock Text="{Binding SummaryText}" VerticalAlignment="Center" />
+            <ProgressBar IsIndeterminate="{Binding IsBusy}" Width="120" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorText}"
+                   Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0" />
+
+        <dg:DataGrid ItemsSource="{Binding Findings}"
+                     AutoGenerateColumns="False"
+                     CanUserSortColumns="True"
+                     IsReadOnly="True"
+                     GridLinesVisibility="All">
+            <dg:DataGrid.Columns>
+                <dg:DataGridTextColumn Header="Severity" SortMemberPath="Severity"
+                                       Binding="{Binding Severity}" />
+                <dg:DataGridTextColumn Header="App" SortMemberPath="ObjectDisplayName"
+                                       Binding="{Binding ObjectDisplayName}" />
+                <dg:DataGridTextColumn Header="Credential" SortMemberPath="CredentialDisplayName"
+                                       Binding="{Binding CredentialDisplayName}" />
+                <dg:DataGridTextColumn Header="Type" SortMemberPath="CredentialType"
+                                       Binding="{Binding CredentialType}" />
+                <dg:DataGridTextColumn Header="Expires" SortMemberPath="DueDate"
+                                       Binding="{Binding DueDate}" />
+                <dg:DataGridTextColumn Header="Message" SortMemberPath="Message"
+                                       Binding="{Binding Message}" Width="*" />
+            </dg:DataGrid.Columns>
+        </dg:DataGrid>
+    </DockPanel>
+</UserControl>

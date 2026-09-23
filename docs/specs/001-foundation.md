@@ -61,3 +61,10 @@ Explain how to create the app registration for each mode: platform "Mobile and d
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
+
+- **Day counting (decided in step 2 review, confirm):** "within N days (inclusive)" is measured in whole UTC calendar days between today and the credential's end date, not elapsed hours. The same day count drives both severity and the message. "Expired" still means `EndDateTime` is before the current instant, so a credential ending later today is "expires today" (Critical) and one that ended earlier today is "expired today".
+- **Credentials with no end date as replacements:** a credential with no `EndDateTime` never expires, but it is currently not counted as a valid replacement for an expired credential of the same type. Should it be?
+- **Not-yet-active credentials as replacements:** a credential whose `StartDateTime` is in the future currently counts as a valid replacement even though it cannot be used yet. Should it?
+- **"Newer" wording:** the Info message says "a newer credential exists", but the rule only requires another still-valid credential of the same type, not a newer one.
+- **Option validation:** nothing enforces `0 <= ExpiryCriticalDays <= ExpiryWarningDays`.
+- **Null credential display names:** Graph often returns null `displayName` for credentials, but `AppCredential.DisplayName` is required. Step 4 mapping needs a fallback (for example, the `KeyId`).

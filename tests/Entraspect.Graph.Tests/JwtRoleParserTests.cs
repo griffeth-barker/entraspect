@@ -45,6 +45,14 @@ public sealed class JwtRoleParserTests
     }
 
     [Fact]
+    public void Roles_not_an_array_returns_empty()
+    {
+        var token = TokenWith("{\"roles\":\"Application.Read.All\"}");
+
+        Assert.Empty(JwtRoleParser.ParseRoles(token));
+    }
+
+    [Fact]
     public void Null_or_empty_token_returns_empty()
     {
         Assert.Empty(JwtRoleParser.ParseRoles(null));

@@ -30,9 +30,11 @@ public partial class ConnectionViewModel : ViewModelBase
     public partial string ClientId { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPassword), nameof(NeedsCertificate))]
     public partial string CertificatePath { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowPassword), nameof(NeedsCertificate))]
     public partial string CertificateThumbprint { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -126,7 +128,8 @@ public partial class ConnectionViewModel : ViewModelBase
         // Sign-in happens here, so bad certificates and sign-in errors surface on this view.
         try
         {
-            await _onConnect(profile, password).ConfigureAwait(false);
+            // No ConfigureAwait(false): ErrorText must be set on the UI thread.
+            await _onConnect(profile, password);
         }
         catch (Exception ex)
         {

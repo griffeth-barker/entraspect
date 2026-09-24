@@ -21,7 +21,8 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task Connect(ConnectionProfile profile, string? password)
     {
-        var connection = await DirectoryConnector.ConnectAsync(profile, password).ConfigureAwait(false);
+        // No ConfigureAwait(false): CurrentView must be set on the UI thread.
+        var connection = await DirectoryConnector.ConnectAsync(profile, password);
         CurrentView = new ResultsViewModel(connection, GoToConnection);
     }
 

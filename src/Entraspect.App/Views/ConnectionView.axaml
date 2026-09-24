@@ -28,6 +28,9 @@
                 <TextBlock Text="Or certificate thumbprint" />
                 <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
 
+                <TextBlock Text="Add a certificate to use this profile."
+                           IsVisible="{Binding NeedsCertificate}" Foreground="DarkOrange" TextWrapping="Wrap" />
+
                 <TextBlock Text="Certificate (.pfx) password (never saved)"
                            IsVisible="{Binding ShowPassword}" />
                 <TextBox Text="{Binding Password}" PasswordChar="*"

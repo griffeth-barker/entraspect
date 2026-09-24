@@ -46,9 +46,14 @@ public static class DirectoryConnector
 
     /// <summary>
     /// Wraps a sign-in failure so the AADSTS code and description (on the inner MSAL exception) are shown.
+    /// Azure.Identity often includes the inner message already, so it is only appended when missing.
     /// </summary>
-    private static DirectoryReadException ToConnectException(AuthenticationFailedException ex) =>
-        new(
-            $"Sign-in failed: {ex.Message}{(ex.InnerException is not null ? $" {ex.InnerException.Message}" : string.Empty)}",
-            innerException: ex);
+    private static DirectoryReadException ToConnectException(AuthenticationFailedException ex)
+    {
+        var inner = ex.InnerException?.Message;
+        var message = inner is not null && !ex.Message.Contains(inner, StringComparison.Ordinal)
+            ? $"{ex.Message} {inner}"
+            : ex.Message;
+        return new DirectoryReadException($"Sign-in failed: {message}", innerException: ex);
+    }
 }

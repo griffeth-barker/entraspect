@@ -95,7 +95,7 @@ rm key.pem cert.pem
 
 1. Start entraspect.
 2. Enter a **Profile name**, the **Tenant ID** and the **Client ID** from step 1.
-3. Enter either the **Certificate thumbprint** or the **Certificate (.pfx) path**. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux). If entraspect shows an **Authentication mode** choice, select **AppOnly**.
+3. Enter either the **Certificate thumbprint** or the **Certificate (.pfx) path**. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux).
 4. Optionally save the profile so you don't have to enter these again. The certificate password is never saved.
 5. Select **Connect**. If you use a `.pfx` file, enter its password.
 6. Run a scan.

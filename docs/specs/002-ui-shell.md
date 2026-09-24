@@ -80,7 +80,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 6: Docs
 
-- `docs/setup.md` and `README.md` already describe app-only auth and the permission banner. Update the connect steps in `docs/setup.md` step 4 for the new shell: remove the line about the **Authentication mode** choice, and describe Settings > Connection profiles, the password dialog, and the Scan button in the header.
+- `docs/setup.md` and `README.md` already describe app-only auth and the permission banner. Update the connect steps in `docs/setup.md` step 4 for the new shell: describe Settings > Connection profiles, the password dialog, and the Scan button in the header.
 - Update `README.md` if anything else about the flow changed.
 - Update `AGENTS.md`: `ICheck.Category`, `CheckCatalog` as the place to register checks, `ScanRunner` and `PermissionReview`, `CachingDirectoryReader` needing each new reader method, FluentAvaloniaUI in the tech stack, and `tests/Entraspect.App.Tests` in the solution layout.
 

@@ -1,6 +1,6 @@
 # Spec 001: Foundation and first check (expiring app registration credentials)
 
-**Status:** Ready
+**Status:** Done
 **Goal:** A working desktop app that connects to a tenant (both auth modes) and lists app registration client secrets and certificates that are expired or expiring soon.
 
 **Out of scope for this spec:** enterprise app SAML signing certificates, Conditional Access, exporting results, scheduled scans.

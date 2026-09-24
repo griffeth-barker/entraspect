@@ -4,10 +4,10 @@ Cross-platform desktop app (C# / .NET 10 / Avalonia) that scans a Microsoft Entr
 
 ## Non-negotiable rules
 
-1. **Read-only.** entraspect must never modify a tenant. Only use Microsoft Graph permissions ending in `.Read.All` (or narrower read scopes). Never add a `ReadWrite` scope and never call a POST/PATCH/PUT/DELETE Graph endpoint. If a feature seems to need write access, stop and ask.
-2. **No secrets in the repo.** No tenant IDs, client IDs, certificates, passwords, or tokens in code, tests, or committed config. Client secrets are not a supported auth method; app-only auth uses certificates only.
+1. **Read-only.** entraspect must never modify a tenant. Only use Microsoft Graph permissions ending in `.Read.All` (or narrower read scopes). Never add a `ReadWrite` scope and never call a POST/PATCH/PUT/DELETE Graph endpoint. This includes POST endpoints that only read, such as `POST /$batch` and `POST /directoryObjects/getByIds`, and actions on read resources, such as sign-in `confirmCompromised` or `dismiss`. If a feature seems to need write access, stop and ask.
+2. **No secrets in the repo.** No tenant IDs, client IDs, certificates, passwords, or tokens in code, tests, or committed config. Client secrets are not a supported auth method; auth uses certificates only. Never log, store or display access tokens. Test tokens are built in the test from fake claims; never commit anything that looks like a real token.
 3. **No real tenant in tests.** Unit tests use fake implementations of `IDirectoryReader`. Nothing in the test suite may make a network call.
-4. **No telemetry.** No outbound calls other than Microsoft identity and Graph endpoints.
+4. **No telemetry.** No outbound calls other than Microsoft identity and Graph endpoints. Opening a Microsoft Entra admin center page in the user's default browser (for example to add a missing permission) is allowed; the admin makes any change there, never entraspect.
 5. **Work from a spec.** Implement the spec in `docs/specs/` you were pointed to, one step at a time. Don't expand scope; add ideas to that spec's "Open questions" section instead.
 
 ## Tech stack
@@ -41,12 +41,17 @@ Dependency direction: App → Graph → Core, and App → Core. Core references 
 
 ## Authentication
 
-Two modes, both via Azure.Identity, scope `https://graph.microsoft.com/.default`:
+App-only only, via Azure.Identity `ClientCertificateCredential`, scope `https://graph.microsoft.com/.default`: tenant ID, client ID, and a certificate loaded from either a .pfx file (password prompted at runtime, never stored) or the OS certificate store by thumbprint. Interactive (delegated) sign-in is not supported; spec 002 removes the spec 001 implementation. App-only means the granted permissions are exactly the app registration's application permissions, so entraspect can check them.
 
-- **Interactive (delegated):** `InteractiveBrowserCredential` using a user-supplied public client app registration (tenant ID + client ID, redirect URI `http://localhost`).
-- **App-only:** `ClientCertificateCredential` with tenant ID, client ID, and a certificate loaded from either a .pfx file (password prompted at runtime, never stored) or the OS certificate store by thumbprint.
+- Granted permissions come from the access token's `roles` claim, decoded locally at connect. Checks declare the application permissions they need in `RequiredPermissions`; a check whose permissions aren't all granted isn't run, and the UI shows which permission is missing.
+- entraspect never grants or consents permissions itself. It can link to the app registration's API permissions page in the Entra admin center.
+- Warn when the app registration holds permissions entraspect doesn't need, especially write permissions.
 
-Connection profiles (name, tenant ID, client ID, auth mode, cert path or thumbprint; never passwords) are saved as JSON in the user's application data folder, never in the repo.
+Connection profiles (name, tenant ID, client ID, cert path or thumbprint; never passwords) are saved as JSON in the user's application data folder, never in the repo.
+
+## Target tenants
+
+Design checks for tenants with Entra ID P1 or P2. When Graph says the tenant lacks the licence a check needs, that check fails with a plain message and the others still run. Use Graph v1.0 only; if something is only in beta, record it in the spec's Open questions instead.
 
 ## Commands
 
@@ -63,4 +68,5 @@ A step is only done when build and tests both pass.
 - Graph paging: always follow every page (`PageIterator` or `@odata.nextLink`).
 - View models never expose Graph SDK types.
 - Show Graph errors plainly in the UI; for 403s, name the permission that is likely missing.
+- Permissions in specs, docs and `RequiredPermissions` are Microsoft Graph application permissions. Before adding one, confirm in the Graph docs that it is the least-privileged application permission for the endpoint and that it is a read permission.
 - Commit after each completed spec step: `spec-NNN step N: <summary>`.

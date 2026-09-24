@@ -76,3 +76,5 @@ Explain how to create the app registration for each mode: platform "Mobile and d
 - **Sign-in happens at Run Scan:** Connect only builds the reader (and loads the certificate for app-only). The browser prompt or app-only token request happens on the first Run Scan, so sign-in errors appear on the results view.
 - **No App test project:** `ProfileStore` (including the corrupt-file backup) and the view models have no automated tests. Consider an `Entraspect.App.Tests` project with a configurable profile directory.
 - **App icon:** the window still uses the Avalonia template logo.
+- **Sign-in errors hide the AADSTS code (found in manual check):** `GraphDirectoryReader` shows only `AuthenticationFailedException.Message`, which can read just "InteractiveBrowserCredential authentication failed" without the reason. The `AADSTS` code and description are on the inner MSAL exception. Should the UI show the inner exception's message too? `docs/setup.md` lists the common codes.
+- **Setup guide location (decided in step 6):** the README gives a short setup summary and links to `docs/setup.md` for the full end-user guide, instead of putting the whole guide in the README.

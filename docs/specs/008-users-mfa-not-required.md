@@ -5,11 +5,14 @@
 
 This check answers "who isn't required to use MFA". Spec 005 answers the separate question "who isn't registered for MFA". A user can be registered but never asked, or required but not yet registered. The check page description must say which question this check answers.
 
-**Approach:** evaluate the tenant's Conditional Access policies against each user, using Graph v1.0 only. The sign-in log's `authenticationRequirement` property would show what happened at real sign-ins, but it is beta only, and per-user (legacy) MFA state is beta only too; both are in Open questions. This check reports what policy says, not what happened at sign-in.
+**Approach:** evaluate the tenant's Conditional Access policies against each user (v1.0). For users that no policy fully covers, also read two things that are only in beta:
 
-**Out of scope for this spec:** per-user (legacy) MFA, simulating sign-in conditions (the What If tool), PIM-eligible role assignments, authentication strength comparison (any authentication strength counts as requiring MFA), workload identities.
+- Per-user (legacy) MFA state, `GET /beta/users/{id}/authentication/requirements`, so users with per-user MFA aren't reported as not required.
+- Recent successful single-factor sign-ins, from `GET /beta/auditLogs/signIns` (`authenticationRequirement` isn't in v1.0), as evidence in the finding message.
 
-**Graph permissions:** adds `RoleManagement.Read.Directory` (application). Also uses `Policy.Read.All` and `User.Read.All` (spec 007) and `GroupMember.Read.All` (spec 003). Conditional Access needs Entra ID P1 or P2.
+**Out of scope for this spec:** simulating sign-in conditions (the What If tool), PIM-eligible role assignments, authentication strength comparison (any authentication strength counts as requiring MFA), workload identities, non-interactive sign-ins, flagging users whom policy covers but who still signed in with a single factor.
+
+**Graph permissions:** adds `RoleManagement.Read.Directory` (application). Also uses `Policy.Read.All` and `User.Read.All` (spec 007), `GroupMember.Read.All` (spec 003) and `AuditLog.Read.All` (spec 005). `Policy.Read.All` is the least-privileged application permission for per-user MFA state, and `AuditLog.Read.All` for beta sign-ins. Conditional Access and sign-in logs need Entra ID P1 or P2.
 
 Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dotnet test` pass, then commit before starting the next step.
 
@@ -27,6 +30,8 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
   - `GetDirectoryRoleAssignmentsAsync(CancellationToken)`
   - `GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken)`, cached per group ID
   - `GetSecurityDefaultsEnabledAsync(CancellationToken)`
+  - `GetPerUserMfaStateAsync(string userId, CancellationToken)`, returning `Disabled`, `Enabled`, `Enforced` or `Unknown`, cached per user ID
+  - `GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken)`, returning, per user ID, the number of successful single-factor interactive sign-ins and the most recent one. Aggregate while reading, like spec 009, so sign-ins are never held in memory all at once.
 
 ## Step 2: Policy evaluation in Core
 
@@ -42,18 +47,23 @@ Tests for each rule: include and exclude by user, group, nested group, role and 
 
 ## Step 3: The check
 
+Add `CheckOptions.SignInLookbackDays` (default 7, range 1 to 30), shown in Settings > Checks with a note that longer periods are slower in busy tenants. Spec 009 uses the same option.
+
 **`users-mfa-not-required`** (category `Users`, title "Users not required to use MFA").
 
 - If security defaults are on, give no per-user findings. Give one **Info** finding with `ObjectType` `Tenant`: "Security defaults are on. All users must register for MFA and are asked for it when Microsoft considers it necessary; admins are asked at every sign-in." Conditional Access can't be used while security defaults are on.
 - Skip disabled users.
 - Fully required by at least one enabled policy: no finding.
+- Otherwise read the user's per-user MFA state. `Enabled` or `Enforced`: **Info**, "MFA is required by legacy per-user MFA, not Conditional Access. Microsoft recommends moving to Conditional Access." `Unknown`: carry on as `Disabled`, and add "Per-user MFA state couldn't be read." to the message.
 - Otherwise the severity comes from the user: holds any active directory role, **Critical**; member, **Warning**; guest, **Info**. Messages:
   - Not required by any policy: "No enforced Conditional Access policy requires MFA for this user."
   - Only in some cases: "MFA is only required in some cases, by: policy names." Severity is one level lower (Critical becomes Warning, Warning becomes Info).
   - If report-only policies would require it, add "Report-only policies that would require MFA: policy names."
-- `ObjectType` `User`, `ObjectDisplayName` "Display name (UPN)", no sub-object, no `DueDate`. Required permissions: `Policy.Read.All`, `User.Read.All`, `GroupMember.Read.All`, `RoleManagement.Read.Directory`.
+  - If the user had successful single-factor sign-ins in the lookback period, add "N successful single-factor sign-ins in the last D days, most recent DATE." The sign-ins don't change the severity.
+- Read sign-ins only when at least one finding needs them, and read them once per scan.
+- `ObjectType` `User`, `ObjectDisplayName` "Display name (UPN)", no sub-object, no `DueDate`. Required permissions: `Policy.Read.All`, `User.Read.All`, `GroupMember.Read.All`, `RoleManagement.Read.Directory`, `AuditLog.Read.All`. The check page says the per-user MFA state and sign-in data come from beta Graph.
 
-Tests: security defaults on, disabled user skipped, admin, member and guest with no policy, "in some cases" severities, report-only note, and a user covered by one full policy.
+Tests: security defaults on, disabled user skipped, admin, member and guest with no policy, "in some cases" severities, report-only note, a user covered by one full policy, per-user MFA `Enabled`, `Enforced` and `Unknown`, sign-in evidence in the message, and no sign-in read when there are no findings.
 
 ## Step 4: Graph implementation
 
@@ -61,6 +71,9 @@ Tests: security defaults on, disabled user skipped, admin, member and guest with
 - Role assignments: `GET /roleManagement/directory/roleAssignments` with `$select=roleDefinitionId,principalId`, following every page. Policies refer to built-in roles by template ID, which equals the `roleDefinitionId` for built-in roles. When the principal is a group, expand it with the transitive members call.
 - Transitive members: `GET /groups/{id}/transitiveMembers/microsoft.graph.user?$select=id`, following every page, only for groups that policies or role assignments refer to.
 - Security defaults: `GET /policies/identitySecurityDefaultsEnforcementPolicy`, reading `isEnabled`.
+- Per-user MFA (beta): `GET /beta/users/{id}/authentication/requirements`, reading `perUserMfaState`. One call per user, only for users no policy fully covers. Report progress. A missing or unrecognised value maps to `Unknown`.
+- Single-factor sign-ins (beta): `GET /beta/auditLogs/signIns?$filter=createdDateTime ge {since}` with `$top=1000`, following every page, keeping sign-ins with `authenticationRequirement` `singleFactorAuthentication` and `status/errorCode` 0. Only `userId`, `createdDateTime`, `authenticationRequirement` and `status` are needed; use `$select` if beta accepts it. Before building, check whether beta accepts `authenticationRequirement` and `status/errorCode` in `$filter`; if it does, filter on the server instead. Check the cancellation token between pages.
+- Beta calls follow the AGENTS.md rules for beta. Mapping tests with sample beta JSON, including missing and unknown values.
 - Add the grant controls and conditions to the spec 007 policy mapping. Mapping tests with sample Graph objects, including an `OR` grant, an authentication strength, guest settings and each narrowing condition.
 - Before building, confirm in the Graph docs that `RoleManagement.Read.Directory` (application) is the least-privileged permission for listing role assignments, and `Policy.Read.All` for reading security defaults.
 - Don't use `POST /$batch` or `POST /directoryObjects/getByIds`.
@@ -68,7 +81,7 @@ Tests: security defaults on, disabled user skipped, admin, member and guest with
 ## Step 5: Docs
 
 - `docs/setup.md`: add `RoleManagement.Read.Directory` (application) with admin consent.
-- `README.md`: add the check to "What it checks", saying it reports what Conditional Access policy requires, not what happened at sign-in.
+- `README.md`: add the check to "What it checks", saying it reports what Conditional Access and per-user MFA require, with recent single-factor sign-ins as evidence, and that part of it uses beta Graph.
 
 ## Acceptance criteria
 
@@ -80,13 +93,16 @@ Tests: security defaults on, disabled user skipped, admin, member and guest with
   - A test user assigned a directory role and excluded from the policy appears as Critical.
   - Changing the policy to apply only outside a named location makes users appear as "in some cases".
   - Changing the policy to report-only makes users appear with the report-only note.
+  - A test user excluded from the policy with per-user MFA enforced appears as Info with the per-user MFA message.
+  - A test user excluded from the policy who signs in with a password only shows the single-factor sign-in count after the sign-in reaches the logs.
 
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
-- **Beta sign-in data:** `authenticationRequirement` on beta `signIns` shows whether sign-ins actually needed MFA. It could confirm the policy evaluation, but needs beta Graph. Should entraspect allow beta endpoints for specific checks?
-- **Per-user MFA:** users with legacy per-user MFA enforced are required to use MFA even without a policy. Their state is only in beta (`/users/{id}/authentication/requirements`), so they may appear as false positives.
+- **Covered but single-factor:** a user that policy fully covers can still have single-factor sign-ins (for example to an app a policy excludes, or through a gap in the evaluation). Should that be its own finding?
+- **Shared sign-in read:** this check and spec 009 both read the sign-in logs. Should one read feed both?
+- **Per-user MFA calls:** one call per uncovered user can be slow in large tenants with weak policy coverage.
 - **PIM-eligible roles:** users who can activate an admin role through PIM are treated as non-admins until they activate it. Reading eligibility needs `RoleEligibilitySchedule.Read.Directory`.
 - **Authentication strengths:** every authentication strength counts as MFA. A custom strength that allows only single-factor methods would be counted wrongly.
 - **Large tenants:** reading every user and expanding groups may be slow. Should the check be limited, or show progress per group?

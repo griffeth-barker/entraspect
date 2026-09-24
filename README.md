@@ -13,16 +13,20 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## Read-only by design
 
-entraspect only uses the Microsoft Graph permission `Application.Read.All`. It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
 
 ## Setup
 
-entraspect connects through an app registration in your tenant. It supports two sign-in modes:
+entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- **Interactive:** you sign in in a browser. Needs a **Mobile and desktop applications** redirect URI of `http://localhost` and the delegated `Application.Read.All` permission.
-- **App-only:** entraspect signs in with a certificate. Needs an uploaded certificate and the application `Application.Read.All` permission. Client secrets are not supported.
+- A dedicated app registration with the Microsoft Graph application permission `Application.Read.All` and admin consent.
+- A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
-Both modes need admin consent. See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
+entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run and its page tells you which permission to add.
+
+Some checks need Microsoft Entra ID P1 or P2.
+
+See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
 
 ## Running
 

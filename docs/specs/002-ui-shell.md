@@ -80,8 +80,8 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 6: Docs
 
-- Rewrite `docs/setup.md` for app-only only: remove the redirect URI and delegated permission steps, and keep the certificate steps. Recommend a dedicated app registration for entraspect with only the permissions it needs. Recommend storing the certificate in the OS certificate store with a non-exportable key where possible, and using short certificate lifetimes, because the certificate gives tenant-wide read access. Explain the permission banner and the Entra admin center button.
-- Update `README.md` for the new flow and app-only auth.
+- `docs/setup.md` and `README.md` already describe app-only auth and the permission banner. Update the connect steps in `docs/setup.md` step 4 for the new shell: remove the line about the **Authentication mode** choice, and describe Settings > Connection profiles, the password dialog, and the Scan button in the header.
+- Update `README.md` if anything else about the flow changed.
 - Update `AGENTS.md`: `ICheck.Category`, `CheckCatalog` as the place to register checks, `ScanRunner` and `PermissionReview`, `CachingDirectoryReader` needing each new reader method, FluentAvaloniaUI in the tech stack, and `tests/Entraspect.App.Tests` in the solution layout.
 
 ## Acceptance criteria
@@ -107,4 +107,5 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - **Generic column headers:** the grid uses the same headers (Object, Item, Type) for every check. Should checks provide their own labels, for example "App" and "Credential"?
 - **Suppressing findings:** admins will want to hide known and accepted findings, such as break-glass accounts. Needs a design for where suppressions are stored and how they are shown.
 - **Remembering results:** results are only in memory and are lost when the app closes. Should the last scan be saved locally?
+- **Unexpected exceptions from a check:** `ScanRunner` only turns `DirectoryReadException` and cancellation into a check result. Any other exception (a bug in a check) still ends the whole scan. Should it mark only that check `Failed` instead?
 - **Permission replication delay:** a newly granted permission can take a few minutes to appear in new tokens. Should the banner say so after a Reconnect that still shows it missing?

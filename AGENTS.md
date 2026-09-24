@@ -51,7 +51,13 @@ Connection profiles (name, tenant ID, client ID, cert path or thumbprint; never 
 
 ## Target tenants
 
-Design checks for tenants with Entra ID P1 or P2. When Graph says the tenant lacks the licence a check needs, that check fails with a plain message and the others still run. Use Graph v1.0 only; if something is only in beta, record it in the spec's Open questions instead.
+Design checks for tenants with Entra ID P1 or P2. When Graph says the tenant lacks the licence a check needs, that check fails with a plain message and the others still run. Prefer Graph v1.0. Beta endpoints are allowed when the data isn't available in v1.0, under these rules:
+
+- The spec names each beta endpoint and why v1.0 isn't enough. Don't switch a v1.0 call to beta on your own.
+- The read-only rules apply to beta exactly as to v1.0.
+- Call beta through the existing Graph client's request adapter with the `https://graph.microsoft.com/beta` base URL, and map the JSON into internal types in Entraspect.Graph. Don't add the `Microsoft.Graph.Beta` package unless a spec says so.
+- Beta can change without notice: map defensively (missing or unknown values don't throw), and a beta failure fails only the check that uses it.
+- Check pages for checks that use beta data say so.
 
 ## Commands
 

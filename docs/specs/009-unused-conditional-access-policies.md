@@ -1,6 +1,6 @@
 # Spec 009: Unused Conditional Access policies
 
-**Status:** Ready (depends on spec 007)
+**Status:** Ready (depends on specs 007 and 008)
 **Goal:** A check in the Conditional Access nav section that finds enabled and report-only policies that didn't apply to any interactive sign-in during a recent period, based on the sign-in logs.
 
 **Out of scope for this spec:** non-interactive, service principal and managed identity sign-ins (beta only), explaining *why* a policy didn't apply, the What If tool.
@@ -17,7 +17,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 2: The check
 
-Add `CheckOptions.SignInLookbackDays` (default 7, range 1 to 30), shown in Settings > Checks with a note that longer periods are slower in busy tenants.
+Use `CheckOptions.SignInLookbackDays` from spec 008.
 
 **`ca-unused-policies`** (category `ConditionalAccess`, title "Unused policies"). Uses `GetConditionalAccessPoliciesAsync` and `GetConditionalAccessUsageAsync`.
 
@@ -53,6 +53,6 @@ Tests: enabled unused, enabled used, report-only both ways, no sign-ins, no CA d
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
-- **Non-interactive and workload sign-ins:** v1.0 only returns interactive sign-ins. Policies aimed at non-interactive traffic or workload identities will look unused. Beta's `signInEventTypes` filter could cover them.
+- **Non-interactive and workload sign-ins:** v1.0 only returns interactive sign-ins. Policies aimed at non-interactive traffic or workload identities will look unused. Beta's `signInEventTypes` filter could cover them; AGENTS.md now allows beta, but non-interactive volumes are much larger.
 - **Very large tenants:** a busy tenant can have millions of sign-ins a week. Should there be a cap on sign-ins read, or a sampling mode?
 - **Scan duration:** this check could take much longer than the others. Should it be disabled by default, or run separately from the main Scan?

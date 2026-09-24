@@ -65,7 +65,7 @@ Tests for each rule, including each URI case, Microsoft-owned service principals
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
-- **Unused credentials and apps:** needs `servicePrincipalSignInActivities` or `appCredentialSignInActivities`, which are beta only. Revisit when they reach v1.0.
+- **Unused credentials and apps:** needs `servicePrincipalSignInActivities` or `appCredentialSignInActivities`, which are beta only. AGENTS.md now allows beta, so this could be its own spec.
 - **Delegated grants:** admin-consented delegated permissions (for example `Mail.ReadWrite` for all users) are also high risk. Needs `oauth2PermissionGrants` and a check of its own.
 - **Other APIs:** high-privilege permissions on APIs other than Microsoft Graph (for example Exchange Online `full_access_as_app`) aren't checked.
 - **Microsoft-owned apps:** skipping Microsoft's own service principals hides noise, but also hides anything unusual they hold. Should it be a setting?

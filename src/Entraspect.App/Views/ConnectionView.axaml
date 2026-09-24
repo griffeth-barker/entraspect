@@ -22,18 +22,11 @@
                 <TextBlock Text="Client ID" />
                 <TextBox Text="{Binding ClientId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
 
-                <TextBlock Text="Authentication mode" />
-                <ComboBox ItemsSource="{Binding AuthModes}"
-                          SelectedItem="{Binding AuthMode}"
-                          HorizontalAlignment="Stretch" />
+                <TextBlock Text="Certificate (.pfx) path" />
+                <TextBox Text="{Binding CertificatePath}" PlaceholderText="/path/to/cert.pfx" />
 
-                <StackPanel IsVisible="{Binding IsAppOnly}" Spacing="8">
-                    <TextBlock Text="Certificate (.pfx) path" />
-                    <TextBox Text="{Binding CertificatePath}" PlaceholderText="/path/to/cert.pfx" />
-
-                    <TextBlock Text="Or certificate thumbprint" />
-                    <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
-                </StackPanel>
+                <TextBlock Text="Or certificate thumbprint" />
+                <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
 
                 <TextBlock Text="Certificate (.pfx) password (never saved)"
                            IsVisible="{Binding ShowPassword}" />

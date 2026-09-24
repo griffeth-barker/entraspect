@@ -11,17 +11,6 @@ internal static class CredentialFactory
 
     public static TokenCredential Create(ConnectionProfile profile, string? certificatePassword = null)
     {
-        if (profile.AuthMode == AuthMode.Interactive)
-        {
-            return new InteractiveBrowserCredential(
-                profile.TenantId,
-                profile.ClientId,
-                new InteractiveBrowserCredentialOptions
-                {
-                    RedirectUri = new Uri("http://localhost"),
-                });
-        }
-
         var certificate = LoadCertificate(profile, certificatePassword);
         return new ClientCertificateCredential(profile.TenantId, profile.ClientId, certificate);
     }

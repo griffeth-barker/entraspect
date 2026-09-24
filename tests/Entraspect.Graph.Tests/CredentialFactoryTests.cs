@@ -21,7 +21,6 @@ public sealed class CredentialFactoryTests
             Name = "test",
             TenantId = "contoso.onmicrosoft.com",
             ClientId = "00000000-0000-0000-0000-000000000000",
-            AuthMode = AuthMode.AppOnly,
             CertificatePath = path,
         };
 

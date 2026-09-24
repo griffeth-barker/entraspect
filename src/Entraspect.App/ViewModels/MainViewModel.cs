@@ -1,5 +1,7 @@
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Entraspect.App.Services;
+using Entraspect.Core;
 using Entraspect.Graph;
 
 namespace Entraspect.App.ViewModels;
@@ -17,10 +19,10 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     public partial ViewModelBase CurrentView { get; set; }
 
-    private void Connect(ConnectionProfile profile, string? password)
+    private async Task Connect(ConnectionProfile profile, string? password)
     {
-        var reader = DirectoryReaderFactory.Create(profile, password);
-        CurrentView = new ResultsViewModel(reader, GoToConnection);
+        var connection = await DirectoryConnector.ConnectAsync(profile, password).ConfigureAwait(false);
+        CurrentView = new ResultsViewModel(connection, GoToConnection);
     }
 
     // Reuses the same connection view model so the form keeps its values.

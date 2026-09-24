@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Entraspect.App.Services;
@@ -8,10 +9,10 @@ namespace Entraspect.App.ViewModels;
 
 public partial class ConnectionViewModel : ViewModelBase
 {
-    private readonly Action<ConnectionProfile, string?> _onConnect;
+    private readonly Func<ConnectionProfile, string?, Task> _onConnect;
     private readonly ProfileStore _store;
 
-    public ConnectionViewModel(Action<ConnectionProfile, string?> onConnect, ProfileStore store)
+    public ConnectionViewModel(Func<ConnectionProfile, string?, Task> onConnect, ProfileStore store)
     {
         _onConnect = onConnect;
         _store = store;
@@ -29,14 +30,9 @@ public partial class ConnectionViewModel : ViewModelBase
     public partial string ClientId { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsAppOnly), nameof(ShowPassword))]
-    public partial AuthMode AuthMode { get; set; } = AuthMode.Interactive;
-
-    [ObservableProperty]
     public partial string CertificatePath { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowPassword))]
     public partial string CertificateThumbprint { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -50,12 +46,13 @@ public partial class ConnectionViewModel : ViewModelBase
 
     public ObservableCollection<ConnectionProfile> SavedProfiles { get; }
 
-    public IEnumerable<AuthMode> AuthModes => Enum.GetValues<AuthMode>();
-
-    public bool IsAppOnly => AuthMode == AuthMode.AppOnly;
-
     // The password only applies to a .pfx file; a thumbprint takes precedence over the path.
-    public bool ShowPassword => IsAppOnly && string.IsNullOrWhiteSpace(CertificateThumbprint);
+    public bool ShowPassword =>
+        !string.IsNullOrWhiteSpace(CertificatePath) && string.IsNullOrWhiteSpace(CertificateThumbprint);
+
+    // An old interactive-only profile (no certificate) still loads but cannot connect until edited.
+    public bool NeedsCertificate =>
+        string.IsNullOrWhiteSpace(CertificatePath) && string.IsNullOrWhiteSpace(CertificateThumbprint);
 
     [RelayCommand]
     private void LoadProfile(ConnectionProfile? profile)
@@ -68,7 +65,6 @@ public partial class ConnectionViewModel : ViewModelBase
         Name = profile.Name;
         TenantId = profile.TenantId;
         ClientId = profile.ClientId;
-        AuthMode = profile.AuthMode;
         CertificatePath = profile.CertificatePath ?? string.Empty;
         CertificateThumbprint = profile.CertificateThumbprint ?? string.Empty;
         Password = string.Empty;
@@ -108,7 +104,7 @@ public partial class ConnectionViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void Connect()
+    private async Task Connect()
     {
         if (string.IsNullOrWhiteSpace(TenantId) || string.IsNullOrWhiteSpace(ClientId))
         {
@@ -116,11 +112,9 @@ public partial class ConnectionViewModel : ViewModelBase
             return;
         }
 
-        if (IsAppOnly &&
-            string.IsNullOrWhiteSpace(CertificatePath) &&
-            string.IsNullOrWhiteSpace(CertificateThumbprint))
+        if (NeedsCertificate)
         {
-            ErrorText = "App-only authentication requires a certificate path or thumbprint.";
+            ErrorText = "Add a certificate to use this profile.";
             return;
         }
 
@@ -129,10 +123,10 @@ public partial class ConnectionViewModel : ViewModelBase
         Password = string.Empty;
         ErrorText = string.Empty;
 
-        // Certificate loading happens here, so bad paths, passwords and thumbprints surface on this view.
+        // Sign-in happens here, so bad certificates and sign-in errors surface on this view.
         try
         {
-            _onConnect(profile, password);
+            await _onConnect(profile, password).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -145,8 +139,7 @@ public partial class ConnectionViewModel : ViewModelBase
         Name = Name.Trim(),
         TenantId = TenantId.Trim(),
         ClientId = ClientId.Trim(),
-        AuthMode = AuthMode,
-        CertificatePath = IsAppOnly && !string.IsNullOrWhiteSpace(CertificatePath) ? CertificatePath.Trim() : null,
-        CertificateThumbprint = IsAppOnly && !string.IsNullOrWhiteSpace(CertificateThumbprint) ? CertificateThumbprint.Trim() : null,
+        CertificatePath = !string.IsNullOrWhiteSpace(CertificatePath) ? CertificatePath.Trim() : null,
+        CertificateThumbprint = !string.IsNullOrWhiteSpace(CertificateThumbprint) ? CertificateThumbprint.Trim() : null,
     };
 }

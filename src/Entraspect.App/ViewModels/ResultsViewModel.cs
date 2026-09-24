@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -11,11 +12,14 @@ public partial class ResultsViewModel : ViewModelBase
     private readonly IDirectoryReader _reader;
     private readonly Action _goBack;
 
-    public ResultsViewModel(IDirectoryReader reader, Action goBack)
+    public ResultsViewModel(DirectoryConnection connection, Action goBack)
     {
-        _reader = reader;
+        _reader = connection.Reader;
+        GrantedPermissions = connection.GrantedPermissions;
         _goBack = goBack;
     }
+
+    public IReadOnlyList<string> GrantedPermissions { get; }
 
     [ObservableProperty]
     public partial ObservableCollection<Finding> Findings { get; set; } = [];

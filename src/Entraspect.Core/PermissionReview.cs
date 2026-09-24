@@ -28,17 +28,18 @@ public static class PermissionReview
             foreach (var permission in check.RequiredPermissions)
             {
                 usedPermissions.Add(permission);
-                if (!granted.Contains(permission) &&
-                    !missingByPermission.TryGetValue(permission, out var list))
+                if (granted.Contains(permission))
+                {
+                    continue;
+                }
+
+                if (!missingByPermission.TryGetValue(permission, out var list))
                 {
                     list = new List<ICheck>();
                     missingByPermission[permission] = list;
                 }
 
-                if (!granted.Contains(permission))
-                {
-                    missingByPermission[permission].Add(check);
-                }
+                list.Add(check);
             }
         }
 
@@ -49,6 +50,7 @@ public static class PermissionReview
 
         var unused = granted
             .Where(p => !usedPermissions.Contains(p))
+            .OrderBy(p => p, StringComparer.Ordinal)
             .ToList();
 
         var unusedRead = new List<string>();

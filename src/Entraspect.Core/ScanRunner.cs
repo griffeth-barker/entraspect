@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,10 +36,10 @@ public sealed class ScanRunner
     public async Task<IReadOnlyList<CheckResult>> RunAsync(CancellationToken cancellationToken = default)
     {
         var results = new List<CheckResult>(_checks.Count);
-        var total = _checks.Count;
+        var total = _checks.Count(check => MissingPermissionsFor(check).Count == 0);
         var runPosition = 0;
 
-        for (var i = 0; i < total; i++)
+        for (var i = 0; i < _checks.Count; i++)
         {
             var check = _checks[i];
             var missing = MissingPermissionsFor(check);
@@ -55,6 +56,12 @@ public sealed class ScanRunner
                 continue;
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                AddCancelledFrom(results, i);
+                return results;
+            }
+
             runPosition++;
             _progress?.Report(new ScanProgress(runPosition, total, check.Title));
 
@@ -69,15 +76,21 @@ public sealed class ScanRunner
                     CompletedAt = _timeProvider.GetUtcNow(),
                 });
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                AddCancelledFrom(results, i);
+                return results;
+            }
             catch (OperationCanceledException)
             {
-                results.Add(MakeCancelled(check));
-                for (var j = i + 1; j < total; j++)
+                // Not requested by the caller, for example an HTTP timeout: only this check fails.
+                results.Add(new CheckResult
                 {
-                    results.Add(MakeCancelled(_checks[j]));
-                }
-
-                return results;
+                    CheckId = check.Id,
+                    Status = CheckResultStatus.Failed,
+                    ErrorMessage = "The request timed out or was cancelled by the directory service.",
+                    CompletedAt = _timeProvider.GetUtcNow(),
+                });
             }
             catch (DirectoryReadException ex)
             {
@@ -109,9 +122,22 @@ public sealed class ScanRunner
         return missing;
     }
 
-    private static CheckResult MakeCancelled(ICheck check) => new()
+    /// <summary>Marks the check at <paramref name="start"/> and every later check as cancelled.</summary>
+    private void AddCancelledFrom(List<CheckResult> results, int start)
     {
-        CheckId = check.Id,
-        Status = CheckResultStatus.Cancelled,
-    };
+        for (var j = start; j < _checks.Count; j++)
+        {
+            var check = _checks[j];
+            var missing = MissingPermissionsFor(check);
+            results.Add(missing.Count > 0
+                ? new CheckResult
+                {
+                    CheckId = check.Id,
+                    Status = CheckResultStatus.MissingPermissions,
+                    MissingPermissions = missing,
+                    CompletedAt = _timeProvider.GetUtcNow(),
+                }
+                : new CheckResult { CheckId = check.Id, Status = CheckResultStatus.Cancelled });
+        }
+    }
 }

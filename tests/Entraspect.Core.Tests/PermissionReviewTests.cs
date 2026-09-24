@@ -45,7 +45,7 @@ public sealed class PermissionReviewTests
             new[] { check },
             new[] { "Application.Read.All", "User.ReadWrite.All", "Mail.Send" });
 
-        Assert.Equal(new[] { "User.ReadWrite.All", "Mail.Send" }, review.UnusedWritePermissions);
+        Assert.Equal(new[] { "Mail.Send", "User.ReadWrite.All" }, review.UnusedWritePermissions);
         Assert.Empty(review.UnusedReadPermissions);
     }
 }

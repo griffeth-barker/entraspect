@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # Serena MCP local state
 .serena/
+
+# spec-loop logs
+.loop/

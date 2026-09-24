@@ -1,0 +1,29 @@
+using System.Collections.Generic;
+
+namespace Entraspect.Core;
+
+public enum CheckResultStatus
+{
+    Succeeded,
+    Failed,
+    MissingPermissions,
+    Cancelled,
+}
+
+public sealed class CheckResult
+{
+    public required string CheckId { get; init; }
+
+    public required CheckResultStatus Status { get; init; }
+
+    public IReadOnlyList<Finding> Findings { get; init; } = System.Array.Empty<Finding>();
+
+    public IReadOnlyList<string> MissingPermissions { get; init; } = System.Array.Empty<string>();
+
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>HTTP status code from the directory service if the check failed on a read, otherwise null.</summary>
+    public int? StatusCode { get; init; }
+
+    public System.DateTimeOffset? CompletedAt { get; init; }
+}

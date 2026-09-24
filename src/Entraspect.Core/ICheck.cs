@@ -12,6 +12,8 @@ public interface ICheck
 
     string Description { get; }
 
+    CheckCategory Category { get; }
+
     IReadOnlyList<string> RequiredPermissions { get; }
 
     Task<IReadOnlyList<Finding>> RunAsync(

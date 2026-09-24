@@ -21,6 +21,8 @@ public sealed class AppCredentialExpiryCheck : ICheck
     public string Description =>
         "Surfaces app registration client secrets and certificates that are expired or expire soon.";
 
+    public CheckCategory Category => CheckCategory.AppRegistrations;
+
     public IReadOnlyList<string> RequiredPermissions => new[] { "Application.Read.All" };
 
     public async Task<IReadOnlyList<Finding>> RunAsync(

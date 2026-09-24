@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Entraspect.Graph;
@@ -12,23 +13,28 @@ public sealed class ProfileStore
     private static readonly JsonSerializerOptions Options = new()
     {
         WriteIndented = true,
+        PropertyNameCaseInsensitive = true,
         Converters = { new JsonStringEnumConverter() },
     };
 
     private readonly string _directory;
     private readonly string _filePath;
 
-    public ProfileStore()
+    public ProfileStore() : this(DefaultDirectory())
     {
-        _directory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "entraspect");
+    }
+
+    /// <summary>Uses <paramref name="directory"/> for storage instead of the application data folder.</summary>
+    public ProfileStore(string directory)
+    {
+        _directory = directory;
         _filePath = Path.Combine(_directory, "profiles.json");
     }
 
     /// <summary>
     /// Loads saved profiles. Returns an empty list and sets <paramref name="error"/> if the file cannot be read.
-    /// An unreadable file is copied aside first, so a later save does not destroy it.
+    /// An unreadable file is copied aside first, so a later save does not destroy it. Unknown fields (for example a
+    /// legacy <c>authMode</c>) are ignored.
     /// </summary>
     public IReadOnlyList<ConnectionProfile> Load(out string? error)
     {
@@ -45,17 +51,10 @@ public sealed class ProfileStore
         }
         catch (JsonException)
         {
-            var backupPath = Path.Combine(_directory, $"profiles.corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}.json");
-            try
-            {
-                File.Copy(_filePath, backupPath);
-                error = $"Saved profiles could not be read. The file was backed up to '{backupPath}'.";
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                error = $"Saved profiles in '{_filePath}' could not be read, and a backup could not be made: {ex.Message}";
-            }
-
+            var backupPath = StoreBackup.Backup(_filePath, _directory);
+            error = backupPath is not null
+                ? $"Saved profiles could not be read. The file was backed up to '{backupPath}'."
+                : $"Saved profiles in '{_filePath}' could not be read, and a backup could not be made.";
             return [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
@@ -71,4 +70,7 @@ public sealed class ProfileStore
         var json = JsonSerializer.Serialize(profiles, Options);
         File.WriteAllText(_filePath, json);
     }
+
+    private static string DefaultDirectory() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "entraspect");
 }

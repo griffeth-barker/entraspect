@@ -7,5 +7,6 @@
   <Folder Name="/tests/">
     <Project Path="tests/Entraspect.Core.Tests/Entraspect.Core.Tests.csproj" />
     <Project Path="tests/Entraspect.Graph.Tests/Entraspect.Graph.Tests.csproj" />
+    <Project Path="tests/Entraspect.App.Tests/Entraspect.App.Tests.csproj" />
   </Folder>
 </Solution>

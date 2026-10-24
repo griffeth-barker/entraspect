@@ -7,14 +7,24 @@ public sealed class CheckOptions
     public int ExpiryCriticalDays { get; init; } = 7;
 
     /// <summary>
-    /// Returns a valid <see cref="CheckOptions"/>, enforcing <c>0 &lt;= ExpiryCriticalDays &lt;= ExpiryWarningDays</c>.
-    /// If the supplied values break that rule, the defaults are returned.
+    /// Returns a valid copy of <paramref name="options"/>, or the defaults if it is null. Each rule only resets the
+    /// options it covers, so add new options here with their own rule. Expiry: <c>0 &lt;= ExpiryCriticalDays &lt;=
+    /// ExpiryWarningDays</c>, otherwise both expiry values fall back to their defaults.
     /// </summary>
-    public static CheckOptions Normalize(int expiryWarningDays, int expiryCriticalDays)
+    public static CheckOptions Normalize(CheckOptions? options)
     {
-        var valid = expiryWarningDays >= 0 && expiryCriticalDays >= 0 && expiryCriticalDays <= expiryWarningDays;
-        return valid
-            ? new CheckOptions { ExpiryWarningDays = expiryWarningDays, ExpiryCriticalDays = expiryCriticalDays }
-            : new CheckOptions();
+        var defaults = new CheckOptions();
+        if (options is null)
+        {
+            return defaults;
+        }
+
+        var expiryValid = options.ExpiryCriticalDays >= 0 && options.ExpiryCriticalDays <= options.ExpiryWarningDays;
+
+        return new CheckOptions
+        {
+            ExpiryWarningDays = expiryValid ? options.ExpiryWarningDays : defaults.ExpiryWarningDays,
+            ExpiryCriticalDays = expiryValid ? options.ExpiryCriticalDays : defaults.ExpiryCriticalDays,
+        };
     }
 }

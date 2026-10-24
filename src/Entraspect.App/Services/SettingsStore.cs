@@ -46,17 +46,15 @@ public sealed class SettingsStore
             {
                 DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
                 LastUsedProfileName = raw.LastUsedProfileName,
-                CheckOptions = CheckOptions.Normalize(
-                    raw.CheckOptions.ExpiryWarningDays,
-                    raw.CheckOptions.ExpiryCriticalDays),
+                CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
             };
         }
         catch (JsonException)
         {
-            var backupPath = StoreBackup.Backup(_filePath, _directory);
+            var backupPath = StoreBackup.Backup(_filePath, _directory, out var failure);
             error = backupPath is not null
                 ? $"Settings could not be read. The file was backed up to '{backupPath}'."
-                : $"Settings in '{_filePath}' could not be read, and a backup could not be made.";
+                : $"Settings in '{_filePath}' could not be read, and a backup could not be made: {failure}";
             return new AppSettings();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

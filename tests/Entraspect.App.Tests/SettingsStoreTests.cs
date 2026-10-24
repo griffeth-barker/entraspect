@@ -79,6 +79,27 @@ public sealed class SettingsStoreTests
     }
 
     [Fact]
+    public void Null_check_options_fall_back_to_defaults()
+    {
+        var dir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "settings.json"), "{\"checkOptions\":null}");
+
+            var loaded = new SettingsStore(dir).Load(out var error);
+
+            Assert.Null(error);
+            Assert.Equal(30, loaded.CheckOptions.ExpiryWarningDays);
+            Assert.Equal(7, loaded.CheckOptions.ExpiryCriticalDays);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
     public void Valid_check_options_are_preserved()
     {
         var dir = TempDir();

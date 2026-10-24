@@ -51,10 +51,10 @@ public sealed class ProfileStore
         }
         catch (JsonException)
         {
-            var backupPath = StoreBackup.Backup(_filePath, _directory);
+            var backupPath = StoreBackup.Backup(_filePath, _directory, out var failure);
             error = backupPath is not null
                 ? $"Saved profiles could not be read. The file was backed up to '{backupPath}'."
-                : $"Saved profiles in '{_filePath}' could not be read, and a backup could not be made.";
+                : $"Saved profiles in '{_filePath}' could not be read, and a backup could not be made: {failure}";
             return [];
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

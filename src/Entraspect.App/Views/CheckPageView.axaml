@@ -4,6 +4,12 @@
              xmlns:views="using:Entraspect.App.Views"
              x:Class="Entraspect.App.Views.CheckPageView"
              x:DataType="vm:CheckPageViewModel">
+    <UserControl.Styles>
+        <Style Selector="DataGridCell TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        </Style>
+    </UserControl.Styles>
+
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
             <ContentControl Content="{Binding Banner}" />
@@ -103,6 +109,9 @@
             </Popup>
         </StackPanel>
 
+        <!-- Auto-sized text columns grew with long names and GUIDs and squeezed the columns to their right down to
+             nothing. Text columns share the width instead, and long values end in an ellipsis; Type and the due date
+             stay sized to their content. -->
         <DataGrid x:Name="FindingsGrid"
                   ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
@@ -125,17 +134,17 @@
                 </DataGridTemplateColumn>
                 <!-- Headers for the columns below come from the check's FindingLabels (code-behind). -->
                 <DataGridTextColumn SortMemberPath="ObjectDisplayName"
-                                    Binding="{Binding ObjectDisplayName}" />
+                                    Binding="{Binding ObjectDisplayName}" Width="2*" MinWidth="140" />
                 <DataGridTextColumn SortMemberPath="ObjectId"
-                                    Binding="{Binding ObjectId}" />
+                                    Binding="{Binding ObjectId}" Width="1.5*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="SubObjectDisplayName"
-                                    Binding="{Binding SubObjectDisplayName}" />
+                                    Binding="{Binding SubObjectDisplayName}" Width="2*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="SubObjectType"
                                     Binding="{Binding SubObjectType}" />
                 <DataGridTextColumn SortMemberPath="DueDate"
                                     Binding="{Binding DueText}" />
                 <DataGridTextColumn Header="Message" SortMemberPath="Message"
-                                    Binding="{Binding Message}" Width="*" />
+                                    Binding="{Binding Message}" Width="3*" MinWidth="160" />
             </DataGrid.Columns>
         </DataGrid>
     </DockPanel>

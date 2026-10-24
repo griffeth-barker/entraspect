@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Entraspect.App.Services;
 using Entraspect.App.ViewModels;
 using FluentAvalonia.UI.Controls;
@@ -11,6 +13,43 @@ public partial class MainWindow : Window, IPasswordPrompt
     public MainWindow()
     {
         InitializeComponent();
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (DataContext is MainViewModel vm)
+        {
+            vm.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainViewModel.SelectedNavItem))
+                {
+                    Dispatcher.UIThread.Post(() => MarkSelectedContainer(vm.SelectedNavItem), DispatcherPriority.Loaded);
+                }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Selecting an item inside a collapsed section expands the section, but NavigationView creates the item's
+    /// container after it applied the selection, so the container shows the selection marker without the selected
+    /// background. Once layout has created the container, mark it selected.
+    /// </summary>
+    private void MarkSelectedContainer(NavItemViewModel? item)
+    {
+        if (item is null)
+        {
+            return;
+        }
+
+        var container = Nav.GetVisualDescendants()
+            .OfType<FANavigationViewItem>()
+            .FirstOrDefault(c => ReferenceEquals(c.DataContext, item));
+
+        if (container is { IsSelected: false })
+        {
+            container.IsSelected = true;
+        }
     }
 
     /// <summary>Asks for the .pfx password in a dialog. The password is returned to the caller and never saved.</summary>

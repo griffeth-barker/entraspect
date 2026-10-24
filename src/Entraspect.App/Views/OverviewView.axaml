@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             x:Class="Entraspect.App.Views.OverviewView"
+             x:DataType="vm:OverviewViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="8">
+            <TextBlock Text="Overview" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding LastScanText}" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding CheckLines}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,2" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

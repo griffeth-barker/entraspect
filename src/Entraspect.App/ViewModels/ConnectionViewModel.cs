@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Entraspect.App.Services;
@@ -7,17 +6,22 @@ using Entraspect.Graph;
 
 namespace Entraspect.App.ViewModels;
 
+/// <summary>
+/// Settings > Connection profiles. Holds the saved profiles and the profile form; Connect in the header connects the
+/// profile in the form. Spec 002 step 5 replaces the form with add, edit and delete.
+/// </summary>
 public partial class ConnectionViewModel : ViewModelBase
 {
-    private readonly Func<ConnectionProfile, string?, Task> _onConnect;
     private readonly ProfileStore _store;
 
-    public ConnectionViewModel(Func<ConnectionProfile, string?, Task> onConnect, ProfileStore store)
+    public ConnectionViewModel(ProfileStore store, string? lastUsedProfileName = null)
     {
-        _onConnect = onConnect;
         _store = store;
         SavedProfiles = new ObservableCollection<ConnectionProfile>(store.Load(out var error));
         ErrorText = error ?? string.Empty;
+
+        // The app starts on this page with the last used profile selected and loaded into the form.
+        SelectedProfile = SavedProfiles.FirstOrDefault(p => p.Name == lastUsedProfileName);
     }
 
     [ObservableProperty]
@@ -30,15 +34,12 @@ public partial class ConnectionViewModel : ViewModelBase
     public partial string ClientId { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowPassword), nameof(NeedsCertificate))]
+    [NotifyPropertyChangedFor(nameof(NeedsCertificate))]
     public partial string CertificatePath { get; set; } = string.Empty;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ShowPassword), nameof(NeedsCertificate))]
+    [NotifyPropertyChangedFor(nameof(NeedsCertificate))]
     public partial string CertificateThumbprint { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string Password { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string ErrorText { get; set; } = string.Empty;
@@ -48,28 +49,26 @@ public partial class ConnectionViewModel : ViewModelBase
 
     public ObservableCollection<ConnectionProfile> SavedProfiles { get; }
 
-    // The password only applies to a .pfx file; a thumbprint takes precedence over the path.
-    public bool ShowPassword =>
-        !string.IsNullOrWhiteSpace(CertificatePath) && string.IsNullOrWhiteSpace(CertificateThumbprint);
-
     // An old interactive-only profile (no certificate) still loads but cannot connect until edited.
     public bool NeedsCertificate =>
         string.IsNullOrWhiteSpace(CertificatePath) && string.IsNullOrWhiteSpace(CertificateThumbprint);
 
-    [RelayCommand]
-    private void LoadProfile(ConnectionProfile? profile)
+    /// <summary>A thumbprint takes precedence over a .pfx path, so the password is only needed without one.</summary>
+    public static bool NeedsPassword(ConnectionProfile profile) =>
+        string.IsNullOrWhiteSpace(profile.CertificateThumbprint) && !string.IsNullOrWhiteSpace(profile.CertificatePath);
+
+    partial void OnSelectedProfileChanged(ConnectionProfile? value)
     {
-        if (profile is null)
+        if (value is null)
         {
             return;
         }
 
-        Name = profile.Name;
-        TenantId = profile.TenantId;
-        ClientId = profile.ClientId;
-        CertificatePath = profile.CertificatePath ?? string.Empty;
-        CertificateThumbprint = profile.CertificateThumbprint ?? string.Empty;
-        Password = string.Empty;
+        Name = value.Name;
+        TenantId = value.TenantId;
+        ClientId = value.ClientId;
+        CertificatePath = value.CertificatePath ?? string.Empty;
+        CertificateThumbprint = value.CertificateThumbprint ?? string.Empty;
         ErrorText = string.Empty;
     }
 
@@ -102,39 +101,27 @@ public partial class ConnectionViewModel : ViewModelBase
         }
 
         SavedProfiles.Add(profile);
+        SelectedProfile = profile;
         ErrorText = string.Empty;
     }
 
-    [RelayCommand]
-    private async Task Connect()
+    /// <summary>Builds the profile in the form for connecting, or returns null with <paramref name="error"/> set.</summary>
+    public ConnectionProfile? TryGetProfileToConnect(out string? error)
     {
         if (string.IsNullOrWhiteSpace(TenantId) || string.IsNullOrWhiteSpace(ClientId))
         {
-            ErrorText = "Tenant ID and Client ID are required.";
-            return;
+            error = "Tenant ID and Client ID are required. Fill them in under Settings > Connection profiles.";
+            return null;
         }
 
         if (NeedsCertificate)
         {
-            ErrorText = "Add a certificate to use this profile.";
-            return;
+            error = "Add a certificate to use this profile.";
+            return null;
         }
 
-        var profile = BuildProfile();
-        var password = Password;
-        Password = string.Empty;
-        ErrorText = string.Empty;
-
-        // Sign-in happens here, so bad certificates and sign-in errors surface on this view.
-        try
-        {
-            // No ConfigureAwait(false): ErrorText must be set on the UI thread.
-            await _onConnect(profile, password);
-        }
-        catch (Exception ex)
-        {
-            ErrorText = ex.Message;
-        }
+        error = null;
+        return BuildProfile();
     }
 
     private ConnectionProfile BuildProfile() => new()

@@ -17,10 +17,10 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
-            {
-                DataContext = new MainViewModel(),
-            };
+            // The window shows the certificate password dialog, so the view model asks it for passwords.
+            var window = new MainWindow();
+            window.DataContext = new MainViewModel(passwordPrompt: window);
+            desktop.MainWindow = window;
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -1,15 +1,94 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Entraspect.App.ViewModels"
+        xmlns:views="using:Entraspect.App.Views"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="600"
+        mc:Ignorable="d" d:DesignWidth="1100" d:DesignHeight="700"
         x:Class="Entraspect.App.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="Entraspect"
-        Width="900" Height="600">
+        Width="1100" Height="700">
 
-    <ContentControl Content="{Binding CurrentView}" />
+    <Window.Styles>
+        <!-- A check that failed or is missing permissions shows a warning marker instead of a count. -->
+        <Style Selector="ui|FAInfoBadge.warning">
+            <Setter Property="IconSource">
+                <ui:FASymbolIconSource Symbol="Important" />
+            </Setter>
+            <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBrush}" />
+        </Style>
+    </Window.Styles>
+
+    <ui:FANavigationView x:Name="Nav"
+                         PaneDisplayMode="Left"
+                         OpenPaneLength="280"
+                         IsSettingsVisible="False"
+                         IsBackButtonVisible="False"
+                         MenuItemsSource="{Binding MenuItems}"
+                         FooterMenuItemsSource="{Binding FooterItems}"
+                         SelectedItem="{Binding SelectedNavItem, Mode=TwoWay}">
+        <ui:FANavigationView.MenuItemTemplate>
+            <DataTemplate x:DataType="vm:NavItemViewModel">
+                <ui:FANavigationViewItem Content="{Binding Title}"
+                                         IconSource="{Binding Icon, Converter={x:Static views:SymbolIconConverter.Instance}}"
+                                         MenuItemsSource="{Binding Children}"
+                                         IsEnabled="{Binding IsEnabled}"
+                                         IsExpanded="{Binding IsExpanded, Mode=TwoWay}"
+                                         SelectsOnInvoked="{Binding IsPage}"
+                                         ToolTip.Tip="{Binding ToolTip}"
+                                         ToolTip.ShowOnDisabled="True">
+                    <ui:FANavigationViewItem.InfoBadge>
+                        <ui:FAInfoBadge Value="{Binding BadgeValue}"
+                                        IsVisible="{Binding HasBadge}"
+                                        Classes.warning="{Binding HasWarning}" />
+                    </ui:FANavigationViewItem.InfoBadge>
+                </ui:FANavigationViewItem>
+            </DataTemplate>
+        </ui:FANavigationView.MenuItemTemplate>
+
+        <DockPanel>
+            <Border DockPanel.Dock="Top"
+                    Padding="16,10"
+                    BorderThickness="0,0,0,1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource LayerFillColorDefaultBrush}">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                    <StackPanel Grid.Column="0" Spacing="2" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding ConnectionStatusText}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ConnectedProfileName}" IsVisible="{Binding IsConnected}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding ConnectedTenantId, StringFormat='Tenant {0}'}"
+                                   IsVisible="{Binding IsConnected}"
+                                   Opacity="0.7" FontSize="12" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <Button Content="Connect" Command="{Binding ConnectCommand}" IsVisible="{Binding IsNotConnected}" />
+                        <Button Content="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding IsConnected}" />
+                        <Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsVisible="{Binding IsConnected}" />
+                        <Button Content="Scan" Command="{Binding ScanCommand}" Classes="accent" />
+                        <Button Content="Cancel" Command="{Binding CancelCommand}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="4" Margin="0,8,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsBusy}"
+                                         Width="160" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap"
+                                   Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                                   IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <ContentControl Content="{Binding CurrentPage}" Margin="16" />
+        </DockPanel>
+    </ui:FANavigationView>
 
 </Window>

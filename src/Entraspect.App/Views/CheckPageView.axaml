@@ -1,35 +1,35 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
-             x:Class="Entraspect.App.Views.ResultsView"
-             x:DataType="vm:ResultsViewModel">
-    <DockPanel Margin="16">
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="0,0,0,8">
-            <Button Content="Run Scan" Command="{Binding RunScanCommand}" />
-            <Button Content="Cancel" Command="{Binding RunScanCancelCommand}" />
-            <Button Content="Back" Command="{Binding BackCommand}" />
-            <TextBlock Text="{Binding SummaryText}" VerticalAlignment="Center" />
-            <ProgressBar IsIndeterminate="{Binding IsBusy}" IsVisible="{Binding IsBusy}" Width="120" VerticalAlignment="Center" />
+             x:Class="Entraspect.App.Views.CheckPageView"
+             x:DataType="vm:CheckPageViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding RequiredPermissionsText, StringFormat='Required permissions: {0}'}"
+                       Opacity="0.7" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding StatusText}" />
+            <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap"
+                       Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+                       IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
-
-        <TextBlock DockPanel.Dock="Bottom" Text="{Binding ErrorText}"
-                   Foreground="Red" TextWrapping="Wrap" Margin="0,8,0,0" />
 
         <DataGrid ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
                   CanUserSortColumns="True"
                   IsReadOnly="True"
-                  GridLinesVisibility="All">
+                  GridLinesVisibility="Horizontal">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Severity" SortMemberPath="Severity"
                                     Binding="{Binding Severity}" />
-                <DataGridTextColumn Header="App" SortMemberPath="ObjectDisplayName"
+                <DataGridTextColumn Header="Object" SortMemberPath="ObjectDisplayName"
                                     Binding="{Binding ObjectDisplayName}" />
-                <DataGridTextColumn Header="Credential" SortMemberPath="SubObjectDisplayName"
+                <DataGridTextColumn Header="Item" SortMemberPath="SubObjectDisplayName"
                                     Binding="{Binding SubObjectDisplayName}" />
                 <DataGridTextColumn Header="Type" SortMemberPath="SubObjectType"
                                     Binding="{Binding SubObjectType}" />
-                <DataGridTextColumn Header="Expires (UTC)" SortMemberPath="DueDate"
+                <DataGridTextColumn Header="Due (UTC)" SortMemberPath="DueDate"
                                     Binding="{Binding DueDate, StringFormat='{}{0:yyyy-MM-dd}'}" />
                 <DataGridTextColumn Header="Message" SortMemberPath="Message"
                                     Binding="{Binding Message}" Width="*" />

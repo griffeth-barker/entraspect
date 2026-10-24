@@ -31,6 +31,9 @@ public sealed class ProfileStore
         _filePath = Path.Combine(_directory, "profiles.json");
     }
 
+    /// <summary>The folder holding profiles.json, shown on Settings > About.</summary>
+    public string FolderPath => _directory;
+
     /// <summary>
     /// Loads saved profiles. Returns an empty list and sets <paramref name="error"/> if the file cannot be read.
     /// An unreadable file is copied aside first, so a later save does not destroy it. Unknown fields (for example a

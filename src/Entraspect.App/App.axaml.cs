@@ -17,9 +17,9 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // The window shows the certificate password dialog, so the view model asks it for passwords.
+            // The window shows dialogs, the clipboard and the browser for the view models.
             var window = new MainWindow();
-            window.DataContext = new MainViewModel(passwordPrompt: window);
+            window.DataContext = new MainViewModel(ui: window);
             desktop.MainWindow = window;
         }
 

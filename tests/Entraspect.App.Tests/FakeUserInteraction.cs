@@ -1,0 +1,45 @@
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Entraspect.App.Services;
+
+namespace Entraspect.App.Tests;
+
+/// <summary>Records what view models ask of the window. Never opens a browser or touches the real clipboard.</summary>
+internal sealed class FakeUserInteraction : IUserInteraction
+{
+    public string? Password { get; set; }
+
+    public int Calls { get; private set; }
+
+    public bool ConfirmResult { get; set; } = true;
+
+    public int Confirmations { get; private set; }
+
+    public List<string> CopiedText { get; } = [];
+
+    public List<string> OpenedUrls { get; } = [];
+
+    public Task<string?> RequestPasswordAsync(string profileName)
+    {
+        Calls++;
+        return Task.FromResult(Password);
+    }
+
+    public Task<bool> ConfirmAsync(string title, string message, string confirmText)
+    {
+        Confirmations++;
+        return Task.FromResult(ConfirmResult);
+    }
+
+    public Task CopyTextAsync(string text)
+    {
+        CopiedText.Add(text);
+        return Task.CompletedTask;
+    }
+
+    public Task OpenUrlAsync(string url)
+    {
+        OpenedUrls.Add(url);
+        return Task.CompletedTask;
+    }
+}

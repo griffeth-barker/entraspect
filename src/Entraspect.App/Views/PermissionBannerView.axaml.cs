@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace Entraspect.App.Views;
 
-public partial class PlaceholderPageView : UserControl
+public partial class PermissionBannerView : UserControl
 {
-    public PlaceholderPageView()
+    public PermissionBannerView()
     {
         InitializeComponent();
     }

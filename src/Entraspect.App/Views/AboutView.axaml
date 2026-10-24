@@ -1,0 +1,33 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             x:Class="Entraspect.App.Views.AboutView"
+             x:DataType="vm:AboutViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="8" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="About entraspect" Classes="pageTitle" />
+            <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" />
+            <TextBlock Text="{Binding ReadOnlyText}" TextWrapping="Wrap" />
+
+            <ContentControl Content="{Binding ExcessPermissions}" IsVisible="{Binding IsConnected}" Margin="0,4,0,0" />
+
+            <TextBlock Text="Permissions entraspect needs" Classes="sectionTitle" />
+            <TextBlock Classes="muted"
+                       Text="Microsoft Graph application permissions, granted to the app registration with admin consent. Checks whose permissions are missing don't run." />
+            <ItemsControl ItemsSource="{Binding RequiredPermissions}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RequiredPermission">
+                        <StackPanel Margin="0,4">
+                            <TextBlock Text="{Binding Permission}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding UsedBy, StringFormat='Used by: {0}'}" Classes="muted" FontSize="12" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="App data folder" Classes="sectionTitle" />
+            <TextBlock Classes="muted" Text="Connection profiles and settings are saved here. Passwords are never saved." />
+            <SelectableTextBlock Text="{Binding AppDataFolder}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
+             x:Class="Entraspect.App.Views.ChecksSettingsView"
+             x:DataType="vm:ChecksSettingsViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="8" MaxWidth="820" HorizontalAlignment="Left">
+            <TextBlock Text="Checks" Classes="pageTitle" />
+            <TextBlock Classes="muted"
+                       Text="Turn checks on or off. Scan only runs checks that are on. Changes are saved immediately. Permission status is shown while connected." />
+
+            <ItemsControl ItemsSource="{Binding Rows}" Margin="0,8,0,0">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CheckSettingsRow">
+                        <Border Padding="12" Margin="0,0,0,8" CornerRadius="8" BorderThickness="1"
+                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding CategoryTitle}" Classes="muted" FontSize="12" />
+                                    <ItemsControl ItemsSource="{Binding Permissions}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                <views:PermissionStatusView />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsEnabled}"
+                                              OnContent="On" OffContent="Off" VerticalAlignment="Top" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="Check options" Classes="sectionTitle" />
+            <TextBlock Classes="muted"
+                       Text="Expiry windows used by the expiry checks. Critical must be between 0 and the warning value." />
+            <Grid ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Warning within (days)" VerticalAlignment="Center" Margin="0,0,12,6" />
+                <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding ExpiryWarningDays}"
+                               Minimum="0" Maximum="3650" Increment="1" FormatString="0" Width="140" Margin="0,0,0,6" />
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Critical within (days)" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <NumericUpDown Grid.Row="1" Grid.Column="1" Value="{Binding ExpiryCriticalDays}"
+                               Minimum="0" Maximum="3650" Increment="1" FormatString="0" Width="140" />
+            </Grid>
+            <TextBlock Text="{Binding OptionsErrorText}" Classes="error"
+                       IsVisible="{Binding OptionsErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Text="{Binding SaveErrorText}" Classes="error"
+                       IsVisible="{Binding SaveErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

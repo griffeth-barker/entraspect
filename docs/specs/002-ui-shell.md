@@ -109,3 +109,5 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - **Remembering results:** results are only in memory and are lost when the app closes. Should the last scan be saved locally?
 - **Unexpected exceptions from a check:** `ScanRunner` only turns `DirectoryReadException` and cancellation into a check result. Any other exception (a bug in a check) still ends the whole scan. Should it mark only that check `Failed` instead?
 - **Permission replication delay:** a newly granted permission can take a few minutes to appear in new tokens. Should the banner say so after a Reconnect that still shows it missing?
+- **Check options placement:** `CheckOptions` is one shared set (the expiry windows), so Settings > Checks shows the options once below the check list rather than inside each check's row. Revisit if checks get options of their own.
+- **Overview counts for checks that didn't run:** a category whose checks all failed or were missing permissions shows 0 / 0 / 0, with the checks listed under "Checks that didn't run". Should the counts show a dash instead?

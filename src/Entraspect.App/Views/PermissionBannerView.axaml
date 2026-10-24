@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             x:Class="Entraspect.App.Views.PermissionBannerView"
+             x:DataType="vm:PermissionBannerViewModel"
+             IsVisible="{Binding IsOpen}">
+    <ui:FAInfoBar Title="Missing permission"
+                  Message="{Binding Message}"
+                  Severity="Warning"
+                  IsOpen="{Binding IsOpen}"
+                  IsClosable="False">
+        <StackPanel Spacing="8" Margin="0,0,0,8">
+            <ItemsControl ItemsSource="{Binding Details}" IsVisible="{Binding HasDetails}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                        <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <WrapPanel Orientation="Horizontal">
+                <Button Content="Open in Entra admin center" Command="{Binding OpenAdminCenterCommand}" Margin="0,0,8,4" />
+                <Button Content="Copy permission names" Command="{Binding CopyPermissionNamesCommand}" Margin="0,0,8,4" />
+                <Button Content="Reconnect" Command="{Binding ReconnectCommand}" Margin="0,0,8,4" />
+            </WrapPanel>
+        </StackPanel>
+    </ui:FAInfoBar>
+</UserControl>

@@ -1,28 +1,59 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
              x:Class="Entraspect.App.Views.CheckPageView"
              x:DataType="vm:CheckPageViewModel">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
-            <TextBlock Text="{Binding Title}" FontSize="22" FontWeight="SemiBold" />
+            <ContentControl Content="{Binding Banner}" />
+            <TextBlock Text="{Binding Title}" Classes="pageTitle" />
             <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding RequiredPermissionsText, StringFormat='Required permissions: {0}'}"
-                       Opacity="0.7" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding StatusText}" />
-            <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap"
-                       Foreground="{DynamicResource SystemFillColorCriticalBrush}"
+
+            <TextBlock Text="Required Microsoft Graph application permissions" FontWeight="SemiBold" Margin="0,6,0,0" />
+            <ItemsControl ItemsSource="{Binding Permissions}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                        <views:PermissionStatusView />
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Text="{x:Static vm:CheckPageViewModel.DisabledText}" Classes="muted"
+                       IsVisible="{Binding IsDisabled}" />
+            <TextBlock Text="{Binding StatusText}" Margin="0,6,0,0" />
+            <TextBlock Text="{Binding ErrorText}" Classes="error"
                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+
+            <WrapPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <ToggleButton Content="Critical" IsChecked="{Binding ShowCritical}" Margin="0,0,6,4" />
+                <ToggleButton Content="Warning" IsChecked="{Binding ShowWarning}" Margin="0,0,6,4" />
+                <ToggleButton Content="Info" IsChecked="{Binding ShowInfo}" Margin="0,0,12,4" />
+                <TextBox Text="{Binding FilterText}" Width="280" Margin="0,0,12,4"
+                         PlaceholderText="Filter by object, item or message" />
+                <TextBlock Text="{Binding FilterSummary}" VerticalAlignment="Center" Classes="muted" Margin="0,0,0,4" />
+            </WrapPanel>
         </StackPanel>
 
         <DataGrid ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
                   CanUserSortColumns="True"
+                  CanUserResizeColumns="True"
                   IsReadOnly="True"
                   GridLinesVisibility="Horizontal">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Severity" SortMemberPath="Severity"
-                                    Binding="{Binding Severity}" />
+                <DataGridTemplateColumn Header="Severity" SortMemberPath="Severity">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate x:DataType="vm:FindingRow">
+                            <Border Classes="label" Margin="8,0"
+                                    Classes.critical="{Binding IsCritical}"
+                                    Classes.warning="{Binding IsWarning}"
+                                    Classes.info="{Binding IsInfo}">
+                                <TextBlock Text="{Binding SeverityText}" FontSize="12" />
+                            </Border>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTextColumn Header="Object" SortMemberPath="ObjectDisplayName"
                                     Binding="{Binding ObjectDisplayName}" />
                 <DataGridTextColumn Header="Item" SortMemberPath="SubObjectDisplayName"

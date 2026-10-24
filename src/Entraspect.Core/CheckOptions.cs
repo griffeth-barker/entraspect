@@ -6,6 +6,16 @@ public sealed class CheckOptions
 
     public int ExpiryCriticalDays { get; init; } = 7;
 
+    /// <summary>Returns null if <paramref name="options"/> is valid, otherwise what is wrong, for Settings.</summary>
+    public static string? Validate(CheckOptions options) => ExpiryError(options);
+
+    private static string? ExpiryError(CheckOptions options) =>
+        options.ExpiryCriticalDays < 0
+            ? "Critical days can't be negative."
+            : options.ExpiryCriticalDays > options.ExpiryWarningDays
+                ? "Critical days must be less than or equal to warning days."
+                : null;
+
     /// <summary>
     /// Returns a valid copy of <paramref name="options"/>, or the defaults if it is null. Each rule only resets the
     /// options it covers, so add new options here with their own rule. Expiry: <c>0 &lt;= ExpiryCriticalDays &lt;=
@@ -19,7 +29,7 @@ public sealed class CheckOptions
             return defaults;
         }
 
-        var expiryValid = options.ExpiryCriticalDays >= 0 && options.ExpiryCriticalDays <= options.ExpiryWarningDays;
+        var expiryValid = ExpiryError(options) is null;
 
         return new CheckOptions
         {

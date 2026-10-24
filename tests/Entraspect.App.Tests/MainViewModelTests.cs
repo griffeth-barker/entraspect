@@ -14,12 +14,13 @@ public sealed class MainViewModelTests : IDisposable
 {
     private const string CheckId = "app-credential-expiry";
     private const string FakePassword = "fake-pfx-password-for-test";
+    private const string ClientId = "00000000-0000-0000-0000-0000000000c1";
 
     private static readonly DateTimeOffset Now = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"entraspect-main-{Guid.NewGuid()}");
     private readonly FakeTimeProvider _time = new(Now);
-    private readonly FakePasswordPrompt _prompt = new();
+    private readonly FakeUserInteraction _prompt = new();
     private readonly List<(ConnectionProfile Profile, string? Password)> _connectCalls = [];
 
     private IDirectoryReader _reader = new FakeReader(OneExpiringApp());
@@ -83,7 +84,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Connect_with_a_thumbprint_opens_overview_without_asking_for_a_password()
     {
-        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = "c1", CertificateThumbprint = "AB" });
+        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificateThumbprint = "AB" });
         var vm = CreateViewModel(lastUsed: "p1");
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -105,12 +106,13 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Connect_with_a_pfx_asks_for_the_password_and_never_saves_it()
     {
-        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = "c1", CertificatePath = "/x.pfx" });
+        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificatePath = "/x.pfx" });
         _prompt.Password = FakePassword;
         var vm = CreateViewModel(lastUsed: "p1");
 
         await vm.ConnectCommand.ExecuteAsync(null);
-        vm.Profiles.SaveProfileCommand.Execute(null);
+        vm.Profiles.EditCommand.Execute(null);
+        vm.Profiles.SaveCommand.Execute(null);
 
         Assert.Equal(1, _prompt.Calls);
         Assert.Equal(FakePassword, Assert.Single(_connectCalls).Password);
@@ -124,7 +126,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Cancelling_the_password_dialog_does_not_connect()
     {
-        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = "c1", CertificatePath = "/x.pfx" });
+        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificatePath = "/x.pfx" });
         _prompt.Password = null;
         var vm = CreateViewModel(lastUsed: "p1");
 
@@ -258,7 +260,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Reconnect_gets_new_permissions_and_clears_old_results()
     {
-        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = "c1", CertificatePath = "/x.pfx" });
+        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificatePath = "/x.pfx" });
         _prompt.Password = FakePassword;
         var vm = CreateViewModel(lastUsed: "p1");
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -273,9 +275,130 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(CheckItem(vm).HasBadge);
     }
 
+    [Fact]
+    public async Task Missing_permission_shows_banners_on_connect_before_any_scan()
+    {
+        _granted = [];
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        var banner = CheckPage(vm).Banner;
+        Assert.True(banner.IsOpen);
+        Assert.Equal(
+            "This check needs the Microsoft Graph application permission Application.Read.All, which isn't granted " +
+            "to this app registration. Add it and grant admin consent, then reconnect.",
+            banner.Message);
+        Assert.True(vm.Overview.Banner.IsOpen);
+        Assert.Equal(
+            $"Application.Read.All: needed by {CheckPage(vm).Title}",
+            Assert.Single(vm.Overview.Banner.Details));
+        Assert.True(Assert.Single(CheckPage(vm).Permissions).IsMissing);
+    }
+
+    [Fact]
+    public async Task Granted_permissions_hide_the_banners()
+    {
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.False(CheckPage(vm).Banner.IsOpen);
+        Assert.False(vm.Overview.Banner.IsOpen);
+        Assert.True(Assert.Single(CheckPage(vm).Permissions).IsGranted);
+    }
+
+    [Fact]
+    public async Task Banner_buttons_open_the_api_permissions_page_and_copy_the_names()
+    {
+        _granted = [];
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await CheckPage(vm).Banner.OpenAdminCenterCommand.ExecuteAsync(null);
+        await vm.Overview.Banner.CopyPermissionNamesCommand.ExecuteAsync(null);
+
+        var url = Assert.Single(_prompt.OpenedUrls);
+        Assert.Equal(EntraAdminCenter.ApiPermissionsUrl(ClientId), url);
+        Assert.StartsWith(EntraAdminCenter.BaseUrl, url);
+        Assert.Contains(ClientId, url);
+        Assert.Equal("Application.Read.All", Assert.Single(_prompt.CopiedText));
+        Assert.Same(vm.ReconnectCommand, CheckPage(vm).Banner.ReconnectCommand);
+    }
+
+    [Fact]
+    public async Task Disabling_a_check_removes_it_from_the_overview_banner_and_is_saved()
+    {
+        _granted = [];
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.True(vm.Overview.Banner.IsOpen);
+
+        Assert.Single(vm.ChecksSettings.Rows).IsEnabled = false;
+
+        Assert.False(vm.Overview.Banner.IsOpen);
+        Assert.True(CheckPage(vm).IsDisabled);
+        Assert.Equal(new[] { CheckId }, new SettingsStore(_dir).Load(out _).DisabledCheckIds);
+    }
+
+    [Fact]
+    public async Task Unneeded_write_and_read_permissions_show_the_excess_banners()
+    {
+        _granted = ["Application.Read.All", "User.ReadWrite.All", "Mail.Send", "Directory.Read.All"];
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(vm.ExcessPermissions.HasWritePermissions);
+        Assert.Contains("Mail.Send, User.ReadWrite.All", vm.ExcessPermissions.WriteMessage);
+        Assert.Contains("Anyone with its certificate can change your tenant", vm.ExcessPermissions.WriteMessage);
+        Assert.True(vm.ExcessPermissions.HasUnusedReadPermissions);
+        Assert.Contains("Directory.Read.All", vm.ExcessPermissions.ReadMessage);
+        Assert.True(vm.About.IsConnected);
+
+        vm.DisconnectCommand.Execute(null);
+
+        Assert.False(vm.ExcessPermissions.HasWritePermissions);
+        Assert.False(vm.About.IsConnected);
+    }
+
+    [Fact]
+    public async Task Overview_counts_findings_per_category_and_opens_the_check()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.False(vm.Overview.HasScan);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        var category = Assert.Single(vm.Overview.Categories);
+        Assert.Equal("App registrations", category.Title);
+        Assert.Equal((1, 0, 0), (category.Critical, category.Warning, category.Info));
+        Assert.False(vm.Overview.HasProblems);
+
+        vm.Overview.OpenCommand.Execute(category.Target);
+
+        Assert.Same(CheckItem(vm), vm.SelectedNavItem);
+        Assert.Same(CheckPage(vm), vm.CurrentPage);
+    }
+
+    [Fact]
+    public async Task Overview_lists_checks_that_failed_with_the_reason()
+    {
+        _reader = new FailingReader();
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        var problem = Assert.Single(vm.Overview.Problems);
+        Assert.Contains("fake read failure", problem.Reason);
+        Assert.Same(CheckItem(vm), problem.Target);
+    }
+
     private MainViewModel CreateConnectableViewModel()
     {
-        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = "c1", CertificateThumbprint = "AB" });
+        SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificateThumbprint = "AB" });
         return CreateViewModel(lastUsed: "p1");
     }
 
@@ -332,19 +455,6 @@ public sealed class MainViewModelTests : IDisposable
             ],
         },
     ];
-
-    private sealed class FakePasswordPrompt : IPasswordPrompt
-    {
-        public string? Password { get; set; }
-
-        public int Calls { get; private set; }
-
-        public Task<string?> RequestPasswordAsync(string profileName)
-        {
-            Calls++;
-            return Task.FromResult(Password);
-        }
-    }
 
     private sealed class FakeReader(IReadOnlyList<AppRegistration> apps) : IDirectoryReader
     {

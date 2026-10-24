@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             x:Class="Entraspect.App.Views.ConnectionProfilesView"
+             x:DataType="vm:ConnectionProfilesViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="8" MaxWidth="720" HorizontalAlignment="Left">
+            <TextBlock Text="Connection profiles" Classes="pageTitle" />
+            <TextBlock Classes="muted"
+                       Text="Each profile is an app registration in a tenant, signing in with a certificate. Profiles are saved without passwords; a .pfx password is asked for each time you connect." />
+
+            <ListBox ItemsSource="{Binding Profiles}"
+                     SelectedItem="{Binding SelectedProfile}"
+                     IsEnabled="{Binding IsNotEditing}"
+                     MaxHeight="260" Margin="0,8,0,0">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ProfileListItem">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
+                            <TextBlock Text="{x:Static vm:ConnectionProfilesViewModel.AddCertificateText}"
+                                       IsVisible="{Binding NeedsCertificate}" Classes="error" FontSize="12" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock Text="No saved profiles yet. Add one to connect." Classes="muted"
+                       IsVisible="{Binding HasNoProfiles}" />
+
+            <WrapPanel Orientation="Horizontal" IsVisible="{Binding IsNotEditing}">
+                <Button Content="Connect" Command="{Binding ConnectCommand}" Classes="accent" Margin="0,0,8,4" />
+                <Button Content="Add" Command="{Binding AddCommand}" Margin="0,0,8,4" />
+                <Button Content="Edit" Command="{Binding EditCommand}" Margin="0,0,8,4" />
+                <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,0,8,4" />
+            </WrapPanel>
+
+            <Border IsVisible="{Binding IsEditing}" Padding="16" CornerRadius="8" BorderThickness="1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding EditorTitle}" Classes="sectionTitle" Margin="0" />
+
+                    <TextBlock Text="Profile name" />
+                    <TextBox Text="{Binding Name}" PlaceholderText="My tenant" />
+
+                    <TextBlock Text="Tenant ID" />
+                    <TextBox Text="{Binding TenantId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+
+                    <TextBlock Text="Client ID (application ID)" />
+                    <TextBox Text="{Binding ClientId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
+
+                    <TextBlock Text="Certificate (.pfx) path" />
+                    <TextBox Text="{Binding CertificatePath}" PlaceholderText="/path/to/cert.pfx" />
+
+                    <TextBlock Text="Or certificate thumbprint (OS certificate store)" />
+                    <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <Button Content="Save" Command="{Binding SaveCommand}" Classes="accent" />
+                        <Button Content="Cancel" Command="{Binding CancelEditCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{Binding ErrorText}" Classes="error"
+                       IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

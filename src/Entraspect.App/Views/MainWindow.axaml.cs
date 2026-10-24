@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input.Platform;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Entraspect.App.Services;
@@ -8,7 +9,7 @@ using FluentAvalonia.UI.Controls;
 
 namespace Entraspect.App.Views;
 
-public partial class MainWindow : Window, IPasswordPrompt
+public partial class MainWindow : Window, IUserInteraction
 {
     public MainWindow()
     {
@@ -92,6 +93,33 @@ public partial class MainWindow : Window, IPasswordPrompt
         var password = result == FAContentDialogResult.Primary ? passwordBox.Text ?? string.Empty : null;
         passwordBox.Text = string.Empty;
         return password;
+    }
+
+    public async Task<bool> ConfirmAsync(string title, string message, string confirmText)
+    {
+        var dialog = new FAContentDialog
+        {
+            Title = title,
+            Content = new TextBlock { Text = message, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxWidth = 420 },
+            PrimaryButtonText = confirmText,
+            CloseButtonText = "Cancel",
+            DefaultButton = FAContentDialogButton.Close,
+        };
+
+        return await dialog.ShowAsync(this) == FAContentDialogResult.Primary;
+    }
+
+    public async Task CopyTextAsync(string text)
+    {
+        if (Clipboard is { } clipboard)
+        {
+            await clipboard.SetTextAsync(text);
+        }
+    }
+
+    public async Task OpenUrlAsync(string url)
+    {
+        await Launcher.LaunchUriAsync(new Uri(url));
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)

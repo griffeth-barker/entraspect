@@ -35,4 +35,20 @@ public sealed class CheckOptionsTests
         Assert.Equal(30, options.ExpiryWarningDays);
         Assert.Equal(7, options.ExpiryCriticalDays);
     }
+
+    [Theory]
+    [InlineData(30, 7)]
+    [InlineData(0, 0)]
+    public void Validate_accepts_valid_expiry_values(int warning, int critical)
+    {
+        Assert.Null(CheckOptions.Validate(new CheckOptions { ExpiryWarningDays = warning, ExpiryCriticalDays = critical }));
+    }
+
+    [Theory]
+    [InlineData(5, 10)]
+    [InlineData(30, -1)]
+    public void Validate_rejects_invalid_expiry_values(int warning, int critical)
+    {
+        Assert.NotNull(CheckOptions.Validate(new CheckOptions { ExpiryWarningDays = warning, ExpiryCriticalDays = critical }));
+    }
 }

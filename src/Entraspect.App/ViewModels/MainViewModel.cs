@@ -16,24 +16,23 @@ namespace Entraspect.App.ViewModels;
 /// </summary>
 public partial class MainViewModel : ViewModelBase
 {
-    private readonly SettingsStore _settingsStore;
+    private readonly SettingsState _settings;
     private readonly Func<ConnectionProfile, string?, CancellationToken, Task<DirectoryConnection>> _connect;
-    private readonly IPasswordPrompt _passwordPrompt;
+    private readonly IUserInteraction _ui;
     private readonly TimeProvider _timeProvider;
     private readonly Dictionary<string, (NavItemViewModel Item, CheckPageViewModel Page)> _checkPages = new();
-    private AppSettings _settings;
     private DirectoryConnection? _connection;
     private ConnectionProfile? _connectedProfile;
 
     // Bumped on every scan and disconnect, so late progress reports and results from an old scan are ignored.
     private int _scanGeneration;
 
-    public MainViewModel(IPasswordPrompt passwordPrompt)
+    public MainViewModel(IUserInteraction ui)
         : this(
             new ProfileStore(),
             new SettingsStore(),
             (profile, password, ct) => DirectoryConnector.ConnectAsync(profile, password, ct),
-            passwordPrompt,
+            ui,
             TimeProvider.System)
     {
     }
@@ -42,18 +41,20 @@ public partial class MainViewModel : ViewModelBase
         ProfileStore profileStore,
         SettingsStore settingsStore,
         Func<ConnectionProfile, string?, CancellationToken, Task<DirectoryConnection>> connect,
-        IPasswordPrompt passwordPrompt,
+        IUserInteraction ui,
         TimeProvider timeProvider)
     {
-        _settingsStore = settingsStore;
         _connect = connect;
-        _passwordPrompt = passwordPrompt;
+        _ui = ui;
         _timeProvider = timeProvider;
-        _settings = settingsStore.Load(out var settingsError);
+        _settings = new SettingsState(settingsStore);
 
         Checks = CheckCatalog.All(timeProvider);
-        Profiles = new ConnectionViewModel(profileStore, _settings.LastUsedProfileName);
-        Overview = new OverviewViewModel();
+        ExcessPermissions = new ExcessPermissionsViewModel();
+        Profiles = new ConnectionProfilesViewModel(profileStore, ui, ConnectCommand, _settings.Current.LastUsedProfileName);
+        Overview = new OverviewViewModel(NewBanner(), ExcessPermissions, item => SelectedNavItem = item);
+        ChecksSettings = new ChecksSettingsViewModel(Checks, CategoryTitle, _settings);
+        About = new AboutViewModel(Checks, ExcessPermissions, profileStore.FolderPath);
 
         OverviewItem = new NavItemViewModel(NavItemKind.Overview, "Overview", "Home", Overview);
         MenuItems.Add(OverviewItem);
@@ -69,7 +70,7 @@ public partial class MainViewModel : ViewModelBase
             var section = new NavItemViewModel(NavItemKind.Section, CategoryTitle(category), CategoryIcon(category));
             foreach (var check in checks)
             {
-                var page = new CheckPageViewModel(check);
+                var page = new CheckPageViewModel(check, NewBanner());
                 var item = new NavItemViewModel(NavItemKind.Check, check.Title, page: page);
                 section.Add(item);
                 _checkPages[check.Id] = (item, page);
@@ -81,22 +82,29 @@ public partial class MainViewModel : ViewModelBase
         ConnectionProfilesItem = new NavItemViewModel(NavItemKind.SettingsPage, "Connection profiles", "Contact", Profiles);
         SettingsItem = new NavItemViewModel(NavItemKind.Settings, "Settings", "Settings")
             .Add(ConnectionProfilesItem)
-            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "Checks", "Library",
-                new PlaceholderPageViewModel("Checks", "Enabling checks and editing check options arrives in a later step.")))
-            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "About", "Important",
-                new PlaceholderPageViewModel("About", "entraspect is read-only: it never modifies your tenant.")));
+            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "Checks", "Library", ChecksSettings))
+            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "About", "Important", About));
         FooterItems.Add(SettingsItem);
 
-        ErrorText = settingsError ?? string.Empty;
+        // Turning a check on or off changes which missing permissions the banners list.
+        _settings.Changed += (_, _) => RefreshPermissions();
+
+        ErrorText = _settings.LoadError ?? string.Empty;
         UpdateConnectionState();
         SelectedNavItem = ConnectionProfilesItem;
     }
 
     public IReadOnlyList<ICheck> Checks { get; }
 
-    public ConnectionViewModel Profiles { get; }
+    public ConnectionProfilesViewModel Profiles { get; }
 
     public OverviewViewModel Overview { get; }
+
+    public ChecksSettingsViewModel ChecksSettings { get; }
+
+    public AboutViewModel About { get; }
+
+    public ExcessPermissionsViewModel ExcessPermissions { get; }
 
     public ObservableCollection<NavItemViewModel> MenuItems { get; } = [];
 
@@ -225,7 +233,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         var generation = ++_scanGeneration;
-        var enabled = Checks.Where(c => !_settings.DisabledCheckIds.Contains(c.Id)).ToList();
+        var enabled = EnabledChecks();
 
         // Progress<T> captures the UI synchronization context, so the handler runs on the UI thread.
         var progress = new Progress<ScanProgress>(p =>
@@ -240,7 +248,7 @@ public partial class MainViewModel : ViewModelBase
             new CachingDirectoryReader(connection.Reader),
             enabled,
             connection.GrantedPermissions,
-            _settings.CheckOptions,
+            _settings.Current.CheckOptions,
             _timeProvider,
             progress);
 
@@ -304,9 +312,9 @@ public partial class MainViewModel : ViewModelBase
     {
         ErrorText = string.Empty;
         string? password = null;
-        if (ConnectionViewModel.NeedsPassword(profile))
+        if (ConnectionProfilesViewModel.NeedsPassword(profile))
         {
-            password = await _passwordPrompt.RequestPasswordAsync(profile.Name);
+            password = await _ui.RequestPasswordAsync(profile.Name);
             if (password is null)
             {
                 return;
@@ -327,7 +335,11 @@ public partial class MainViewModel : ViewModelBase
             ProgressText = string.Empty;
             ApplyResults(null);
             UpdateConnectionState();
-            SaveLastUsedProfile(profile.Name);
+            if (_settings.SetLastUsedProfile(profile.Name) is { } saveError)
+            {
+                ErrorText = $"Connected, but {saveError}";
+            }
+
             SelectedNavItem = OverviewItem;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -344,30 +356,6 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    private void SaveLastUsedProfile(string profileName)
-    {
-        if (string.IsNullOrWhiteSpace(profileName) || profileName == _settings.LastUsedProfileName)
-        {
-            return;
-        }
-
-        _settings = new AppSettings
-        {
-            DisabledCheckIds = _settings.DisabledCheckIds,
-            CheckOptions = _settings.CheckOptions,
-            LastUsedProfileName = profileName,
-        };
-
-        try
-        {
-            _settingsStore.Save(_settings);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            ErrorText = $"Connected, but settings could not be saved: {ex.Message}";
-        }
-    }
-
     private void UpdateConnectionState()
     {
         IsConnected = _connection is not null;
@@ -379,7 +367,49 @@ public partial class MainViewModel : ViewModelBase
         {
             item.IsEnabled = IsConnected;
         }
+
+        RefreshPermissions();
     }
+
+    /// <summary>
+    /// Updates everything that depends on the granted permissions and the enabled checks: the missing-permission
+    /// banners, the granted or missing labels, and the excess permissions banners.
+    /// </summary>
+    private void RefreshPermissions()
+    {
+        IReadOnlyCollection<string>? granted = _connection is null
+            ? null
+            : new HashSet<string>(_connection.GrantedPermissions, StringComparer.Ordinal);
+
+        foreach (var (checkId, (_, page)) in _checkPages)
+        {
+            page.IsDisabled = !_settings.IsCheckEnabled(checkId);
+            page.SetGrantedPermissions(granted);
+        }
+
+        ChecksSettings.SetGrantedPermissions(granted);
+        About.IsConnected = granted is not null;
+
+        if (granted is null)
+        {
+            Overview.Banner.Hide();
+            ExcessPermissions.SetReview(null);
+            return;
+        }
+
+        // Missing permissions only count for enabled checks; unused ones are judged against every check.
+        Overview.Banner.ShowForOverview(PermissionReview.Review(EnabledChecks(), granted).MissingPermissions);
+        ExcessPermissions.SetReview(PermissionReview.Review(Checks, granted));
+    }
+
+    private List<ICheck> EnabledChecks() => Checks.Where(c => _settings.IsCheckEnabled(c.Id)).ToList();
+
+    private PermissionBannerViewModel NewBanner() => new(OpenAdminCenterAsync, _ui.CopyTextAsync, ReconnectCommand);
+
+    /// <summary>Opens the connected app registration's API permissions page, where the admin adds permissions.</summary>
+    private Task OpenAdminCenterAsync() => _connection is { } connection
+        ? _ui.OpenUrlAsync(EntraAdminCenter.ApiPermissionsUrl(connection.ClientId))
+        : _ui.OpenUrlAsync(EntraAdminCenter.BaseUrl);
 
     private void ApplyResults(IReadOnlyList<CheckResult>? results)
     {
@@ -390,13 +420,16 @@ public partial class MainViewModel : ViewModelBase
             page.SetResult(result);
         }
 
-        Overview.SetResults(Checks, results, results is null ? null : _timeProvider.GetUtcNow());
+        Overview.SetResults(
+            MenuItems.Where(i => i.Kind == NavItemKind.Section),
+            results,
+            results is null ? null : _timeProvider.GetUtcNow());
     }
 
     private IEnumerable<NavItemViewModel> AllItems() =>
         MenuItems.Concat(FooterItems).SelectMany(i => i.Children.Prepend(i));
 
-    private static string CategoryTitle(CheckCategory category) => category switch
+    public static string CategoryTitle(CheckCategory category) => category switch
     {
         CheckCategory.Users => "Users",
         CheckCategory.Groups => "Groups",

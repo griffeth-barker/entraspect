@@ -1,0 +1,18 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             x:Class="Entraspect.App.Views.ScanBar"
+             x:DataType="vm:MainViewModel"
+             DataContext="{Binding $parent[Window].DataContext}">
+    <!-- Scan command bar for the results pages (Overview and every check page). Bound to the shell. -->
+    <StackPanel Spacing="4">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Scan" Command="{Binding ScanCommand}" Classes="accent" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsScanning}" />
+            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsScanning}" Width="140" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding ProgressText}" VerticalAlignment="Center" Classes="muted" />
+        </StackPanel>
+        <TextBlock Text="{Binding ScanErrorText}" Classes="error"
+                   IsVisible="{Binding ScanErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+    </StackPanel>
+</UserControl>

@@ -35,7 +35,7 @@ Dependency direction: App → Graph → Core, and App → Core. Core references 
 ## Core concepts
 
 - **`IDirectoryReader`**: async read methods returning simple Core-owned models (e.g. `AppRegistration`, `AppCredential`). Entraspect.Graph is the only place Graph is touched.
-- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `RequiredPermissions`, and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
+- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `RequiredPermissions`, `Labels` (a `FindingLabels` naming the findings grid columns after the object's properties, for example "Display name" and "Object ID"), and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
 - **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`, optional `SubObjectType` / `SubObjectDisplayName` (the item inside the object, e.g. a credential inside an app registration).
 - Checks get "now" from an injected `TimeProvider`, never `DateTime.Now`, so date logic is testable.
 
@@ -81,4 +81,7 @@ A step is only done when build and tests both pass.
 
 - Keep pages light on text. Put descriptions and explainers in an info icon (`InfoTip`) next to the title, heading or field they explain, not in body text. Short status and error messages stay visible.
 - A check's `Title` is its navigation label: at most `CheckCatalog.MaxTitleLength` (26) characters. Don't repeat the section name; "Expiring credentials" sits under App registrations.
+- Every date or time shown goes through `TimeDisplay`, which follows the UTC or local time choice in Settings > Preferences.
+- Info is always blue (the app overrides FluentAvalonia's accent-derived Attention colour); don't use the accent colour to mean info.
+- Check pages filter like the Entra admin center: Search plus Add filter (property, then value). Don't add per-page filter controls.
 - Required permissions are shown only on Settings > Checks, as labels in each check's card: green when granted, red when missing. A check page doesn't list them; it shows the permission banner when any are missing.

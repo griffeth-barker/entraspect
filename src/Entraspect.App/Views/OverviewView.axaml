@@ -1,11 +1,13 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
              x:Class="Entraspect.App.Views.OverviewView"
              x:DataType="vm:OverviewViewModel">
     <ScrollViewer>
         <StackPanel Spacing="8">
             <TextBlock Text="Overview" Classes="pageTitle" />
+            <views:ScanBar />
 
             <!-- The connected tenant. -->
             <Border IsVisible="{Binding IsConnected}" Padding="16,12" CornerRadius="8" BorderThickness="1"

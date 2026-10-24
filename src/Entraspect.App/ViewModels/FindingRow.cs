@@ -1,3 +1,4 @@
+using Entraspect.App.Services;
 using Entraspect.Core;
 
 namespace Entraspect.App.ViewModels;
@@ -5,9 +6,10 @@ namespace Entraspect.App.ViewModels;
 /// <summary>One row of the findings grid. Property names match <see cref="Finding"/> so column sorting works.</summary>
 public sealed class FindingRow
 {
-    public FindingRow(Finding finding)
+    public FindingRow(Finding finding, TimeDisplay time)
     {
         Finding = finding;
+        DueText = finding.DueDate is { } due ? time.Date(due) : string.Empty;
     }
 
     public Finding Finding { get; }
@@ -24,18 +26,24 @@ public sealed class FindingRow
 
     public string ObjectDisplayName => Finding.ObjectDisplayName;
 
+    public string ObjectId => Finding.ObjectId;
+
     public string? SubObjectDisplayName => Finding.SubObjectDisplayName;
 
     public string? SubObjectType => Finding.SubObjectType;
 
     public DateTimeOffset? DueDate => Finding.DueDate;
 
+    /// <summary>The due date in the zone chosen in Settings > Preferences.</summary>
+    public string DueText { get; }
+
     public string Message => Finding.Message;
 
-    /// <summary>True if <paramref name="text"/> appears in the object, item or message, ignoring case.</summary>
-    public bool Matches(string text) =>
+    /// <summary>True if <paramref name="text"/> appears in the display name, object ID, item or message.</summary>
+    public bool MatchesSearch(string text) =>
         string.IsNullOrWhiteSpace(text)
         || Contains(ObjectDisplayName, text)
+        || Contains(ObjectId, text)
         || Contains(SubObjectDisplayName, text)
         || Contains(Message, text);
 

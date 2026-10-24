@@ -28,4 +28,15 @@ public sealed class CheckCatalogTests
                 $"'{check.Title}' is longer than {CheckCatalog.MaxTitleLength} characters.");
         }
     }
+
+    [Fact]
+    public void Expiring_credentials_columns_are_named_like_the_app_registration()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "app-credential-expiry");
+
+        Assert.Equal(
+            ("Display name", "Object ID", "Credential", "Type", "Expires"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+    }
 }

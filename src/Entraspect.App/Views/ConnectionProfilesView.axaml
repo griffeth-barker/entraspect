@@ -13,6 +13,30 @@
         <StackPanel Spacing="8">
             <TextBlock Text="Connection profiles" Classes="pageTitle" />
 
+            <!-- The current connection. Bound to the shell, which owns the connection. -->
+            <Border DataContext="{Binding $parent[Window].DataContext}" x:DataType="vm:MainViewModel"
+                    Padding="16,12" CornerRadius="8" BorderThickness="1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ConnectionStatusText}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding ConnectedProfileTitle}" Classes="muted"
+                                       IsVisible="{Binding IsConnected}" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsConnecting}" Width="120" />
+                            <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsConnecting}" />
+                            <Button Content="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding IsConnected}" />
+                            <Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsVisible="{Binding IsConnected}" />
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="{Binding ConnectionErrorText}" Classes="error"
+                               IsVisible="{Binding ConnectionErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+            </Border>
+
             <ListBox ItemsSource="{Binding Profiles}"
                      SelectedItem="{Binding SelectedProfile}"
                      IsEnabled="{Binding IsNotEditing}"

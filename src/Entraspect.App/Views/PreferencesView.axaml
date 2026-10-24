@@ -1,0 +1,28 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
+             x:Class="Entraspect.App.Views.PreferencesView"
+             x:DataType="vm:PreferencesViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="8">
+            <TextBlock Text="Preferences" Classes="pageTitle" />
+
+            <Border Padding="16,12" CornerRadius="8" BorderThickness="1" HorizontalAlignment="Left" MinWidth="420"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <StackPanel Spacing="6">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Show dates and times in" FontWeight="SemiBold" />
+                        <views:InfoTip Text="Applies to every date and time entraspect shows, such as expiry dates and scan times." />
+                    </StackPanel>
+                    <RadioButton GroupName="TimeZone" Content="UTC" IsChecked="{Binding UseUtc}" />
+                    <RadioButton GroupName="TimeZone" Content="{Binding LocalTimeLabel}" IsChecked="{Binding UseLocalTime}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="{Binding ErrorText}" Classes="error"
+                       IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

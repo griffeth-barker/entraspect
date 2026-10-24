@@ -18,7 +18,7 @@ public sealed record CheckProblem(string Title, string Reason, NavItemViewModel 
 /// </summary>
 public partial class OverviewViewModel : ViewModelBase
 {
-    public const string NoScanText = "No scan yet. Use Scan in the header to run every enabled check.";
+    public const string NoScanText = "No scan yet.";
 
     private readonly Action<NavItemViewModel> _navigate;
 
@@ -52,13 +52,14 @@ public partial class OverviewViewModel : ViewModelBase
     public partial string ConnectedAtText { get; set; } = string.Empty;
 
     /// <summary>Shows the connected tenant at the top of the page, or clears it when disconnected.</summary>
-    public void SetConnection(Graph.ConnectionProfile? profile, DateTimeOffset? connectedAt)
+    /// <param name="connectedAtText">The connect time, already formatted for the time preference.</param>
+    public void SetConnection(Graph.ConnectionProfile? profile, string? connectedAtText)
     {
         IsConnected = profile is not null;
         ProfileName = profile?.Name ?? string.Empty;
         TenantId = profile?.TenantId ?? string.Empty;
         ClientId = profile?.ClientId ?? string.Empty;
-        ConnectedAtText = connectedAt is { } at ? $"{at:yyyy-MM-dd HH:mm} UTC" : string.Empty;
+        ConnectedAtText = connectedAtText ?? string.Empty;
     }
 
     [ObservableProperty]
@@ -79,12 +80,12 @@ public partial class OverviewViewModel : ViewModelBase
     public void SetResults(
         IEnumerable<NavItemViewModel> sections,
         IReadOnlyList<CheckResult>? results,
-        DateTimeOffset? scannedAt)
+        string? scannedAtText)
     {
         Categories.Clear();
         Problems.Clear();
-        HasScan = results is not null && scannedAt is not null;
-        LastScanText = HasScan ? $"Last scan: {scannedAt:yyyy-MM-dd HH:mm} UTC" : NoScanText;
+        HasScan = results is not null && scannedAtText is not null;
+        LastScanText = HasScan ? $"Last scan: {scannedAtText}" : NoScanText;
 
         if (results is not null)
         {

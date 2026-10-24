@@ -5,13 +5,15 @@
              x:Class="Entraspect.App.Views.CheckPageView"
              x:DataType="vm:CheckPageViewModel">
     <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
             <ContentControl Content="{Binding Banner}" />
 
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="{Binding Title}" Classes="pageTitle" />
                 <views:InfoTip Text="{Binding Description}" />
             </StackPanel>
+
+            <views:ScanBar />
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="{Binding StatusText}" Classes="muted" />
@@ -21,17 +23,88 @@
             <TextBlock Text="{Binding ErrorText}" Classes="error"
                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
-            <WrapPanel Orientation="Horizontal" Margin="0,6,0,0">
-                <ToggleButton Content="Critical" IsChecked="{Binding ShowCritical}" Margin="0,0,6,4" />
-                <ToggleButton Content="Warning" IsChecked="{Binding ShowWarning}" Margin="0,0,6,4" />
-                <ToggleButton Content="Info" IsChecked="{Binding ShowInfo}" Margin="0,0,12,4" />
-                <TextBox Text="{Binding FilterText}" Width="260" Margin="0,0,12,4" PlaceholderText="Filter" />
-                <views:InfoTip Text="Matches the object, item or message." Margin="0,0,12,4" />
-                <TextBlock Text="{Binding FilterSummary}" VerticalAlignment="Center" Classes="muted" Margin="0,0,0,4" />
+            <!-- Search and filters, like the Entra admin center lists. -->
+            <WrapPanel Orientation="Horizontal" Margin="0,4,0,0">
+                <TextBox Text="{Binding SearchText}" Width="260" Margin="0,0,8,4" PlaceholderText="Search" />
+                <Button x:Name="AddFilterButton" Command="{Binding AddFilterCommand}" Margin="0,0,8,4">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="+" FontWeight="SemiBold" />
+                        <TextBlock Text="Add filter" />
+                    </StackPanel>
+                </Button>
+                <ItemsControl ItemsSource="{Binding ActiveFilters}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActiveFilter">
+                            <Border Classes="filterPill" Margin="0,0,8,4">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="{Binding DisplayText}" Classes="pillText"
+                                            Command="{Binding $parent[UserControl].((vm:CheckPageViewModel)DataContext).EditFilterCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="Edit filter" />
+                                    <Button Content="✕" Classes="pillText"
+                                            Command="{Binding $parent[UserControl].((vm:CheckPageViewModel)DataContext).RemoveFilterCommand}"
+                                            CommandParameter="{Binding}"
+                                            ToolTip.Tip="Remove filter" />
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Reset filters" Command="{Binding ResetFiltersCommand}" Classes="pillText"
+                        IsVisible="{Binding HasActiveFilters}" Margin="0,0,8,4" />
+                <TextBlock Text="{Binding FilterSummary}" VerticalAlignment="Center" Classes="muted" Margin="4,0,0,4" />
             </WrapPanel>
+
+            <Popup IsOpen="{Binding IsFilterEditorOpen, Mode=TwoWay}"
+                   PlacementTarget="{Binding #AddFilterButton}"
+                   Placement="BottomEdgeAlignedLeft"
+                   IsLightDismissEnabled="True">
+                <Border Padding="12" CornerRadius="8" BorderThickness="1" MinWidth="260"
+                        BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                        Background="{DynamicResource SolidBackgroundFillColorTertiaryBrush}">
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding EditorTitle}" FontWeight="SemiBold" />
+
+                        <!-- Step 1: pick the property to filter on. -->
+                        <ItemsControl ItemsSource="{Binding FilterFields}" IsVisible="{Binding IsChoosingField}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FilterField">
+                                    <Button Content="{Binding Name}" Classes="menuItem"
+                                            Command="{Binding $parent[UserControl].((vm:CheckPageViewModel)DataContext).ChooseFieldCommand}"
+                                            CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Step 2: pick values, or type text. -->
+                        <ItemsControl ItemsSource="{Binding EditorChoices}" IsVisible="{Binding IsEditingChoice}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:FilterChoice">
+                                    <CheckBox Content="{Binding Value}" IsChecked="{Binding IsSelected}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <StackPanel Spacing="4" IsVisible="{Binding IsEditingText}">
+                            <TextBlock Text="Contains" Classes="muted" />
+                            <TextBox Text="{Binding EditorText}" Width="240" HorizontalAlignment="Left" />
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding !IsChoosingField}">
+                            <Button Content="Apply" Command="{Binding ApplyFilterCommand}" Classes="accent" />
+                            <Button Content="Cancel" Command="{Binding CancelFilterCommand}" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Popup>
         </StackPanel>
 
-        <DataGrid ItemsSource="{Binding Findings}"
+        <DataGrid x:Name="FindingsGrid"
+                  ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
                   CanUserSortColumns="True"
                   CanUserResizeColumns="True"
@@ -50,14 +123,17 @@
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>
-                <DataGridTextColumn Header="Object" SortMemberPath="ObjectDisplayName"
+                <!-- Headers for the columns below come from the check's FindingLabels (code-behind). -->
+                <DataGridTextColumn SortMemberPath="ObjectDisplayName"
                                     Binding="{Binding ObjectDisplayName}" />
-                <DataGridTextColumn Header="Item" SortMemberPath="SubObjectDisplayName"
+                <DataGridTextColumn SortMemberPath="ObjectId"
+                                    Binding="{Binding ObjectId}" />
+                <DataGridTextColumn SortMemberPath="SubObjectDisplayName"
                                     Binding="{Binding SubObjectDisplayName}" />
-                <DataGridTextColumn Header="Type" SortMemberPath="SubObjectType"
+                <DataGridTextColumn SortMemberPath="SubObjectType"
                                     Binding="{Binding SubObjectType}" />
-                <DataGridTextColumn Header="Due (UTC)" SortMemberPath="DueDate"
-                                    Binding="{Binding DueDate, StringFormat='{}{0:yyyy-MM-dd}'}" />
+                <DataGridTextColumn SortMemberPath="DueDate"
+                                    Binding="{Binding DueText}" />
                 <DataGridTextColumn Header="Message" SortMemberPath="Message"
                                     Binding="{Binding Message}" Width="*" />
             </DataGrid.Columns>

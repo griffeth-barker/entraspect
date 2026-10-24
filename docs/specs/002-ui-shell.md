@@ -1,7 +1,7 @@
 # Spec 002: Navigation shell, app-only auth and permission validation
 
 **Status:** Ready
-**Goal:** Replace the single-check connect-then-results UI with a portal-style shell: a left navigation panel grouped by object type (Users, Groups, App registrations, Enterprise apps, Conditional Access), an Overview page, a header showing the connection, and Settings at the bottom. The app starts on Settings, and the other pages unlock once connected. One Scan button runs every enabled check. entraspect drops interactive sign-in and supports app-only certificate auth only, so it can check the granted permissions exactly and warn about missing ones. Adding a check in a later spec should make it appear in the nav without UI changes.
+**Goal:** Replace the single-check connect-then-results UI with a portal-style shell: a left navigation panel grouped by object type (Users, Groups, App registrations, Enterprise apps, Conditional Access), an Overview page, and Settings at the bottom. The app starts on Settings, and the other pages unlock once connected. One Scan button runs every enabled check. entraspect drops interactive sign-in and supports app-only certificate auth only, so it can check the granted permissions exactly and warn about missing ones. Adding a check in a later spec should make it appear in the nav without UI changes.
 
 **Out of scope for this spec:** new checks (specs 003 onwards), export (spec 010), an app icon, adding or consenting permissions from inside entraspect.
 
@@ -45,15 +45,16 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 ## Step 4: Shell
 
 - Add FluentAvaloniaUI (latest version compatible with the Avalonia version in use; 3.1.0 targets Avalonia 12.1). Replace `FluentTheme` with the FluentAvalonia theme and keep the DataGrid theme working. The app follows the OS light or dark setting.
-- Main window: a FluentAvalonia `NavigationView` on the left, with the header across the top of the content area.
+- Main window: a FluentAvalonia `NavigationView` on the left and the selected page on the right. There is no header across the content area.
 - Nav structure:
   - **Overview** at the top.
   - One expandable section per `CheckCategory` that has at least one check in `CheckCatalog`, with one item per check. Sections with no checks are hidden. Sections are collapsed by default except the one holding the selected page.
-  - A separator, then **Settings** in the footer, with child items **Connection profiles**, **Checks** and **About**. Use `FooterMenuItems` with `IsSettingsVisible` turned off, so Settings can have children.
+  - A separator, then **Settings** in the footer, with child items **Connection profiles**, **Checks**, **Preferences** and **About**. Use `FooterMenuItems` with `IsSettingsVisible` turned off, so Settings can have children.
 - Before connecting, only Settings and its children are selectable. Overview and every check item are shown but disabled, with a tooltip "Connect to a tenant first".
 - The app always starts on Settings > Connection profiles, with the last used profile selected. After a successful connect it opens Overview. Disconnect clears the results, disables the other pages and returns to Connection profiles.
 - Each check item shows the finding count from the last scan (FluentAvalonia `InfoBadge` if available, otherwise the count in the label). No badge before the first scan. A check that failed or is missing permissions shows a warning marker instead of a count. Settings > Checks shows the same warning marker while any enabled check is missing a permission.
-- Header: connection status ("Not connected" or "Connected"), Connect, Reconnect and Disconnect, and Scan and Cancel buttons with a progress bar and the current `ScanProgress` text. Scan is disabled when not connected. Details about the connected tenant are on Overview, not in the header.
+- Connection controls live on Settings > Connection profiles only: connection status ("Not connected", "Connecting…" or "Connected"), the connected profile as "name (tenant ID)", Connect, Reconnect, Disconnect, and Cancel while connecting, with any sign-in error. Details about the connected tenant are on Overview.
+- Scan bar on Overview and every check page: Scan and Cancel buttons with a progress bar and the current `ScanProgress` text. Scan is disabled when not connected.
 - If the profile uses a .pfx file, Connect asks for the password in a FluentAvalonia `ContentDialog`. The password is never saved. Reconnect asks again.
 - All Graph calls stay off the UI thread and cancellable. Closing the window cancels a running scan.
 
@@ -70,17 +71,18 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
   - Unused read permissions: an informational banner listing them, suggesting removal.
 - **Overview:** the connected tenant (profile name, tenant ID, client ID, connect time); last scan time; one row per category with Critical, Warning and Info counts; below it, checks that failed or are missing permissions, each with the reason. Selecting a row or check opens that page. Before the first scan, show a short message pointing to the Scan button.
 - **Check page** (one reusable view for every check): the permission banner if needed, title (with the description in an info icon), last run status and error, then the findings grid. Required permissions are listed on Settings > Checks, not here.
-  - Grid columns: Severity, Object, Item, Type, Due (UTC), Message. Item is `SubObjectDisplayName` and Type is `SubObjectType`. Sortable, and sorted by severity then due date by default.
-  - A severity filter (Critical, Warning, Info toggles) and a text box that filters on object, item and message.
-  - Severity shows as a coloured label that stays readable in light and dark themes.
-- **Settings > Connection profiles:** list of saved profiles, each shown as "name (tenant ID)" with the client ID below; certificate details only appear when editing. Add, edit and delete (with a confirmation). Fields: name, tenant ID, client ID, and either a .pfx path or a certificate thumbprint. Connect from here or from the header.
+  - Grid columns: Severity, then one column per `Finding` property named by the check's `FindingLabels` (for Expiring credentials: Display name, Object ID, Credential, Type, Expires), then Message. A null label hides its column. The due column shows "(UTC)" or "(local)" from Settings > Preferences. Sortable, and sorted by severity then due date by default.
+  - Search and filters like the Entra admin center: a Search box (display name, object ID, item, message) and **Add filter**, which asks for a property and then its value. Severity and Type are picked from a list (one or more values); text properties take text the value must contain. Applied filters show as pills ("Severity == Critical"); clicking a pill edits it, ✕ removes it, and Reset filters clears them all.
+  - Severity shows as a coloured label that stays readable in light and dark themes. Info is always blue, whatever the OS accent colour.
+- **Settings > Connection profiles:** list of saved profiles, each shown as "name (tenant ID)" with the client ID below; certificate details only appear when editing. Add, edit and delete (with a confirmation). Fields: name, tenant ID, client ID, and either a .pfx path or a certificate thumbprint. Connect from here.
 - **Settings > Checks:** one row per check with an enable toggle, its category, its required permissions as labels (green when granted, red when missing, while connected), and the `CheckOptions` fields with validation. Changes are saved immediately. Available before connecting.
+- **Settings > Preferences:** show dates and times in UTC (default) or the computer's time zone, like the Entra admin center. Applies everywhere a date or time is shown. Saved immediately in `settings.json`.
 - **Settings > About:** app version, a statement that entraspect is read-only, the excess permissions banner when connected, and the path to the app data folder. Required permissions are on Settings > Checks only.
 - Remove `ConnectionView`, `ResultsView` and their view models once the new pages cover their features.
 
 ## Step 6: Docs
 
-- `docs/setup.md` and `README.md` already describe app-only auth and the permission banner. Update the connect steps in `docs/setup.md` step 4 for the new shell: describe Settings > Connection profiles, the password dialog, and the Scan button in the header.
+- `docs/setup.md` and `README.md` already describe app-only auth and the permission banner. Update the connect steps in `docs/setup.md` step 4 for the new shell: describe Settings > Connection profiles, the password dialog, and the Scan button on Overview.
 - Update `README.md` if anything else about the flow changed.
 - Update `AGENTS.md`: `ICheck.Category`, `CheckCatalog` as the place to register checks, `ScanRunner` and `PermissionReview`, `CachingDirectoryReader` needing each new reader method, FluentAvaloniaUI in the tech stack, and `tests/Entraspect.App.Tests` in the solution layout.
 
@@ -104,7 +106,9 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
 - **Running checks in parallel:** checks run one after another to keep throttling and progress simple. Revisit if scans get slow once the sign-in log check (spec 009) exists.
-- **Generic column headers:** the grid uses the same headers (Object, Item, Type) for every check. Should checks provide their own labels, for example "App" and "Credential"?
+- **Generic column headers:** resolved: each check names its columns with `FindingLabels`.
+- **More finding columns:** Entra lists also show IDs such as the application (client) ID and the credential's key ID. `Finding` has no field for these; adding them means extending `Finding` in Core.
+- **Date filters:** Add filter has no date property yet (for example "Expires before"). Entra offers date ranges for some lists.
 - **Suppressing findings:** admins will want to hide known and accepted findings, such as break-glass accounts. Needs a design for where suppressions are stored and how they are shown.
 - **Remembering results:** results are only in memory and are lost when the app closes. Should the last scan be saved locally?
 - **Unexpected exceptions from a check:** `ScanRunner` only turns `DirectoryReadException` and cancellation into a check result. Any other exception (a bug in a check) still ends the whole scan. Should it mark only that check `Failed` instead?

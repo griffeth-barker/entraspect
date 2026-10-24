@@ -3,12 +3,32 @@
              x:Class="Entraspect.App.App"
              xmlns:local="using:Entraspect.App"
              xmlns:sty="using:FluentAvalonia.Styling"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows the OS light or dark setting. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <!-- "Info" is always blue, whatever the OS accent colour. FluentAvalonia derives its Attention colour
+                 (used by informational banners) from the accent, so it is fixed here. -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <Color x:Key="SystemFillColorAttention">#005FB7</Color>
+                    <SolidColorBrush x:Key="SystemFillColorAttentionBrush" Color="#005FB7" />
+                    <SolidColorBrush x:Key="InfoLabelBackgroundBrush" Color="#DDEBF8" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <Color x:Key="SystemFillColorAttention">#60CDFF</Color>
+                    <SolidColorBrush x:Key="SystemFillColorAttentionBrush" Color="#60CDFF" />
+                    <SolidColorBrush x:Key="InfoLabelBackgroundBrush" Color="#1B3A57" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 
     <Application.Styles>
         <!-- FluentAvaloniaTheme includes the DataGrid styles, so Avalonia's DataGrid theme is not included. -->
@@ -39,12 +59,37 @@
             <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCautionBrush}" />
         </Style>
         <Style Selector="Border.info">
-            <Setter Property="Background" Value="{DynamicResource SystemFillColorAttentionBackgroundBrush}" />
+            <Setter Property="Background" Value="{DynamicResource InfoLabelBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorAttentionBrush}" />
         </Style>
         <Style Selector="Border.granted">
             <Setter Property="Background" Value="{DynamicResource SystemFillColorSuccessBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorSuccessBrush}" />
+        </Style>
+        <!-- Informational banners use the accent colour for their icon; info is always blue here. -->
+        <Style Selector="ui|FAInfoBar[Severity=Informational] /template/ Ellipse#IconBackground">
+            <Setter Property="Fill" Value="{DynamicResource SystemFillColorAttentionBrush}" />
+        </Style>
+
+        <!-- Applied filters: a rounded pill holding the filter text and a remove button. -->
+        <Style Selector="Border.filterPill">
+            <Setter Property="CornerRadius" Value="14" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="4,0" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="Background" Value="{DynamicResource InfoLabelBackgroundBrush}" />
+        </Style>
+        <Style Selector="Button.pillText">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,4" />
+        </Style>
+        <Style Selector="Button.menuItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Padding" Value="8,6" />
         </Style>
         <Style Selector="TextBlock.pageTitle">
             <Setter Property="FontSize" Value="22" />

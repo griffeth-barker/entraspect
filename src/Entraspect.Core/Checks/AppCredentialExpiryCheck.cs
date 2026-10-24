@@ -25,6 +25,16 @@ public sealed class AppCredentialExpiryCheck : ICheck
 
     public IReadOnlyList<string> RequiredPermissions => new[] { "Application.Read.All" };
 
+    // Named like the app registration and its Certificates & secrets page in the Entra admin center.
+    public FindingLabels Labels { get; } = new()
+    {
+        ObjectDisplayName = "Display name",
+        ObjectId = "Object ID",
+        SubObjectDisplayName = "Credential",
+        SubObjectType = "Type",
+        DueDate = "Expires",
+    };
+
     public async Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
         CheckOptions options,

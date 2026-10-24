@@ -24,6 +24,8 @@ public partial class MainViewModel : ViewModelBase
     private DirectoryConnection? _connection;
     private ConnectionProfile? _connectedProfile;
     private DateTimeOffset? _connectedAt;
+    private IReadOnlyList<CheckResult>? _lastResults;
+    private DateTimeOffset? _lastScanAt;
 
     // Bumped on every scan and disconnect, so late progress reports and results from an old scan are ignored.
     private int _scanGeneration;
@@ -43,12 +45,14 @@ public partial class MainViewModel : ViewModelBase
         SettingsStore settingsStore,
         Func<ConnectionProfile, string?, CancellationToken, Task<DirectoryConnection>> connect,
         IUserInteraction ui,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        TimeZoneInfo? localTimeZone = null)
     {
         _connect = connect;
         _ui = ui;
         _timeProvider = timeProvider;
         _settings = new SettingsState(settingsStore);
+        Time = new TimeDisplay(_settings, localTimeZone);
 
         Checks = CheckCatalog.All(timeProvider);
         ExcessPermissions = new ExcessPermissionsViewModel();
@@ -56,6 +60,7 @@ public partial class MainViewModel : ViewModelBase
         Overview = new OverviewViewModel(NewBanner(), ExcessPermissions, item => SelectedNavItem = item);
         ChecksSettings = new ChecksSettingsViewModel(Checks, CategoryTitle, _settings);
         About = new AboutViewModel(ExcessPermissions, profileStore.FolderPath);
+        Preferences = new PreferencesViewModel(_settings, Time);
 
         OverviewItem = new NavItemViewModel(NavItemKind.Overview, "Overview", "Home", Overview);
         MenuItems.Add(OverviewItem);
@@ -71,7 +76,7 @@ public partial class MainViewModel : ViewModelBase
             var section = new NavItemViewModel(NavItemKind.Section, CategoryTitle(category), CategoryIcon(category));
             foreach (var check in checks)
             {
-                var page = new CheckPageViewModel(check, NewBanner());
+                var page = new CheckPageViewModel(check, NewBanner(), Time);
                 var item = new NavItemViewModel(NavItemKind.Check, check.Title, page: page);
                 section.Add(item);
                 _checkPages[check.Id] = (item, page);
@@ -84,13 +89,19 @@ public partial class MainViewModel : ViewModelBase
         SettingsItem = new NavItemViewModel(NavItemKind.Settings, "Settings", "Settings")
             .Add(ConnectionProfilesItem)
             .Add(ChecksSettingsItem = new NavItemViewModel(NavItemKind.SettingsPage, "Checks", "Library", ChecksSettings))
+            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "Preferences", "Clock", Preferences))
             .Add(new NavItemViewModel(NavItemKind.SettingsPage, "About", "Important", About));
         FooterItems.Add(SettingsItem);
 
-        // Turning a check on or off changes which missing permissions the banners list.
-        _settings.Changed += (_, _) => RefreshPermissions();
+        // Turning a check on or off changes which missing permissions the banners list; the time preference
+        // changes how every date is shown.
+        _settings.Changed += (_, _) =>
+        {
+            RefreshPermissions();
+            RefreshTimes();
+        };
 
-        ErrorText = _settings.LoadError ?? string.Empty;
+        ConnectionErrorText = _settings.LoadError ?? string.Empty;
         UpdateConnectionState();
         SelectedNavItem = ConnectionProfilesItem;
     }
@@ -104,6 +115,10 @@ public partial class MainViewModel : ViewModelBase
     public ChecksSettingsViewModel ChecksSettings { get; }
 
     public AboutViewModel About { get; }
+
+    public PreferencesViewModel Preferences { get; }
+
+    public TimeDisplay Time { get; }
 
     public ExcessPermissionsViewModel ExcessPermissions { get; }
 
@@ -132,28 +147,32 @@ public partial class MainViewModel : ViewModelBase
     public partial bool IsConnected { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsBusy), nameof(HasStatusDetails))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(
         nameof(ConnectCommand), nameof(ReconnectCommand), nameof(DisconnectCommand), nameof(ScanCommand),
         nameof(CancelCommand))]
     public partial bool IsConnecting { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsBusy), nameof(HasStatusDetails))]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(ReconnectCommand), nameof(ScanCommand),
         nameof(CancelCommand))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasStatusDetails))]
     public partial string ProgressText { get; set; } = string.Empty;
 
+    /// <summary>Why connecting failed, shown on Settings > Connection profiles.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasStatusDetails))]
-    public partial string ErrorText { get; set; } = string.Empty;
+    public partial string ConnectionErrorText { get; set; } = string.Empty;
 
-    /// <summary>True when the header's second line (progress or an error) has anything to show.</summary>
-    public bool HasStatusDetails => IsBusy || ProgressText.Length > 0 || ErrorText.Length > 0;
+    /// <summary>An unexpected scan error, shown in the scan bar on Overview and the check pages.</summary>
+    [ObservableProperty]
+    public partial string ScanErrorText { get; set; } = string.Empty;
+
+    /// <summary>The connected profile as "name (tenant ID)", empty when not connected.</summary>
+    [ObservableProperty]
+    public partial string ConnectedProfileTitle { get; set; } = string.Empty;
 
     public bool IsNotConnected => !IsConnected;
 
@@ -189,7 +208,7 @@ public partial class MainViewModel : ViewModelBase
         var profile = Profiles.TryGetProfileToConnect(out var error);
         if (profile is null)
         {
-            ErrorText = error ?? string.Empty;
+            ConnectionErrorText = error ?? string.Empty;
             SelectedNavItem = ConnectionProfilesItem;
             return;
         }
@@ -221,8 +240,9 @@ public partial class MainViewModel : ViewModelBase
         _connectedAt = null;
         IsScanning = false;
         ProgressText = string.Empty;
-        ErrorText = string.Empty;
-        ApplyResults(null);
+        ScanErrorText = string.Empty;
+        ConnectionErrorText = string.Empty;
+        ApplyResults(null, null);
         UpdateConnectionState();
         SelectedNavItem = ConnectionProfilesItem;
     }
@@ -256,7 +276,7 @@ public partial class MainViewModel : ViewModelBase
             progress);
 
         IsScanning = true;
-        ErrorText = string.Empty;
+        ScanErrorText = string.Empty;
         ProgressText = "Starting scan…";
 
         try
@@ -268,10 +288,10 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            ApplyResults(results);
+            ApplyResults(results, _timeProvider.GetUtcNow());
             ProgressText = results.Any(r => r.Status == CheckResultStatus.Cancelled)
                 ? "Scan cancelled."
-                : $"Scan finished at {_timeProvider.GetUtcNow():HH:mm} UTC.";
+                : $"Scan finished at {Time.Time(_timeProvider.GetUtcNow())}.";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -285,7 +305,7 @@ public partial class MainViewModel : ViewModelBase
             // ScanRunner turns read failures into check results, so this is an unexpected error in a check.
             if (generation == _scanGeneration)
             {
-                ErrorText = $"The scan stopped with an unexpected error: {ex.Message}";
+                ScanErrorText = $"The scan stopped with an unexpected error: {ex.Message}";
                 ProgressText = string.Empty;
             }
         }
@@ -313,7 +333,7 @@ public partial class MainViewModel : ViewModelBase
 
     private async Task ConnectProfileAsync(ConnectionProfile profile, CancellationToken cancellationToken)
     {
-        ErrorText = string.Empty;
+        ConnectionErrorText = string.Empty;
         string? password = null;
         if (ConnectionProfilesViewModel.NeedsPassword(profile))
         {
@@ -337,22 +357,23 @@ public partial class MainViewModel : ViewModelBase
             _connectedAt = _timeProvider.GetUtcNow();
             IsScanning = false;
             ProgressText = string.Empty;
-            ApplyResults(null);
+            ScanErrorText = string.Empty;
+            ApplyResults(null, null);
             UpdateConnectionState();
             if (_settings.SetLastUsedProfile(profile.Name) is { } saveError)
             {
-                ErrorText = $"Connected, but {saveError}";
+                ConnectionErrorText = $"Connected, but {saveError}";
             }
 
             SelectedNavItem = OverviewItem;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            ErrorText = "Connect cancelled.";
+            ConnectionErrorText = "Connect cancelled.";
         }
         catch (Exception ex)
         {
-            ErrorText = ex.Message;
+            ConnectionErrorText = ex.Message;
         }
         finally
         {
@@ -363,7 +384,8 @@ public partial class MainViewModel : ViewModelBase
     private void UpdateConnectionState()
     {
         IsConnected = _connection is not null;
-        Overview.SetConnection(_connectedProfile, _connectedAt);
+        Overview.SetConnection(_connectedProfile, _connectedAt is { } at ? Time.DateTime(at) : null);
+        ConnectedProfileTitle = _connectedProfile is { } p ? $"{p.Name} ({p.TenantId})" : string.Empty;
         OnPropertyChanged(nameof(GrantedPermissions));
 
         foreach (var item in AllItems().Where(i => i.RequiresConnection))
@@ -417,8 +439,10 @@ public partial class MainViewModel : ViewModelBase
         ? _ui.OpenUrlAsync(EntraAdminCenter.ApiPermissionsUrl(connection.ClientId))
         : _ui.OpenUrlAsync(EntraAdminCenter.BaseUrl);
 
-    private void ApplyResults(IReadOnlyList<CheckResult>? results)
+    private void ApplyResults(IReadOnlyList<CheckResult>? results, DateTimeOffset? scannedAt)
     {
+        _lastResults = results;
+        _lastScanAt = scannedAt;
         foreach (var (checkId, (item, page)) in _checkPages)
         {
             var result = results?.FirstOrDefault(r => r.CheckId == checkId);
@@ -429,7 +453,14 @@ public partial class MainViewModel : ViewModelBase
         Overview.SetResults(
             MenuItems.Where(i => i.Kind == NavItemKind.Section),
             results,
-            results is null ? null : _timeProvider.GetUtcNow());
+            scannedAt is { } at ? Time.DateTime(at) : null);
+    }
+
+    /// <summary>Re-shows every date and time after the UTC or local time preference changes.</summary>
+    private void RefreshTimes()
+    {
+        ApplyResults(_lastResults, _lastScanAt);
+        Overview.SetConnection(_connectedProfile, _connectedAt is { } at ? Time.DateTime(at) : null);
     }
 
     private IEnumerable<NavItemViewModel> AllItems() =>

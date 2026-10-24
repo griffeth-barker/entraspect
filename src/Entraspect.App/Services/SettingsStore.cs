@@ -46,6 +46,7 @@ public sealed class SettingsStore
             {
                 DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
                 LastUsedProfileName = raw.LastUsedProfileName,
+                UseLocalTime = raw.UseLocalTime,
                 CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
             };
         }

@@ -18,6 +18,9 @@ public sealed class MainViewModelTests : IDisposable
 
     private static readonly DateTimeOffset Now = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
+    private static readonly TimeZoneInfo PlusTwoHours =
+        TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
+
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"entraspect-main-{Guid.NewGuid()}");
     private readonly FakeTimeProvider _time = new(Now);
     private readonly FakeUserInteraction _prompt = new();
@@ -64,7 +67,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(section.IsExpanded);
         Assert.Equal(CheckId, Assert.IsType<CheckPageViewModel>(Assert.Single(section.Children).Page).Check.Id);
         Assert.Equal(
-            new[] { "Connection profiles", "Checks", "About" },
+            new[] { "Connection profiles", "Checks", "Preferences", "About" },
             Assert.Single(vm.FooterItems).Children.Select(c => c.Title));
     }
 
@@ -149,7 +152,7 @@ public sealed class MainViewModelTests : IDisposable
         await vm.ConnectCommand.ExecuteAsync(null);
 
         Assert.False(vm.IsConnected);
-        Assert.Contains("AADSTS700016", vm.ErrorText);
+        Assert.Contains("AADSTS700016", vm.ConnectionErrorText);
         Assert.False(vm.OverviewItem.IsEnabled);
     }
 
@@ -405,6 +408,34 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Same(CheckItem(vm), problem.Target);
     }
 
+    [Fact]
+    public async Task Local_time_preference_is_saved_and_reformats_shown_times()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+        Assert.Equal("Last scan: 2026-01-15 12:00 UTC", vm.Overview.LastScanText);
+
+        vm.Preferences.UseLocalTime = true;
+
+        Assert.Equal("Last scan: 2026-01-15 14:00", vm.Overview.LastScanText);
+        Assert.Equal("2026-01-15 14:00", vm.Overview.ConnectedAtText);
+        Assert.Equal("Expires (local)", CheckPage(vm).DueHeader);
+        Assert.True(new SettingsStore(_dir).Load(out _).UseLocalTime);
+    }
+
+    [Fact]
+    public async Task Connection_status_is_shown_as_name_and_tenant()
+    {
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal("p1 (t1)", vm.ConnectedProfileTitle);
+        vm.DisconnectCommand.Execute(null);
+        Assert.Equal(string.Empty, vm.ConnectedProfileTitle);
+    }
+
     private MainViewModel CreateConnectableViewModel()
     {
         SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificateThumbprint = "AB" });
@@ -418,7 +449,7 @@ public sealed class MainViewModelTests : IDisposable
             new SettingsStore(_dir).Save(new AppSettings { LastUsedProfileName = lastUsed });
         }
 
-        return new MainViewModel(new ProfileStore(_dir), new SettingsStore(_dir), Connect, _prompt, _time);
+        return new MainViewModel(new ProfileStore(_dir), new SettingsStore(_dir), Connect, _prompt, _time, PlusTwoHours);
     }
 
     private Task<DirectoryConnection> Connect(ConnectionProfile profile, string? password, CancellationToken ct)

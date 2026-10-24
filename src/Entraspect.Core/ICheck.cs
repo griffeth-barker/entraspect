@@ -16,6 +16,9 @@ public interface ICheck
 
     IReadOnlyList<string> RequiredPermissions { get; }
 
+    /// <summary>Column headers for this check's findings. Defaults to generic labels.</summary>
+    FindingLabels Labels => FindingLabels.Default;
+
     Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
         CheckOptions options,

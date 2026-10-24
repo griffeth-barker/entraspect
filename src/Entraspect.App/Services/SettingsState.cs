@@ -43,28 +43,20 @@ public sealed class SettingsState
         }
     }
 
-    public string? SetCheckEnabled(string checkId, bool enabled) => Update(s => new AppSettings
+    public string? SetCheckEnabled(string checkId, bool enabled) => Update(s => s with
     {
         DisabledCheckIds = enabled
             ? s.DisabledCheckIds.Where(id => id != checkId).ToList()
             : s.DisabledCheckIds.Append(checkId).Distinct().ToList(),
-        CheckOptions = s.CheckOptions,
-        LastUsedProfileName = s.LastUsedProfileName,
     });
 
-    public string? SetCheckOptions(CheckOptions options) => Update(s => new AppSettings
-    {
-        DisabledCheckIds = s.DisabledCheckIds,
-        CheckOptions = options,
-        LastUsedProfileName = s.LastUsedProfileName,
-    });
+    public string? SetCheckOptions(CheckOptions options) => Update(s => s with { CheckOptions = options });
+
+    public string? SetUseLocalTime(bool useLocalTime) => useLocalTime == Current.UseLocalTime
+        ? null
+        : Update(s => s with { UseLocalTime = useLocalTime });
 
     public string? SetLastUsedProfile(string profileName) => profileName == Current.LastUsedProfileName
         ? null
-        : Update(s => new AppSettings
-        {
-            DisabledCheckIds = s.DisabledCheckIds,
-            CheckOptions = s.CheckOptions,
-            LastUsedProfileName = profileName,
-        });
+        : Update(s => s with { LastUsedProfileName = profileName });
 }

@@ -2,6 +2,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using System.IO;
+using Entraspect.App.Services;
 using Entraspect.App.ViewModels;
 using Entraspect.Core;
 
@@ -30,26 +32,125 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
-    public void Severity_toggles_and_text_filter_narrow_the_findings()
+    public void Add_filter_on_severity_keeps_only_the_chosen_values()
+    {
+        var page = CreatePageWithThreeFindings();
+
+        page.AddFilterCommand.Execute(null);
+        Assert.True(page.IsFilterEditorOpen);
+        Assert.True(page.IsChoosingField);
+        page.ChooseFieldCommand.Execute(Field(page, "Severity"));
+        Assert.True(page.IsEditingChoice);
+        Assert.Equal(new[] { "Critical", "Warning", "Info" }, page.EditorChoices.Select(c => c.Value));
+        Assert.False(page.ApplyFilterCommand.CanExecute(null));
+
+        page.EditorChoices.Single(c => c.Value == "Critical").IsSelected = true;
+        page.EditorChoices.Single(c => c.Value == "Info").IsSelected = true;
+        page.ApplyFilterCommand.Execute(null);
+
+        Assert.False(page.IsFilterEditorOpen);
+        Assert.Equal("Severity == Critical, Info", Assert.Single(page.ActiveFilters).DisplayText);
+        Assert.Equal(new[] { Severity.Critical, Severity.Info }, page.Findings.Select(f => f.Severity));
+        Assert.Equal("Showing 2 of 3 finding(s)", page.FilterSummary);
+    }
+
+    [Fact]
+    public void Text_filters_match_part_of_the_value_and_combine_with_other_filters()
+    {
+        var page = CreatePageWithThreeFindings();
+
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Display name"));
+        Assert.True(page.IsEditingText);
+        page.EditorText = "payroll";
+        page.ApplyFilterCommand.Execute(null);
+        Assert.Equal(2, page.Findings.Count);
+        Assert.Equal("Display name contains \"payroll\"", page.ActiveFilters[0].DisplayText);
+
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Credential"));
+        page.EditorText = "cert";
+        page.ApplyFilterCommand.Execute(null);
+
+        Assert.Equal("cert", Assert.Single(page.Findings).SubObjectDisplayName);
+    }
+
+    [Fact]
+    public void Choosing_a_field_that_already_has_a_filter_edits_it()
+    {
+        var page = CreatePageWithThreeFindings();
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Severity"));
+        page.EditorChoices.Single(c => c.Value == "Critical").IsSelected = true;
+        page.ApplyFilterCommand.Execute(null);
+
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Severity"));
+        Assert.True(page.EditorChoices.Single(c => c.Value == "Critical").IsSelected);
+        page.EditorChoices.Single(c => c.Value == "Warning").IsSelected = true;
+        page.ApplyFilterCommand.Execute(null);
+
+        Assert.Equal("Severity == Critical, Warning", Assert.Single(page.ActiveFilters).DisplayText);
+        Assert.Equal(2, page.Findings.Count);
+    }
+
+    [Fact]
+    public void Type_choices_come_from_the_findings()
+    {
+        var page = CreatePageWithThreeFindings();
+
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Type"));
+
+        Assert.Equal(new[] { "Certificate", "Secret" }, page.EditorChoices.Select(c => c.Value));
+    }
+
+    [Fact]
+    public void Remove_reset_and_search()
+    {
+        var page = CreatePageWithThreeFindings();
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Message"));
+        page.EditorText = "newer";
+        page.ApplyFilterCommand.Execute(null);
+        Assert.Single(page.Findings);
+
+        page.RemoveFilterCommand.Execute(page.ActiveFilters[0]);
+        Assert.Equal(3, page.Findings.Count);
+
+        page.SearchText = "SECRET";
+        Assert.Equal(2, page.Findings.Count);
+        page.SearchText = "obj-hr";
+        Assert.Equal("HR portal", Assert.Single(page.Findings).ObjectDisplayName);
+
+        page.ResetFiltersCommand.Execute(null);
+        Assert.Equal(3, page.Findings.Count);
+        Assert.Equal(string.Empty, page.SearchText);
+    }
+
+    [Fact]
+    public void Columns_and_filters_are_named_by_the_checks_labels()
     {
         var page = CreatePage();
-        page.SetResult(Succeeded(
-            Finding(Severity.Critical, "Payroll", 1, item: "prod secret"),
-            Finding(Severity.Warning, "Payroll", 10, item: "cert"),
-            Finding(Severity.Info, "HR portal", 30, message: "old secret, newer exists")));
 
-        page.ShowWarning = false;
-        Assert.Equal(new[] { Severity.Critical, Severity.Info }, page.Findings.Select(f => f.Severity));
+        Assert.Equal(
+            new[] { "Severity", "Display name", "Object ID", "Credential", "Type", "Message" },
+            page.FilterFields.Select(f => f.Name));
+        Assert.Equal("Expires (UTC)", page.DueHeader);
+    }
 
-        page.FilterText = "SECRET";
-        Assert.Equal(2, page.Findings.Count);
+    [Fact]
+    public void Dates_follow_the_local_time_preference()
+    {
+        var settings = new SettingsState(new SettingsStore(TempDir()));
+        var page = CreatePage(new TimeDisplay(settings, PlusTwoHours));
+        settings.SetUseLocalTime(true);
 
-        page.ShowInfo = false;
-        Assert.Equal("prod secret", Assert.Single(page.Findings).SubObjectDisplayName);
-        Assert.Equal("Showing 1 of 3 finding(s)", page.FilterSummary);
+        page.SetResult(Succeeded(Finding(Severity.Critical, "a", 1)));
 
-        page.FilterText = "hr portal";
-        Assert.Empty(page.Findings);
+        Assert.Equal("Expires (local)", page.DueHeader);
+        Assert.Equal("Last run 2026-01-15 02:00", page.StatusText);
+        Assert.Equal("2026-01-16", Assert.Single(page.Findings).DueText);
     }
 
     [Fact]
@@ -88,9 +189,30 @@ public sealed class CheckPageViewModelTests
         Assert.Empty(page.Findings);
     }
 
-    private static CheckPageViewModel CreatePage(params string[] permissions) => new(
+    private static readonly TimeZoneInfo PlusTwoHours =
+        TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
+
+    private static string TempDir() => Path.Combine(Path.GetTempPath(), $"entraspect-page-{Guid.NewGuid()}");
+
+    private static CheckPageViewModel CreatePage(params string[] permissions) =>
+        CreatePage(new TimeDisplay(new SettingsState(new SettingsStore(TempDir()))), permissions);
+
+    private static CheckPageViewModel CreatePage(TimeDisplay time, params string[] permissions) => new(
         new FakeCheck(permissions.Length == 0 ? ["Application.Read.All"] : permissions),
-        new PermissionBannerViewModel(() => Task.CompletedTask, _ => Task.CompletedTask, new RelayCommand(() => { })));
+        new PermissionBannerViewModel(() => Task.CompletedTask, _ => Task.CompletedTask, new RelayCommand(() => { })),
+        time);
+
+    private static CheckPageViewModel CreatePageWithThreeFindings()
+    {
+        var page = CreatePage();
+        page.SetResult(Succeeded(
+            Finding(Severity.Critical, "Payroll", 1, item: "prod secret", type: "Secret"),
+            Finding(Severity.Warning, "Payroll", 10, item: "cert", type: "Certificate"),
+            Finding(Severity.Info, "HR portal", 30, item: "old", type: "Secret", message: "old secret, newer exists")));
+        return page;
+    }
+
+    private static FilterField Field(CheckPageViewModel page, string name) => page.FilterFields.Single(f => f.Name == name);
 
     private static CheckResult Succeeded(params Finding[] findings) => new()
     {
@@ -98,12 +220,14 @@ public sealed class CheckPageViewModelTests
     };
 
     private static Finding Finding(
-        Severity severity, string obj, int? dueInDays, string? item = null, string message = "fake message") => new()
+        Severity severity, string obj, int? dueInDays, string? item = null, string message = "fake message",
+        string? type = null) => new()
     {
         CheckId = "fake",
         Severity = severity,
         ObjectType = "Application",
-        ObjectId = obj,
+        ObjectId = $"obj-{obj.ToLowerInvariant().Replace(' ', '-')}",
+        SubObjectType = type,
         ObjectDisplayName = obj,
         SubObjectDisplayName = item,
         Message = message,
@@ -121,6 +245,8 @@ public sealed class CheckPageViewModelTests
         public CheckCategory Category => CheckCategory.AppRegistrations;
 
         public IReadOnlyList<string> RequiredPermissions => permissions;
+
+        public FindingLabels Labels { get; } = new() { SubObjectDisplayName = "Credential", DueDate = "Expires" };
 
         public Task<IReadOnlyList<Finding>> RunAsync(
             IDirectoryReader reader, CheckOptions options, CancellationToken cancellationToken = default) =>

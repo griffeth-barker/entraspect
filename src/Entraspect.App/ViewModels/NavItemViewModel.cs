@@ -67,6 +67,14 @@ public partial class NavItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool HasWarning { get; set; }
 
+    /// <summary>Shows or clears the warning marker on a page that isn't a check (Settings > Checks).</summary>
+    public void SetWarning(bool warning)
+    {
+        BadgeValue = -1;
+        HasWarning = warning;
+        HasBadge = warning;
+    }
+
     public NavItemViewModel Add(NavItemViewModel child)
     {
         child.Parent = this;

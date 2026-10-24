@@ -11,22 +11,26 @@
                 <ColumnDefinition Width="*" MaxWidth="720" />
             </Grid.ColumnDefinitions>
         <StackPanel Spacing="8">
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Connection profiles" Classes="pageTitle" />
-                <views:InfoTip Text="Each profile is an app registration in a tenant that signs in with a certificate. Profiles are saved without passwords; a .pfx password is asked for each time you connect." />
-            </StackPanel>
+            <TextBlock Text="Connection profiles" Classes="pageTitle" />
 
             <ListBox ItemsSource="{Binding Profiles}"
                      SelectedItem="{Binding SelectedProfile}"
                      IsEnabled="{Binding IsNotEditing}"
-                     MaxHeight="260" Margin="0,8,0,0">
+                     MaxHeight="360" Margin="0,8,0,0">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="14,10" />
+                        <Setter Property="Margin" Value="0,0,0,4" />
+                        <Setter Property="MinHeight" Value="56" />
+                    </Style>
+                </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:ProfileListItem">
-                        <StackPanel Spacing="2">
-                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
+                        <StackPanel Spacing="3" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" />
+                            <TextBlock Text="{Binding ClientIdText}" Classes="muted" />
                             <TextBlock Text="{x:Static vm:ConnectionProfilesViewModel.AddCertificateText}"
-                                       IsVisible="{Binding NeedsCertificate}" Classes="error" FontSize="12" />
+                                       IsVisible="{Binding NeedsCertificate}" Classes="error" />
                         </StackPanel>
                     </DataTemplate>
                 </ListBox.ItemTemplate>

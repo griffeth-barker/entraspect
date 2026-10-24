@@ -23,6 +23,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly Dictionary<string, (NavItemViewModel Item, CheckPageViewModel Page)> _checkPages = new();
     private DirectoryConnection? _connection;
     private ConnectionProfile? _connectedProfile;
+    private DateTimeOffset? _connectedAt;
 
     // Bumped on every scan and disconnect, so late progress reports and results from an old scan are ignored.
     private int _scanGeneration;
@@ -54,7 +55,7 @@ public partial class MainViewModel : ViewModelBase
         Profiles = new ConnectionProfilesViewModel(profileStore, ui, ConnectCommand, _settings.Current.LastUsedProfileName);
         Overview = new OverviewViewModel(NewBanner(), ExcessPermissions, item => SelectedNavItem = item);
         ChecksSettings = new ChecksSettingsViewModel(Checks, CategoryTitle, _settings);
-        About = new AboutViewModel(Checks, ExcessPermissions, profileStore.FolderPath);
+        About = new AboutViewModel(ExcessPermissions, profileStore.FolderPath);
 
         OverviewItem = new NavItemViewModel(NavItemKind.Overview, "Overview", "Home", Overview);
         MenuItems.Add(OverviewItem);
@@ -82,7 +83,7 @@ public partial class MainViewModel : ViewModelBase
         ConnectionProfilesItem = new NavItemViewModel(NavItemKind.SettingsPage, "Connection profiles", "Contact", Profiles);
         SettingsItem = new NavItemViewModel(NavItemKind.Settings, "Settings", "Settings")
             .Add(ConnectionProfilesItem)
-            .Add(new NavItemViewModel(NavItemKind.SettingsPage, "Checks", "Library", ChecksSettings))
+            .Add(ChecksSettingsItem = new NavItemViewModel(NavItemKind.SettingsPage, "Checks", "Library", ChecksSettings))
             .Add(new NavItemViewModel(NavItemKind.SettingsPage, "About", "Important", About));
         FooterItems.Add(SettingsItem);
 
@@ -116,6 +117,8 @@ public partial class MainViewModel : ViewModelBase
 
     public NavItemViewModel ConnectionProfilesItem { get; }
 
+    public NavItemViewModel ChecksSettingsItem { get; }
+
     [ObservableProperty]
     public partial NavItemViewModel? SelectedNavItem { get; set; }
 
@@ -129,29 +132,28 @@ public partial class MainViewModel : ViewModelBase
     public partial bool IsConnected { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsBusy), nameof(HasStatusDetails))]
     [NotifyCanExecuteChangedFor(
         nameof(ConnectCommand), nameof(ReconnectCommand), nameof(DisconnectCommand), nameof(ScanCommand),
         nameof(CancelCommand))]
     public partial bool IsConnecting { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsBusy))]
+    [NotifyPropertyChangedFor(nameof(IsBusy), nameof(HasStatusDetails))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(ReconnectCommand), nameof(ScanCommand),
         nameof(CancelCommand))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
-    public partial string ConnectedProfileName { get; set; } = string.Empty;
-
-    [ObservableProperty]
-    public partial string ConnectedTenantId { get; set; } = string.Empty;
-
-    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusDetails))]
     public partial string ProgressText { get; set; } = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStatusDetails))]
     public partial string ErrorText { get; set; } = string.Empty;
+
+    /// <summary>True when the header's second line (progress or an error) has anything to show.</summary>
+    public bool HasStatusDetails => IsBusy || ProgressText.Length > 0 || ErrorText.Length > 0;
 
     public bool IsNotConnected => !IsConnected;
 
@@ -216,6 +218,7 @@ public partial class MainViewModel : ViewModelBase
         _scanGeneration++;
         _connection = null;
         _connectedProfile = null;
+        _connectedAt = null;
         IsScanning = false;
         ProgressText = string.Empty;
         ErrorText = string.Empty;
@@ -331,6 +334,7 @@ public partial class MainViewModel : ViewModelBase
             _scanGeneration++;
             _connection = connection;
             _connectedProfile = profile;
+            _connectedAt = _timeProvider.GetUtcNow();
             IsScanning = false;
             ProgressText = string.Empty;
             ApplyResults(null);
@@ -359,8 +363,7 @@ public partial class MainViewModel : ViewModelBase
     private void UpdateConnectionState()
     {
         IsConnected = _connection is not null;
-        ConnectedProfileName = _connectedProfile?.Name ?? string.Empty;
-        ConnectedTenantId = _connectedProfile?.TenantId ?? string.Empty;
+        Overview.SetConnection(_connectedProfile, _connectedAt);
         OnPropertyChanged(nameof(GrantedPermissions));
 
         foreach (var item in AllItems().Where(i => i.RequiresConnection))
@@ -392,13 +395,16 @@ public partial class MainViewModel : ViewModelBase
 
         if (granted is null)
         {
+            ChecksSettingsItem.SetWarning(false);
             Overview.Banner.Hide();
             ExcessPermissions.SetReview(null);
             return;
         }
 
         // Missing permissions only count for enabled checks; unused ones are judged against every check.
-        Overview.Banner.ShowForOverview(PermissionReview.Review(EnabledChecks(), granted).MissingPermissions);
+        var missing = PermissionReview.Review(EnabledChecks(), granted).MissingPermissions;
+        Overview.Banner.ShowForOverview(missing);
+        ChecksSettingsItem.SetWarning(missing.Count > 0);
         ExcessPermissions.SetReview(PermissionReview.Review(Checks, granted));
     }
 

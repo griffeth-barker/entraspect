@@ -93,8 +93,11 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Null(Assert.Single(_connectCalls).Password);
         Assert.True(vm.IsConnected);
         Assert.Equal("Connected", vm.ConnectionStatusText);
-        Assert.Equal("p1", vm.ConnectedProfileName);
-        Assert.Equal("t1", vm.ConnectedTenantId);
+        Assert.True(vm.Overview.IsConnected);
+        Assert.Equal("p1", vm.Overview.ProfileName);
+        Assert.Equal("t1", vm.Overview.TenantId);
+        Assert.Equal(ClientId, vm.Overview.ClientId);
+        Assert.Equal("2026-01-15 12:00 UTC", vm.Overview.ConnectedAtText);
         Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
         Assert.Same(vm.Overview, vm.CurrentPage);
         Assert.True(vm.OverviewItem.IsEnabled);
@@ -248,6 +251,8 @@ public sealed class MainViewModelTests : IDisposable
         vm.DisconnectCommand.Execute(null);
 
         Assert.False(vm.IsConnected);
+        Assert.False(vm.Overview.IsConnected);
+        Assert.Equal(string.Empty, vm.Overview.TenantId);
         Assert.Same(vm.ConnectionProfilesItem, vm.SelectedNavItem);
         Assert.False(vm.OverviewItem.IsEnabled);
         Assert.False(CheckItem(vm).IsEnabled);
@@ -294,6 +299,8 @@ public sealed class MainViewModelTests : IDisposable
             $"Application.Read.All: needed by {CheckPage(vm).Title}",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsMissing);
+        Assert.True(vm.ChecksSettingsItem.HasWarning);
+        Assert.True(vm.ChecksSettingsItem.HasBadge);
     }
 
     [Fact]
@@ -306,6 +313,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(CheckPage(vm).Banner.IsOpen);
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsGranted);
+        Assert.False(vm.ChecksSettingsItem.HasBadge);
     }
 
     [Fact]
@@ -337,6 +345,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Single(vm.ChecksSettings.Rows).IsEnabled = false;
 
         Assert.False(vm.Overview.Banner.IsOpen);
+        Assert.False(vm.ChecksSettingsItem.HasWarning);
         Assert.True(CheckPage(vm).IsDisabled);
         Assert.Equal(new[] { CheckId }, new SettingsStore(_dir).Load(out _).DisabledCheckIds);
     }

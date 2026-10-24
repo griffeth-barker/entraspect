@@ -20,13 +20,12 @@ public sealed class ProfileListItem
 
     public string Name => Profile.Name;
 
-    public bool NeedsCertificate => ConnectionProfilesViewModel.NeedsCertificate(Profile);
+    /// <summary>The profile name with its tenant, for example "griff.systems (00000000-...)".</summary>
+    public string Title => $"{Profile.Name} ({Profile.TenantId})";
 
-    public string Summary =>
-        $"Tenant {Profile.TenantId} · Client {Profile.ClientId} · " +
-        (!string.IsNullOrWhiteSpace(Profile.CertificateThumbprint) ? $"Thumbprint {Profile.CertificateThumbprint}"
-            : !string.IsNullOrWhiteSpace(Profile.CertificatePath) ? Profile.CertificatePath
-            : "No certificate");
+    public string ClientIdText => $"Client ID {Profile.ClientId}";
+
+    public bool NeedsCertificate => ConnectionProfilesViewModel.NeedsCertificate(Profile);
 }
 
 /// <summary>

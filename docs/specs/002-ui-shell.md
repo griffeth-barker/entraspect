@@ -52,8 +52,8 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
   - A separator, then **Settings** in the footer, with child items **Connection profiles**, **Checks** and **About**. Use `FooterMenuItems` with `IsSettingsVisible` turned off, so Settings can have children.
 - Before connecting, only Settings and its children are selectable. Overview and every check item are shown but disabled, with a tooltip "Connect to a tenant first".
 - The app always starts on Settings > Connection profiles, with the last used profile selected. After a successful connect it opens Overview. Disconnect clears the results, disables the other pages and returns to Connection profiles.
-- Each check item shows the finding count from the last scan (FluentAvalonia `InfoBadge` if available, otherwise the count in the label). No badge before the first scan. A check that failed or is missing permissions shows a warning marker instead of a count.
-- Header: the connected profile name and tenant ID, connection status ("Not connected" or "Connected"), Connect, Reconnect and Disconnect, and Scan and Cancel buttons with a progress bar and the current `ScanProgress` text. Scan is disabled when not connected.
+- Each check item shows the finding count from the last scan (FluentAvalonia `InfoBadge` if available, otherwise the count in the label). No badge before the first scan. A check that failed or is missing permissions shows a warning marker instead of a count. Settings > Checks shows the same warning marker while any enabled check is missing a permission.
+- Header: connection status ("Not connected" or "Connected"), Connect, Reconnect and Disconnect, and Scan and Cancel buttons with a progress bar and the current `ScanProgress` text. Scan is disabled when not connected. Details about the connected tenant are on Overview, not in the header.
 - If the profile uses a .pfx file, Connect asks for the password in a FluentAvalonia `ContentDialog`. The password is never saved. Reconnect asks again.
 - All Graph calls stay off the UI thread and cancellable. Closing the window cancels a running scan.
 
@@ -68,14 +68,14 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - **Excess permissions banner** on Overview and Settings > About, from `PermissionReview`:
   - Granted write permissions: an error-level banner, "This app registration has write permissions entraspect doesn't need: X. Anyone with its certificate can change your tenant. Remove them."
   - Unused read permissions: an informational banner listing them, suggesting removal.
-- **Overview:** last scan time; one row per category with Critical, Warning and Info counts; below it, checks that failed or are missing permissions, each with the reason. Selecting a row or check opens that page. Before the first scan, show a short message pointing to the Scan button.
+- **Overview:** the connected tenant (profile name, tenant ID, client ID, connect time); last scan time; one row per category with Critical, Warning and Info counts; below it, checks that failed or are missing permissions, each with the reason. Selecting a row or check opens that page. Before the first scan, show a short message pointing to the Scan button.
 - **Check page** (one reusable view for every check): the permission banner if needed, title (with the description in an info icon), last run status and error, then the findings grid. Required permissions are listed on Settings > Checks, not here.
   - Grid columns: Severity, Object, Item, Type, Due (UTC), Message. Item is `SubObjectDisplayName` and Type is `SubObjectType`. Sortable, and sorted by severity then due date by default.
   - A severity filter (Critical, Warning, Info toggles) and a text box that filters on object, item and message.
   - Severity shows as a coloured label that stays readable in light and dark themes.
-- **Settings > Connection profiles:** list of saved profiles; add, edit and delete (with a confirmation). Fields: name, tenant ID, client ID, and either a .pfx path or a certificate thumbprint. Connect from here or from the header.
+- **Settings > Connection profiles:** list of saved profiles, each shown as "name (tenant ID)" with the client ID below; certificate details only appear when editing. Add, edit and delete (with a confirmation). Fields: name, tenant ID, client ID, and either a .pfx path or a certificate thumbprint. Connect from here or from the header.
 - **Settings > Checks:** one row per check with an enable toggle, its category, its required permissions as labels (green when granted, red when missing, while connected), and the `CheckOptions` fields with validation. Changes are saved immediately. Available before connecting.
-- **Settings > About:** app version, a statement that entraspect is read-only, every application permission any check needs (collected from `CheckCatalog`), the excess permissions banner when connected, and the path to the app data folder.
+- **Settings > About:** app version, a statement that entraspect is read-only, the excess permissions banner when connected, and the path to the app data folder. Required permissions are on Settings > Checks only.
 - Remove `ConnectionView`, `ResultsView` and their view models once the new pages cover their features.
 
 ## Step 6: Docs

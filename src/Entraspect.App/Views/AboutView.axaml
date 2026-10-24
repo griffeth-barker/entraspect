@@ -21,21 +21,6 @@
             <ContentControl Content="{Binding ExcessPermissions}" IsVisible="{Binding IsConnected}" Margin="0,4,0,0" />
 
             <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                <TextBlock Text="Permissions entraspect needs" Classes="sectionTitle" Margin="0" />
-                <views:InfoTip Text="Microsoft Graph application permissions, granted to the app registration with admin consent. Checks whose permissions are missing don't run." />
-            </StackPanel>
-            <ItemsControl ItemsSource="{Binding RequiredPermissions}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:RequiredPermission">
-                        <StackPanel Margin="0,4">
-                            <TextBlock Text="{Binding Permission}" FontWeight="SemiBold" />
-                            <TextBlock Text="{Binding UsedBy, StringFormat='Used by: {0}'}" Classes="muted" FontSize="12" />
-                        </StackPanel>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
                 <TextBlock Text="App data folder" Classes="sectionTitle" Margin="0" />
                 <views:InfoTip Text="Connection profiles and settings are saved here. Passwords are never saved." />
             </StackPanel>

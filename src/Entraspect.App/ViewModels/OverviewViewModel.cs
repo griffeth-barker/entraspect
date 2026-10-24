@@ -37,6 +37,31 @@ public partial class OverviewViewModel : ViewModelBase
     public ExcessPermissionsViewModel ExcessPermissions { get; }
 
     [ObservableProperty]
+    public partial bool IsConnected { get; set; }
+
+    [ObservableProperty]
+    public partial string ProfileName { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string TenantId { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ClientId { get; set; } = string.Empty;
+
+    [ObservableProperty]
+    public partial string ConnectedAtText { get; set; } = string.Empty;
+
+    /// <summary>Shows the connected tenant at the top of the page, or clears it when disconnected.</summary>
+    public void SetConnection(Graph.ConnectionProfile? profile, DateTimeOffset? connectedAt)
+    {
+        IsConnected = profile is not null;
+        ProfileName = profile?.Name ?? string.Empty;
+        TenantId = profile?.TenantId ?? string.Empty;
+        ClientId = profile?.ClientId ?? string.Empty;
+        ConnectedAtText = connectedAt is { } at ? $"{at:yyyy-MM-dd HH:mm} UTC" : string.Empty;
+    }
+
+    [ObservableProperty]
     public partial bool HasScan { get; set; }
 
     [ObservableProperty]

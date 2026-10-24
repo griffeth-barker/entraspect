@@ -5,11 +5,37 @@
              x:DataType="vm:OverviewViewModel">
     <ScrollViewer>
         <StackPanel Spacing="8">
+            <TextBlock Text="Overview" Classes="pageTitle" />
+
+            <!-- The connected tenant. -->
+            <Border IsVisible="{Binding IsConnected}" Padding="16,12" CornerRadius="8" BorderThickness="1"
+                    BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                    Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto">
+                    <Grid.Styles>
+                        <Style Selector="TextBlock.key">
+                            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <Setter Property="Margin" Value="0,2,24,2" />
+                        </Style>
+                        <Style Selector="SelectableTextBlock">
+                            <Setter Property="Margin" Value="0,2" />
+                        </Style>
+                    </Grid.Styles>
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Profile" Classes="key" />
+                    <SelectableTextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ProfileName}" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Tenant ID" Classes="key" />
+                    <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenantId}" />
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Client ID" Classes="key" />
+                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ClientId}" />
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Connected" Classes="key" />
+                    <SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ConnectedAtText}" />
+                </Grid>
+            </Border>
+
             <ContentControl Content="{Binding Banner}" />
             <ContentControl Content="{Binding ExcessPermissions}" />
 
-            <TextBlock Text="Overview" Classes="pageTitle" />
-            <TextBlock Text="{Binding LastScanText}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding LastScanText}" TextWrapping="Wrap" Classes="muted" Margin="0,4,0,0" />
 
             <StackPanel Spacing="4" IsVisible="{Binding HasScan}">
                 <Grid ColumnDefinitions="240,90,90,90" Margin="12,8,0,0">

@@ -26,7 +26,7 @@
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
                                     <TextBlock Text="{Binding CategoryTitle}" Classes="muted" FontSize="12" />
-                                    <ItemsControl ItemsSource="{Binding Permissions}">
+                                    <ItemsControl ItemsSource="{Binding Permissions}" Margin="0,6,0,0">
                                         <ItemsControl.ItemsPanel>
                                             <ItemsPanelTemplate>
                                                 <WrapPanel Orientation="Horizontal" />

@@ -109,9 +109,9 @@
             </Popup>
         </StackPanel>
 
-        <!-- Auto-sized text columns grew with long names and GUIDs and squeezed the columns to their right down to
-             nothing. Text columns share the width instead, and long values end in an ellipsis; Type and the due date
-             stay sized to their content. -->
+        <!-- Column widths: Severity, Type and the due date have fixed widths and equal minimums, because DataGrid shrinks
+             any column down to its minimum (to look empty) when the window is narrow. The text columns share the rest,
+             down to a minimum, and long values end in an ellipsis. Narrower than that, the grid scrolls sideways. -->
         <DataGrid x:Name="FindingsGrid"
                   ItemsSource="{Binding Findings}"
                   AutoGenerateColumns="False"
@@ -120,7 +120,7 @@
                   IsReadOnly="True"
                   GridLinesVisibility="Horizontal">
             <DataGrid.Columns>
-                <DataGridTemplateColumn Header="Severity" SortMemberPath="Severity">
+                <DataGridTemplateColumn Header="Severity" SortMemberPath="Severity" Width="104" MinWidth="104">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate x:DataType="vm:FindingRow">
                             <Border Classes="label" Margin="8,0"
@@ -140,9 +140,9 @@
                 <DataGridTextColumn SortMemberPath="SubObjectDisplayName"
                                     Binding="{Binding SubObjectDisplayName}" Width="2*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="SubObjectType"
-                                    Binding="{Binding SubObjectType}" />
+                                    Binding="{Binding SubObjectType}" Width="112" MinWidth="112" />
                 <DataGridTextColumn SortMemberPath="DueDate"
-                                    Binding="{Binding DueText}" />
+                                    Binding="{Binding DueText}" Width="140" MinWidth="140" />
                 <DataGridTextColumn Header="Message" SortMemberPath="Message"
                                     Binding="{Binding Message}" Width="3*" MinWidth="160" />
             </DataGrid.Columns>

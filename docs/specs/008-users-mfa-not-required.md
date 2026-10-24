@@ -49,7 +49,7 @@ Tests for each rule: include and exclude by user, group, nested group, role and 
 
 Add `CheckOptions.SignInLookbackDays` (default 7, range 1 to 30), shown in Settings > Checks with a note that longer periods are slower in busy tenants. Spec 009 uses the same option.
 
-**`users-mfa-not-required`** (category `Users`, title "Users not required to use MFA").
+**`users-mfa-not-required`** (category `Users`, title "MFA not required").
 
 - If security defaults are on, give no per-user findings. Give one **Info** finding with `ObjectType` `Tenant`: "Security defaults are on. All users must register for MFA and are asked for it when Microsoft considers it necessary; admins are asked at every sign-in." Conditional Access can't be used while security defaults are on.
 - Skip disabled users.

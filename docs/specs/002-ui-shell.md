@@ -69,12 +69,12 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
   - Granted write permissions: an error-level banner, "This app registration has write permissions entraspect doesn't need: X. Anyone with its certificate can change your tenant. Remove them."
   - Unused read permissions: an informational banner listing them, suggesting removal.
 - **Overview:** last scan time; one row per category with Critical, Warning and Info counts; below it, checks that failed or are missing permissions, each with the reason. Selecting a row or check opens that page. Before the first scan, show a short message pointing to the Scan button.
-- **Check page** (one reusable view for every check): the permission banner if needed, title, description, required permissions (each marked granted or missing), last run status and error, then the findings grid.
+- **Check page** (one reusable view for every check): the permission banner if needed, title (with the description in an info icon), last run status and error, then the findings grid. Required permissions are listed on Settings > Checks, not here.
   - Grid columns: Severity, Object, Item, Type, Due (UTC), Message. Item is `SubObjectDisplayName` and Type is `SubObjectType`. Sortable, and sorted by severity then due date by default.
   - A severity filter (Critical, Warning, Info toggles) and a text box that filters on object, item and message.
   - Severity shows as a coloured label that stays readable in light and dark themes.
 - **Settings > Connection profiles:** list of saved profiles; add, edit and delete (with a confirmation). Fields: name, tenant ID, client ID, and either a .pfx path or a certificate thumbprint. Connect from here or from the header.
-- **Settings > Checks:** one row per check with an enable toggle, its category, its required permissions with granted or missing status (when connected), and the `CheckOptions` fields with validation. Changes are saved immediately. Available before connecting.
+- **Settings > Checks:** one row per check with an enable toggle, its category, its required permissions as labels (green when granted, red when missing, while connected), and the `CheckOptions` fields with validation. Changes are saved immediately. Available before connecting.
 - **Settings > About:** app version, a statement that entraspect is read-only, every application permission any check needs (collected from `CheckCatalog`), the excess permissions banner when connected, and the path to the app data folder.
 - Remove `ConnectionView`, `ResultsView` and their view models once the new pages cover their features.
 

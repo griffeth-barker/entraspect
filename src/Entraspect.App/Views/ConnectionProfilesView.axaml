@@ -1,13 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
              x:Class="Entraspect.App.Views.ConnectionProfilesView"
              x:DataType="vm:ConnectionProfilesViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="8" MaxWidth="720" HorizontalAlignment="Left">
-            <TextBlock Text="Connection profiles" Classes="pageTitle" />
-            <TextBlock Classes="muted"
-                       Text="Each profile is an app registration in a tenant, signing in with a certificate. Profiles are saved without passwords; a .pfx password is asked for each time you connect." />
+        <!-- Fills the width up to a maximum, aligned left. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="720" />
+            </Grid.ColumnDefinitions>
+        <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Connection profiles" Classes="pageTitle" />
+                <views:InfoTip Text="Each profile is an app registration in a tenant that signs in with a certificate. Profiles are saved without passwords; a .pfx password is asked for each time you connect." />
+            </StackPanel>
 
             <ListBox ItemsSource="{Binding Profiles}"
                      SelectedItem="{Binding SelectedProfile}"
@@ -24,7 +31,7 @@
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-            <TextBlock Text="No saved profiles yet. Add one to connect." Classes="muted"
+            <TextBlock Text="No profiles yet." Classes="muted"
                        IsVisible="{Binding HasNoProfiles}" />
 
             <WrapPanel Orientation="Horizontal" IsVisible="{Binding IsNotEditing}">
@@ -43,16 +50,28 @@
                     <TextBlock Text="Profile name" />
                     <TextBox Text="{Binding Name}" PlaceholderText="My tenant" />
 
-                    <TextBlock Text="Tenant ID" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Tenant ID" />
+                        <views:InfoTip Text="Directory (tenant) ID, or a domain such as contoso.onmicrosoft.com. Shown on the app registration's Overview page." />
+                    </StackPanel>
                     <TextBox Text="{Binding TenantId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
 
-                    <TextBlock Text="Client ID (application ID)" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Client ID" />
+                        <views:InfoTip Text="Application (client) ID of the app registration entraspect signs in as." />
+                    </StackPanel>
                     <TextBox Text="{Binding ClientId}" PlaceholderText="00000000-0000-0000-0000-000000000000" />
 
-                    <TextBlock Text="Certificate (.pfx) path" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Certificate (.pfx) path" />
+                        <views:InfoTip Text="A .pfx file with the certificate and private key. Its password is asked for when you connect and is never saved. Use either a .pfx file or a thumbprint." />
+                    </StackPanel>
                     <TextBox Text="{Binding CertificatePath}" PlaceholderText="/path/to/cert.pfx" />
 
-                    <TextBlock Text="Or certificate thumbprint (OS certificate store)" />
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Certificate thumbprint" />
+                        <views:InfoTip Text="Thumbprint of a certificate in the current user's certificate store. Use either a thumbprint or a .pfx file." />
+                    </StackPanel>
                     <TextBox Text="{Binding CertificateThumbprint}" PlaceholderText="ABC123..." />
 
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
@@ -65,5 +84,6 @@
             <TextBlock Text="{Binding ErrorText}" Classes="error"
                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
+        </Grid>
     </ScrollViewer>
 </UserControl>

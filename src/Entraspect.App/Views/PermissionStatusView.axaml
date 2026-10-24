@@ -3,14 +3,11 @@
              xmlns:vm="using:Entraspect.App.ViewModels"
              x:Class="Entraspect.App.Views.PermissionStatusView"
              x:DataType="vm:PermissionStatusViewModel">
-    <!-- Reused by the check page and Settings > Checks: one permission name with its granted or missing label. -->
-    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
-        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-        <Border Classes="label"
-                Classes.granted="{Binding IsGranted}"
-                Classes.critical="{Binding IsMissing}"
-                IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding StatusText}" FontSize="12" />
-        </Border>
-    </StackPanel>
+    <!-- A permission name as a label: green when granted, red when missing, neutral when not connected. -->
+    <Border Classes="label neutral" Margin="0,2,6,2"
+            Classes.granted="{Binding IsGranted}"
+            Classes.critical="{Binding IsMissing}"
+            ToolTip.Tip="{Binding ToolTipText}">
+        <TextBlock Text="{Binding Name}" FontSize="12" />
+    </Border>
 </UserControl>

@@ -56,11 +56,14 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
     {
         var vm = Create();
         var row = Assert.Single(vm.Rows);
-        Assert.Equal(string.Empty, Assert.Single(row.Permissions).StatusText);
+        var permission = Assert.Single(row.Permissions);
+        Assert.False(permission.IsGranted || permission.IsMissing);
 
         vm.SetGrantedPermissions(Array.Empty<string>());
+        Assert.True(Assert.Single(row.Permissions).IsMissing);
 
-        Assert.Equal("Missing", Assert.Single(row.Permissions).StatusText);
+        vm.SetGrantedPermissions(new[] { "Application.Read.All" });
+        Assert.True(Assert.Single(row.Permissions).IsGranted);
     }
 
     private ChecksSettingsViewModel Create() => new(

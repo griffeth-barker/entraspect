@@ -6,7 +6,7 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## What it checks
 
-- **Expiring app registration credentials:** client secrets and certificates on app registrations that have expired or expire soon.
+- **Expiring credentials** (app registrations): client secrets and certificates on app registrations that have expired or expire soon.
   - **Critical:** expires within 7 days, or already expired with no other valid credential of the same type.
   - **Warning:** expires within 30 days.
   - **Info:** already expired, but the app has another valid credential of the same type. Consider removing the expired one.

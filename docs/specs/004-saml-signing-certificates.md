@@ -22,7 +22,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 3: The check
 
-**`saml-signing-certificate-expiry`** (category `EnterpriseApps`, title "Expiring SAML signing certificates"). Only apps with `PreferredSingleSignOnMode` equal to `saml` (case-insensitive) are checked.
+**`saml-signing-certificate-expiry`** (category `EnterpriseApps`, title "Expiring SAML certificates"). Only apps with `PreferredSingleSignOnMode` equal to `saml` (case-insensitive) are checked.
 
 - The active certificate is the signing certificate whose thumbprint matches `PreferredTokenSigningKeyThumbprint`.
 - No signing certificates, or no certificate matches the preferred thumbprint: **Warning**, "SAML app has no active signing certificate."

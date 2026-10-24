@@ -53,16 +53,14 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
-    public void Required_permissions_are_marked_granted_or_missing()
+    public void Banner_shows_only_the_missing_permissions_while_connected()
     {
         var page = CreatePage("A.Read.All", "B.Read.All");
-
-        Assert.All(page.Permissions, p => Assert.Equal(string.Empty, p.StatusText));
+        page.SetGrantedPermissions(null);
         Assert.False(page.Banner.IsOpen);
 
         page.SetGrantedPermissions(new[] { "A.Read.All" });
 
-        Assert.Equal(new[] { "Granted", "Missing" }, page.Permissions.Select(p => p.StatusText));
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(new[] { "B.Read.All" }, page.Banner.MissingPermissions);
     }

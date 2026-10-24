@@ -26,6 +26,10 @@
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         </Style>
+        <Style Selector="Border.neutral">
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        </Style>
         <Style Selector="Border.critical">
             <Setter Property="Background" Value="{DynamicResource SystemFillColorCriticalBackgroundBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource SystemFillColorCriticalBrush}" />

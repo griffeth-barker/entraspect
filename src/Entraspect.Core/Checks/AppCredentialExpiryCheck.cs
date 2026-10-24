@@ -16,7 +16,7 @@ public sealed class AppCredentialExpiryCheck : ICheck
 
     public string Id => "app-credential-expiry";
 
-    public string Title => "Expiring app registration credentials";
+    public string Title => "Expiring credentials";
 
     public string Description =>
         "Surfaces app registration client secrets and certificates that are expired or expire soon.";

@@ -16,6 +16,9 @@ public sealed class PermissionStatusViewModel
 
     public bool IsMissing { get; }
 
-    /// <summary>"Granted", "Missing", or empty when not connected (granted permissions are unknown).</summary>
-    public string StatusText => IsGranted ? "Granted" : IsMissing ? "Missing" : string.Empty;
+    public string ToolTipText => IsGranted
+        ? "Granted to the connected app registration."
+        : IsMissing
+            ? "Not granted to the connected app registration. Add it and grant admin consent, then reconnect."
+            : "Connect to see whether this permission is granted.";
 }

@@ -190,7 +190,7 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.True(CheckItem(vm).HasBadge);
         Assert.True(CheckItem(vm).HasWarning);
-        Assert.Contains("Application.Read.All", CheckPage(vm).ErrorText);
+        Assert.Equal(["Application.Read.All"], CheckPage(vm).Banner.MissingPermissions);
     }
 
     [Fact]
@@ -293,7 +293,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             $"Application.Read.All: needed by {CheckPage(vm).Title}",
             Assert.Single(vm.Overview.Banner.Details));
-        Assert.True(Assert.Single(CheckPage(vm).Permissions).IsMissing);
+        Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsMissing);
     }
 
     [Fact]
@@ -305,7 +305,7 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.False(CheckPage(vm).Banner.IsOpen);
         Assert.False(vm.Overview.Banner.IsOpen);
-        Assert.True(Assert.Single(CheckPage(vm).Permissions).IsGranted);
+        Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsGranted);
     }
 
     [Fact]

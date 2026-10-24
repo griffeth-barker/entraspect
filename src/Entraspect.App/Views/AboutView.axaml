@@ -1,19 +1,29 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:views="using:Entraspect.App.Views"
              x:Class="Entraspect.App.Views.AboutView"
              x:DataType="vm:AboutViewModel">
     <ScrollViewer>
-        <StackPanel Spacing="8" MaxWidth="820" HorizontalAlignment="Left">
+        <!-- Fills the width up to a maximum, aligned left. -->
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MaxWidth="820" />
+            </Grid.ColumnDefinitions>
+        <StackPanel Spacing="8">
             <TextBlock Text="About entraspect" Classes="pageTitle" />
             <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" />
-            <TextBlock Text="{Binding ReadOnlyText}" TextWrapping="Wrap" />
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="Read-only: entraspect never changes your tenant." />
+                <views:InfoTip Text="{Binding ReadOnlyText}" />
+            </StackPanel>
 
             <ContentControl Content="{Binding ExcessPermissions}" IsVisible="{Binding IsConnected}" Margin="0,4,0,0" />
 
-            <TextBlock Text="Permissions entraspect needs" Classes="sectionTitle" />
-            <TextBlock Classes="muted"
-                       Text="Microsoft Graph application permissions, granted to the app registration with admin consent. Checks whose permissions are missing don't run." />
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="Permissions entraspect needs" Classes="sectionTitle" Margin="0" />
+                <views:InfoTip Text="Microsoft Graph application permissions, granted to the app registration with admin consent. Checks whose permissions are missing don't run." />
+            </StackPanel>
             <ItemsControl ItemsSource="{Binding RequiredPermissions}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:RequiredPermission">
@@ -25,9 +35,12 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Text="App data folder" Classes="sectionTitle" />
-            <TextBlock Classes="muted" Text="Connection profiles and settings are saved here. Passwords are never saved." />
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="App data folder" Classes="sectionTitle" Margin="0" />
+                <views:InfoTip Text="Connection profiles and settings are saved here. Passwords are never saved." />
+            </StackPanel>
             <SelectableTextBlock Text="{Binding AppDataFolder}" />
         </StackPanel>
+        </Grid>
     </ScrollViewer>
 </UserControl>

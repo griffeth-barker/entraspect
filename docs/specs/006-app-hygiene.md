@@ -31,7 +31,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - A URI that isn't a valid absolute URI: **Info**, "Redirect URI is not a valid URI."
 - `SubObjectType` `Redirect URI`, `SubObjectDisplayName` "platform: URI". Only look at the URI text; never resolve or contact it.
 
-**`sp-high-privilege-app-permissions`** (category `EnterpriseApps`, title "High-privilege application permissions"), one finding per matching grant:
+**`sp-high-privilege-app-permissions`** (category `EnterpriseApps`, title "High-privilege apps"), one finding per matching grant:
 
 - **Critical** (can be used to take over the tenant): `RoleManagement.ReadWrite.Directory`, `AppRoleAssignment.ReadWrite.All`, `Application.ReadWrite.All`, `Directory.ReadWrite.All`, `RoleAssignmentSchedule.ReadWrite.Directory`, `RoleEligibilitySchedule.ReadWrite.Directory`, `PrivilegedAccess.ReadWrite.AzureADGroup`, `UserAuthenticationMethod.ReadWrite.All`, `Policy.ReadWrite.ConditionalAccess`.
 - **Warning** (tenant-wide data access): `Mail.ReadWrite`, `Mail.Send`, `Files.ReadWrite.All`, `Sites.ReadWrite.All`, `Sites.FullControl.All`, `User.ReadWrite.All`, `Group.ReadWrite.All`, `GroupMember.ReadWrite.All`.

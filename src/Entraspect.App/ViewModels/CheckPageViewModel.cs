@@ -6,13 +6,14 @@ using Entraspect.Core;
 namespace Entraspect.App.ViewModels;
 
 /// <summary>
-/// One reusable page for every check: the permission banner, its description and required permissions, the status
-/// of the last run, and its findings with a severity and text filter.
+/// One reusable page for every check: the permission banner, the title (with the description in an info tip), the
+/// status of the last run, and its findings with a severity and text filter. Required permissions are listed on
+/// Settings > Checks, not here.
 /// </summary>
 public partial class CheckPageViewModel : ViewModelBase
 {
-    public const string NotRunText = "Not run yet. Use Scan in the header to run every enabled check.";
-    public const string DisabledText = "This check is turned off in Settings > Checks, so Scan doesn't run it.";
+    public const string NotRunText = "Not run yet.";
+    public const string DisabledText = "Turned off in Settings > Checks.";
 
     private IReadOnlyList<FindingRow> _allRows = [];
 
@@ -20,7 +21,6 @@ public partial class CheckPageViewModel : ViewModelBase
     {
         Check = check;
         Banner = banner;
-        SetGrantedPermissions(null);
     }
 
     public ICheck Check { get; }
@@ -30,8 +30,6 @@ public partial class CheckPageViewModel : ViewModelBase
     public string Title => Check.Title;
 
     public string Description => Check.Description;
-
-    public ObservableCollection<PermissionStatusViewModel> Permissions { get; } = [];
 
     [ObservableProperty]
     public partial bool IsDisabled { get; set; }
@@ -73,16 +71,10 @@ public partial class CheckPageViewModel : ViewModelBase
 
     partial void OnFilterTextChanged(string value) => ApplyFilter();
 
-    /// <summary>Marks each required permission granted or missing, and shows the banner when any is missing.</summary>
+    /// <summary>Shows the permission banner when any required permission isn't granted.</summary>
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
     public void SetGrantedPermissions(IReadOnlyCollection<string>? granted)
     {
-        Permissions.Clear();
-        foreach (var permission in Check.RequiredPermissions)
-        {
-            Permissions.Add(new PermissionStatusViewModel(permission, granted?.Contains(permission)));
-        }
-
         Banner.ShowForCheck(granted is null
             ? []
             : Check.RequiredPermissions.Where(p => !granted.Contains(p)).ToList());
@@ -105,21 +97,21 @@ public partial class CheckPageViewModel : ViewModelBase
                     .ThenBy(f => f.DueDate ?? DateTimeOffset.MaxValue)
                     .Select(f => new FindingRow(f))
                     .ToList();
-                StatusText = $"Last run {result.CompletedAt:yyyy-MM-dd HH:mm} UTC: succeeded.";
+                StatusText = $"Last run {result.CompletedAt:yyyy-MM-dd HH:mm} UTC";
                 break;
             case CheckResultStatus.Failed:
-                StatusText = $"Last run {result.CompletedAt:yyyy-MM-dd HH:mm} UTC: failed.";
+                StatusText = $"Last run {result.CompletedAt:yyyy-MM-dd HH:mm} UTC failed";
                 ErrorText = result.StatusCode == 403
                     ? $"{result.ErrorMessage}\n\nAccess was denied. The app registration is likely missing " +
                       $"{string.Join(", ", Check.RequiredPermissions)}, or admin consent has not been granted."
                     : result.ErrorMessage ?? "Unknown error.";
                 break;
             case CheckResultStatus.MissingPermissions:
-                StatusText = "Not run by the last scan: missing permissions.";
-                ErrorText = $"Missing Microsoft Graph application permission(s): {string.Join(", ", result.MissingPermissions)}.";
+                // The permission banner already explains what is missing.
+                StatusText = "Not run: missing permissions";
                 break;
             case CheckResultStatus.Cancelled:
-                StatusText = "The last scan was cancelled before this check finished.";
+                StatusText = "Last scan cancelled";
                 break;
         }
 

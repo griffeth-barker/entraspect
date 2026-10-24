@@ -76,3 +76,9 @@ A step is only done when build and tests both pass.
 - Show Graph errors plainly in the UI; for 403s, name the permission that is likely missing.
 - Permissions in specs, docs and `RequiredPermissions` are Microsoft Graph application permissions. Before adding one, confirm in the Graph docs that it is the least-privileged application permission for the endpoint and that it is a read permission.
 - Commit after each completed spec step: `spec-NNN step N: <summary>`.
+
+## UI conventions
+
+- Keep pages light on text. Put descriptions and explainers in an info icon (`InfoTip`) next to the title, heading or field they explain, not in body text. Short status and error messages stay visible.
+- A check's `Title` is its navigation label: at most `CheckCatalog.MaxTitleLength` (26) characters. Don't repeat the section name; "Expiring credentials" sits under App registrations.
+- Required permissions are shown only on Settings > Checks, as labels in each check's card: green when granted, red when missing. A check page doesn't list them; it shows the permission banner when any are missing.

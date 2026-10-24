@@ -24,7 +24,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 3: The check
 
-**`users-mfa-not-registered`** (category `Users`, title "Users without MFA registered"), evaluated per user:
+**`users-mfa-not-registered`** (category `Users`, title "MFA not registered"), evaluated per user:
 
 - `IsMfaCapable` true: no finding.
 - Admin (`IsAdmin` true): **Critical**.

@@ -8,6 +8,12 @@ namespace Entraspect.Core;
 /// </summary>
 public static class CheckCatalog
 {
+    /// <summary>
+    /// Longest allowed <see cref="ICheck.Title"/>. The title is the navigation label, so keep it short; the section
+    /// already names the object type (for example "Expiring credentials" under App registrations).
+    /// </summary>
+    public const int MaxTitleLength = 26;
+
     public static IReadOnlyList<ICheck> All(TimeProvider timeProvider) =>
         new ICheck[]
         {

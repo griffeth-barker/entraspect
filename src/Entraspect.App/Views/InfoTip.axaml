@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Entraspect.App.Views.InfoTip"
+             VerticalAlignment="Center">
+    <!-- An "i" in a circle; hovering shows the explanation, like Microsoft admin portals. -->
+    <Border x:Name="Icon"
+            Width="16" Height="16" CornerRadius="8" BorderThickness="1"
+            Margin="6,0,0,0"
+            Background="Transparent"
+            BorderBrush="{DynamicResource TextFillColorSecondaryBrush}"
+            Cursor="Help"
+            ToolTip.ShowDelay="200">
+        <TextBlock Text="i" FontSize="11" FontWeight="SemiBold"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+    </Border>
+</UserControl>

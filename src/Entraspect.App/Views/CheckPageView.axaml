@@ -7,21 +7,17 @@
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
             <ContentControl Content="{Binding Banner}" />
-            <TextBlock Text="{Binding Title}" Classes="pageTitle" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
 
-            <TextBlock Text="Required Microsoft Graph application permissions" FontWeight="SemiBold" Margin="0,6,0,0" />
-            <ItemsControl ItemsSource="{Binding Permissions}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:PermissionStatusViewModel">
-                        <views:PermissionStatusView />
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding Title}" Classes="pageTitle" />
+                <views:InfoTip Text="{Binding Description}" />
+            </StackPanel>
 
-            <TextBlock Text="{x:Static vm:CheckPageViewModel.DisabledText}" Classes="muted"
-                       IsVisible="{Binding IsDisabled}" />
-            <TextBlock Text="{Binding StatusText}" Margin="0,6,0,0" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding StatusText}" Classes="muted" />
+                <TextBlock Text="{x:Static vm:CheckPageViewModel.DisabledText}" Classes="muted"
+                           IsVisible="{Binding IsDisabled}" />
+            </StackPanel>
             <TextBlock Text="{Binding ErrorText}" Classes="error"
                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
 
@@ -29,8 +25,8 @@
                 <ToggleButton Content="Critical" IsChecked="{Binding ShowCritical}" Margin="0,0,6,4" />
                 <ToggleButton Content="Warning" IsChecked="{Binding ShowWarning}" Margin="0,0,6,4" />
                 <ToggleButton Content="Info" IsChecked="{Binding ShowInfo}" Margin="0,0,12,4" />
-                <TextBox Text="{Binding FilterText}" Width="280" Margin="0,0,12,4"
-                         PlaceholderText="Filter by object, item or message" />
+                <TextBox Text="{Binding FilterText}" Width="260" Margin="0,0,12,4" PlaceholderText="Filter" />
+                <views:InfoTip Text="Matches the object, item or message." Margin="0,0,12,4" />
                 <TextBlock Text="{Binding FilterSummary}" VerticalAlignment="Center" Classes="muted" Margin="0,0,0,4" />
             </WrapPanel>
         </StackPanel>

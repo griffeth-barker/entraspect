@@ -6,6 +6,10 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## What it checks
 
+- **Guests with admin roles** (users): guests holding an active directory role, built-in or custom, at any scope, directly or through a role-assignable group. Always **Critical**: a guest's identity is managed by another organisation. One finding per guest and role, with the role in its own column. Eligible (PIM) assignments aren't included.
+- **Inactive guests** (users): guests, invited or synced from on-premises, with no successful sign-in for at least 90 days (the inactive guest days, set in **Settings** > **Checks**, from 30 to 365). Microsoft started recording successful sign-ins in December 2023, so for a guest without one the latest sign-in attempt counts, and the message says so. The last sign-in and the invitation state (Accepted or Pending) have their own columns. Needs Entra ID P1 or P2.
+  - **Warning:** an enabled guest with no recent sign-in, or one who never signed in and was added at least that long ago.
+  - **Info:** a disabled guest that would be reported (consider deleting it), or a guest who never signed in whose creation date is unknown.
 - **MFA not registered** (users): users who can't do multifactor authentication because they haven't registered a method that the current policy allows, including users synced from on-premises Active Directory. It answers "who isn't registered for MFA", not "who isn't required to use MFA". Needs Entra ID P1 or P2. The check page shows when Microsoft last updated the report it reads.
   - **Critical:** an admin.
   - **Warning:** a member.
@@ -17,6 +21,7 @@ Status: early development. See `docs/specs/` for the roadmap.
   - A user whom policies require to use MFA only in some cases (for example only outside trusted locations, only for some apps, or with "MFA or a compliant device") is one level lower, and the finding names those policies. Report-only policies that would require MFA are named too.
   - Single-factor sign-ins in the last 7 days (the sign-in lookback, set in **Settings** > **Checks**) are counted in the message, with the most recent in its own column.
   - With security defaults on, there is one Info finding and no per-user findings.
+- **Pending guest invitations** (users): guests who haven't accepted their invitation 30 days after it was sent (the pending invitation days, set in **Settings** > **Checks**). Always **Info**: resend the invitation, or delete the guest if it's no longer needed. The invitation date has its own column.
 - **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
   - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.

@@ -70,4 +70,4 @@ The logo artwork is in `assets/`. The About page uses `entraspect-icon-with-lett
 - **Theme follows the OS at runtime:** "Use system setting" should switch when the OS switches while entraspect is open. Confirm Avalonia does this on macOS, Windows and Linux.
 - **Reload and profiles without a certificate:** Reload validates profiles like the profile form, which needs a .pfx path or a thumbprint. A legacy profile with neither still loads at startup (with "Add a certificate to use this profile."), but makes Reload fail until it is fixed or removed. Should Reload accept it the way startup does?
 - **Logo in dark theme:** the lettermark's "entra" is dark gray, which may be hard to read on the dark theme's background. A light-on-dark variant would follow the theme.
-- **Packaging icons:** macOS `.icns` and Windows `.ico` files made from `entraspect-icon-square.png`.
+- **Packaging icons:** macOS `.icns` and Windows `.ico` files made from `entraspect-icon-square.png`. Until the app is packaged as a `.app` bundle, the macOS Dock shows the generic executable icon: Avalonia doesn't set the Dock icon from `Window.Icon`, and `dotnet run` has no bundle to take it from.

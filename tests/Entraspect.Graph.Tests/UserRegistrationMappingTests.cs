@@ -57,6 +57,32 @@ public sealed class UserRegistrationMappingTests
         Assert.Equal(new[] { "email", "mobilePhone" }, result.MethodsRegistered);
     }
 
+    [Fact]
+    public void Keeps_the_registered_methods_of_a_capable_admin_as_Graph_names_them()
+    {
+        var result = GraphDirectoryReader.MapUserRegistration(new UserRegistrationDetails
+        {
+            Id = "u4",
+            IsAdmin = true,
+            IsMfaRegistered = true,
+            IsMfaCapable = true,
+            MethodsRegistered = ["passKeyDeviceBoundAuthenticator", "WindowsHelloForBusiness", "microsoftAuthenticatorPush"],
+        });
+
+        Assert.True(result.IsMfaCapable);
+        Assert.Equal(
+            new[] { "passKeyDeviceBoundAuthenticator", "WindowsHelloForBusiness", "microsoftAuthenticatorPush" },
+            result.MethodsRegistered);
+    }
+
+    [Fact]
+    public void Missing_methods_are_empty()
+    {
+        var result = GraphDirectoryReader.MapUserRegistration(new UserRegistrationDetails { MethodsRegistered = null });
+
+        Assert.Empty(result.MethodsRegistered);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData(SignInUserType.UnknownFutureValue)]

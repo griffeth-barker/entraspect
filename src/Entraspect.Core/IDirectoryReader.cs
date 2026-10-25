@@ -21,8 +21,8 @@ public interface IDirectoryReader
     Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Users' MFA registration from the user registration details report. An implementation may leave out users who
-    /// are MFA capable; callers must still test <see cref="UserRegistration.IsMfaCapable"/>.
+    /// Users' MFA registration and registered methods from the user registration details report: every user it lists,
+    /// MFA capable or not. The report leaves out disabled users, and may leave out others.
     /// </summary>
     Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default);
 

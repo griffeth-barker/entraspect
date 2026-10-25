@@ -1483,20 +1483,19 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     }
 
     /// <summary>
-    /// <c>GET /reports/authenticationMethods/userRegistrationDetails?$filter=isMfaCapable eq false</c>, following every
-    /// page. Only users who aren't MFA capable are asked for; the check still tests the flag. The report covers cloud
-    /// and synced users alike and needs an Entra ID P1 or P2 licence. The docs list no <c>$top</c> for it, so Graph's
-    /// default page size is used.
+    /// <c>GET /reports/authenticationMethods/userRegistrationDetails</c>, following every page. Every user the report
+    /// lists is read, MFA capable or not: MFA not registered tests the flag itself, and No phishing-resistant MFA needs
+    /// the registered methods of admins who are capable. The report covers cloud and synced users alike, leaves out
+    /// disabled users and needs an Entra ID P1 or P2 licence. The docs list no <c>$top</c> for it, so Graph's default
+    /// page size is used. No <c>$select</c>, so <c>methodsRegistered</c> comes back.
     /// </summary>
     private async Task<IReadOnlyList<UserRegistration>> ReadUserRegistrationsAsync(CancellationToken cancellationToken)
     {
         var result = new List<UserRegistration>();
         var requests = _client.Reports.AuthenticationMethods.UserRegistrationDetails;
 
-        UserRegistrationDetailsCollectionResponse? response = await requests.GetAsync(config =>
-        {
-            config.QueryParameters.Filter = "isMfaCapable eq false";
-        }, cancellationToken).ConfigureAwait(false);
+        UserRegistrationDetailsCollectionResponse? response =
+            await requests.GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
 
         while (response is not null)
         {

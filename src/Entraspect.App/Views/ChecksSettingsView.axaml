@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Entraspect.App.ViewModels"
              xmlns:views="using:Entraspect.App.Views"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
              x:Class="Entraspect.App.Views.ChecksSettingsView"
              x:DataType="vm:ChecksSettingsViewModel">
     <ScrollViewer>
@@ -13,7 +14,7 @@
         <StackPanel Spacing="8">
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Checks" Classes="pageTitle" />
-                <views:InfoTip Text="Scan only runs checks that are on. Changes are saved immediately. Each check lists the Microsoft Graph application permissions it needs: green when granted, red when missing. Colours show while connected." />
+                <views:InfoTip Text="Scan only runs checks that are on. Changes are saved immediately. Expand a check to see the Microsoft Graph application permissions it needs: green when granted, red when missing. Colours show while connected. P1 and P2 mark checks that need an Entra ID P1 or P2 licence." />
             </StackPanel>
 
             <ItemsControl ItemsSource="{Binding Sections}">
@@ -24,13 +25,30 @@
                             <ItemsControl ItemsSource="{Binding Rows}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:CheckSettingsRow">
-                                        <Border Padding="12" Margin="0,0,0,8" CornerRadius="8" BorderThickness="1"
-                                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                                            <Grid ColumnDefinitions="*,Auto">
+                                        <!-- Collapsed: the name with its licence pill (and a red pill when a permission
+                                             is missing), and the toggle. Expanded: the permissions it needs. -->
+                                        <ui:FASettingsExpander Margin="0,0,0,4" Description="{Binding UnlicensedNote}">
+                                            <ui:FASettingsExpander.Header>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
+                                                               VerticalAlignment="Center" />
+                                                    <Border Classes="label neutral" ToolTip.Tip="{Binding LicenceNote}"
+                                                            IsVisible="{Binding LicenceLabel, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                        <TextBlock Text="{Binding LicenceLabel}" FontSize="12" />
+                                                    </Border>
+                                                    <Border Classes="label critical" IsVisible="{Binding HasMissingPermission}"
+                                                            ToolTip.Tip="Expand to see which permission is missing.">
+                                                        <TextBlock Text="Missing permission" FontSize="12" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </ui:FASettingsExpander.Header>
+                                            <ui:FASettingsExpander.Footer>
+                                                <ToggleSwitch IsChecked="{Binding IsOn}" IsEnabled="{Binding IsLicensed}"
+                                                              OnContent="On" OffContent="Off" />
+                                            </ui:FASettingsExpander.Footer>
+                                            <ui:FASettingsExpanderItem>
                                                 <StackPanel Spacing="4">
-                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                                    <ItemsControl ItemsSource="{Binding Permissions}" Margin="0,6,0,0">
+                                                    <ItemsControl ItemsSource="{Binding Permissions}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate>
                                                                 <WrapPanel Orientation="Horizontal" />
@@ -53,14 +71,9 @@
                                                         </ContentControl>
                                                         <views:InfoTip Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
                                                     </StackPanel>
-                                                    <TextBlock Text="{Binding LicenceNote}" Classes="muted" FontSize="12"
-                                                               IsVisible="{Binding !IsLicensed}" />
                                                 </StackPanel>
-                                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
-                                                              IsEnabled="{Binding IsLicensed}"
-                                                              OnContent="On" OffContent="Off" VerticalAlignment="Top" />
-                                            </Grid>
-                                        </Border>
+                                            </ui:FASettingsExpanderItem>
+                                        </ui:FASettingsExpander>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>

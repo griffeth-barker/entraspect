@@ -207,6 +207,45 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         Assert.True(MfaRow(vm).LicencePermission!.IsGranted);
     }
 
+    [Fact]
+    public void Licence_gated_checks_show_a_p1_pill()
+    {
+        var vm = Create();
+
+        Assert.Equal("P1", MfaRow(vm).LicenceLabel);
+        Assert.Null(AppCheckRow(vm).LicenceLabel);
+    }
+
+    [Fact]
+    public void Collapsed_cards_flag_a_missing_permission_only_when_licensed()
+    {
+        var vm = Create();
+        Assert.False(AppCheckRow(vm).HasMissingPermission);
+
+        vm.SetConnection(Array.Empty<string>(), TenantLicence.Free);
+
+        Assert.True(AppCheckRow(vm).HasMissingPermission);
+        Assert.False(MfaRow(vm).HasMissingPermission);
+
+        vm.SetConnection(new[] { "Application.Read.All" }, TenantLicence.Free);
+        Assert.False(AppCheckRow(vm).HasMissingPermission);
+
+        vm.SetConnection(null, TenantLicence.Unknown);
+        Assert.False(AppCheckRow(vm).HasMissingPermission);
+    }
+
+    [Fact]
+    public void The_licence_note_shows_under_the_name_only_while_unlicensed()
+    {
+        var vm = Create();
+        Assert.Null(MfaRow(vm).UnlicensedNote);
+
+        vm.SetConnection(Array.Empty<string>(), TenantLicence.Free);
+
+        Assert.Equal("Needs an Entra ID P1 or P2 licence.", MfaRow(vm).UnlicensedNote);
+        Assert.Null(AppCheckRow(vm).UnlicensedNote);
+    }
+
     private static CheckSettingsRow MfaRow(ChecksSettingsViewModel vm) =>
         vm.Rows.Single(r => r.Check.Id == "users-mfa-not-registered");
 

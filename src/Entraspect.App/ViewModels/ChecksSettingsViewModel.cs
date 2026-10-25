@@ -8,9 +8,10 @@ using Entraspect.Core;
 namespace Entraspect.App.ViewModels;
 
 /// <summary>
-/// One check on Settings > Checks: its enable toggle, category and required permissions. A check the tenant isn't
-/// licensed for has its toggle grayed out in the off position with a note; its saved on/off choice is kept, so the
-/// check comes back as it was if the tenant gets the licence.
+/// One check on Settings > Checks, shown as an expandable card: its name, licence pill and enable toggle, with its
+/// required permissions when expanded. A check the tenant isn't licensed for has its toggle grayed out in the off
+/// position with a note; its saved on/off choice is kept, so the check comes back as it was if the tenant gets the
+/// licence.
 /// </summary>
 public partial class CheckSettingsRow : ObservableObject
 {
@@ -28,6 +29,12 @@ public partial class CheckSettingsRow : ObservableObject
         _reportError = reportError;
         IsEnabled = settings.IsCheckEnabled(check.Id);
         LicenceNote = Licensing.Needs(check.RequiredLicence);
+        LicenceLabel = check.RequiredLicence switch
+        {
+            LicenceRequirement.EntraIdP1 => "P1",
+            LicenceRequirement.EntraIdP2 => "P2",
+            _ => null,
+        };
         SetConnection(null, TenantLicence.Unknown);
     }
 
@@ -45,8 +52,15 @@ public partial class CheckSettingsRow : ObservableObject
 
     /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOn))]
+    [NotifyPropertyChangedFor(nameof(IsOn), nameof(UnlicensedNote))]
     public partial bool IsLicensed { get; set; } = true;
+
+    /// <summary>
+    /// True when connected and a permission this check needs is missing, so the collapsed card shows it. Not for a check
+    /// the tenant isn't licensed for, which shows no permission errors.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool HasMissingPermission { get; set; }
 
     /// <summary>
     /// What the toggle shows: off for an unlicensed check, whatever is saved. Changing it saves
@@ -65,6 +79,12 @@ public partial class CheckSettingsRow : ObservableObject
     }
 
     public string LicenceNote { get; }
+
+    /// <summary>"P1" or "P2", the gray pill next to the name of a check that needs that licence; null otherwise.</summary>
+    public string? LicenceLabel { get; }
+
+    /// <summary>Shown under the name while the tenant isn't licensed for this check, so the grayed toggle is explained.</summary>
+    public string? UnlicensedNote => IsLicensed ? null : LicenceNote;
 
     /// <summary>The saved on/off choice.</summary>
     [ObservableProperty]
@@ -105,6 +125,7 @@ public partial class CheckSettingsRow : ObservableObject
                 granted?.Contains(CheckCatalog.LicencePermission),
                 isOptional: true);
         IsLicensed = Licensing.IsLicensed(Check, licence);
+        HasMissingPermission = IsLicensed && Permissions.Any(p => p.IsMissing);
     }
 }
 

@@ -69,6 +69,12 @@
                 <Button Content="Delete" Command="{Binding DeleteCommand}" Margin="0,0,8,4" />
             </WrapPanel>
 
+            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsNotEditing}">
+                <Button Content="Open profiles.json" Command="{Binding OpenFileCommand}" />
+                <Button Content="Reload" Command="{Binding ReloadCommand}" />
+                <views:InfoTip Text="Edit profiles in a text editor, save, then select Reload. entraspect saves this file whenever you change profiles here, which replaces edits you haven't reloaded, so reload first. Passwords are never saved." />
+            </StackPanel>
+
             <Border IsVisible="{Binding IsEditing}" Padding="16" CornerRadius="8" BorderThickness="1"
                     BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
                     Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
@@ -109,6 +115,8 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="{Binding StatusText}" Classes="muted"
+                       IsVisible="{Binding StatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
             <TextBlock Text="{Binding ErrorText}" Classes="error"
                        IsVisible="{Binding ErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>

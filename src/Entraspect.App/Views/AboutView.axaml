@@ -25,6 +25,15 @@
                 <views:InfoTip Text="Connection profiles and settings are saved here. Passwords are never saved." />
             </StackPanel>
             <SelectableTextBlock Text="{Binding AppDataFolder}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Open settings.json" Command="{Binding OpenSettingsFileCommand}" />
+                <Button Content="Reload" Command="{Binding ReloadSettingsCommand}" />
+                <views:InfoTip Text="Edit settings in a text editor, save, then select Reload. entraspect saves this file whenever you change a setting here, which replaces edits you haven't reloaded, so reload first. Passwords are never saved." />
+            </StackPanel>
+            <TextBlock Text="{Binding SettingsStatusText}" Classes="muted"
+                       IsVisible="{Binding SettingsStatusText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <TextBlock Text="{Binding SettingsErrorText}" Classes="error"
+                       IsVisible="{Binding SettingsErrorText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
         </StackPanel>
         </Grid>
     </ScrollViewer>

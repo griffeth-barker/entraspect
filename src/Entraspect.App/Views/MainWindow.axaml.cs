@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
@@ -170,6 +171,8 @@ public partial class MainWindow : Window, IUserInteraction
             return stream;
         });
     }
+
+    public Task<bool> OpenFileAsync(string path) => Launcher.LaunchFileInfoAsync(new FileInfo(path));
 
     public void SetTheme(AppTheme theme) => App.ApplyTheme(theme);
 

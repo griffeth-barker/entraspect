@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Threading.Tasks;
 using Entraspect.App.Services;
 
@@ -54,6 +55,18 @@ internal sealed class FakeUserInteraction : IUserInteraction
     {
         SuggestedFileNames.Add(suggestedFileName);
         return Task.FromResult(ExportFile);
+    }
+
+    /// <summary>What opening a file returns; false acts as "no app could open it".</summary>
+    public bool OpenFileResult { get; set; } = true;
+
+    /// <summary>Every file opened, with whether it existed at that moment. Nothing is actually opened.</summary>
+    public List<(string Path, bool Existed)> OpenedFiles { get; } = [];
+
+    public Task<bool> OpenFileAsync(string path)
+    {
+        OpenedFiles.Add((path, File.Exists(path)));
+        return Task.FromResult(OpenFileResult);
     }
 
     /// <summary>Every theme applied, in order.</summary>

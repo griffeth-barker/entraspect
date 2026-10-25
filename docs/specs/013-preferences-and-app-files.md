@@ -68,3 +68,4 @@ Don't start this step until the user has added the logo to the repository.
 - **Watching the files:** a `FileSystemWatcher` could reload automatically after the editor saves, instead of a Reload button. It would also need to handle partial writes and the app's own saves.
 - **Open folder:** a button to show the app data folder in Finder or File Explorer, next to its path on About.
 - **Theme follows the OS at runtime:** "Use system setting" should switch when the OS switches while entraspect is open. Confirm Avalonia does this on macOS, Windows and Linux.
+- **Reload and profiles without a certificate:** Reload validates profiles like the profile form, which needs a .pfx path or a thumbprint. A legacy profile with neither still loads at startup (with "Add a certificate to use this profile."), but makes Reload fail until it is fixed or removed. Should Reload accept it the way startup does?

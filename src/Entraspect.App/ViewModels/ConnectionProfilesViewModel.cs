@@ -29,8 +29,8 @@ public sealed class ProfileListItem
 }
 
 /// <summary>
-/// Settings > Connection profiles: the saved profiles with add, edit and delete. Connect here or in the header
-/// connects the selected profile. Profiles never contain passwords.
+/// Settings > Connection profiles: the saved profiles with add, edit and delete, and profiles.json to edit in a text
+/// editor and reload. Connect here or in the header connects the selected profile. Profiles never contain passwords.
 /// </summary>
 public partial class ConnectionProfilesViewModel : ViewModelBase
 {
@@ -72,7 +72,7 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotEditing))]
-    [NotifyCanExecuteChangedFor(nameof(AddCommand), nameof(EditCommand), nameof(DeleteCommand))]
+    [NotifyCanExecuteChangedFor(nameof(AddCommand), nameof(EditCommand), nameof(DeleteCommand), nameof(ReloadCommand))]
     public partial bool IsEditing { get; set; }
 
     public bool IsNotEditing => !IsEditing;
@@ -97,6 +97,10 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string ErrorText { get; set; } = string.Empty;
+
+    /// <summary>A short note after profiles.json was reloaded.</summary>
+    [ObservableProperty]
+    public partial string StatusText { get; set; } = string.Empty;
 
     public static bool NeedsCertificate(ConnectionProfile profile) =>
         string.IsNullOrWhiteSpace(profile.CertificatePath) && string.IsNullOrWhiteSpace(profile.CertificateThumbprint);
@@ -262,6 +266,63 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
         Profiles.Remove(item);
         SelectedProfile = Profiles.FirstOrDefault();
         ErrorText = string.Empty;
+    }
+
+    /// <summary>Opens profiles.json in the default app for .json files, saving it first if it doesn't exist yet.</summary>
+    [RelayCommand]
+    private async Task OpenFileAsync()
+    {
+        StatusText = string.Empty;
+        ErrorText = string.Empty;
+        var error = await AppFile.OpenAsync(
+            _ui,
+            _store.FilePath,
+            () => TrySave(Profiles.Select(p => p.Profile).ToList()) ? null : ErrorText);
+        ErrorText = error ?? string.Empty;
+    }
+
+    /// <summary>
+    /// Reads profiles.json again and shows its profiles, validated like profiles saved from the form. If the file
+    /// can't be read or a profile is invalid, shows why and keeps the profiles already loaded; the file isn't written.
+    /// Doesn't disconnect: a connection whose profile was removed or renamed keeps working.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanAdd))]
+    private void Reload()
+    {
+        StatusText = string.Empty;
+        if (_store.Reload(out var readError) is not { } profiles)
+        {
+            ErrorText = readError ?? string.Empty;
+            return;
+        }
+
+        foreach (var profile in profiles)
+        {
+            if (Validate(profile) is { } invalid)
+            {
+                ErrorText = string.IsNullOrWhiteSpace(profile.Name)
+                    ? $"A profile in profiles.json is invalid: {invalid}"
+                    : $"Profile '{profile.Name}' in profiles.json is invalid: {invalid}";
+                return;
+            }
+        }
+
+        if (profiles.GroupBy(p => p.Name).FirstOrDefault(g => g.Count() > 1) is { } duplicate)
+        {
+            ErrorText = $"profiles.json has more than one profile named '{duplicate.Key}'.";
+            return;
+        }
+
+        var selectedName = SelectedProfile?.Name;
+        Profiles.Clear();
+        foreach (var profile in profiles)
+        {
+            Profiles.Add(new ProfileListItem(profile));
+        }
+
+        SelectedProfile = Profiles.FirstOrDefault(p => p.Name == selectedName) ?? Profiles.FirstOrDefault();
+        ErrorText = string.Empty;
+        StatusText = "Reloaded profiles.json.";
     }
 
     private bool TrySave(IReadOnlyList<ConnectionProfile> profiles)

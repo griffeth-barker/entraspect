@@ -34,6 +34,8 @@ public sealed class ProfileStore
     /// <summary>The folder holding profiles.json, shown on Settings > About.</summary>
     public string FolderPath => _directory;
 
+    public string FilePath => _filePath;
+
     /// <summary>
     /// Loads saved profiles. Returns an empty list and sets <paramref name="error"/> if the file cannot be read.
     /// An unreadable file is copied aside first, so a later save does not destroy it. Unknown fields (for example a
@@ -64,6 +66,43 @@ public sealed class ProfileStore
         {
             error = $"Saved profiles could not be read: {ex.Message}";
             return [];
+        }
+    }
+
+    /// <summary>
+    /// Reads profiles.json again after the user edited it. Unlike <see cref="Load"/>, nothing is backed up and nothing
+    /// is written: returns null with <paramref name="error"/> set if the file is missing or can't be read, so the user
+    /// can fix it. The profiles themselves are validated by the caller.
+    /// </summary>
+    public IReadOnlyList<ConnectionProfile>? Reload(out string? error)
+    {
+        if (!File.Exists(_filePath))
+        {
+            error = $"'{_filePath}' doesn't exist.";
+            return null;
+        }
+
+        try
+        {
+            var profiles = JsonSerializer.Deserialize<List<ConnectionProfile?>>(File.ReadAllText(_filePath), Options);
+            if (profiles is null || profiles.Any(p => p is null))
+            {
+                error = "profiles.json must be a list of profiles.";
+                return null;
+            }
+
+            error = null;
+            return profiles!;
+        }
+        catch (JsonException ex)
+        {
+            error = $"profiles.json isn't valid: {ex.Message}";
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = $"profiles.json could not be read: {ex.Message}";
+            return null;
         }
     }
 

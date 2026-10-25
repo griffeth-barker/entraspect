@@ -35,6 +35,12 @@ public sealed class TimeDisplay
     /// <summary>True when the saved time zone isn't known on this computer, so UTC is shown instead.</summary>
     public bool SavedZoneUnavailable => !IsUtc && !IsLocal && Zone is null;
 
+    /// <summary>Returns null if <paramref name="timeZone"/> can be shown on this computer, otherwise why not.</summary>
+    public string? ValidateTimeZone(string timeZone) =>
+        timeZone is AppSettings.UtcTimeZone or AppSettings.LocalTimeZone || Zones.Find(timeZone) is not null
+            ? null
+            : $"The time zone '{timeZone}' isn't available on this computer.";
+
     /// <summary>"UTC", "local" or the zone's ID such as "Europe/Berlin", for column headers such as "Expires (UTC)".</summary>
     public string ZoneLabel => Zone switch
     {

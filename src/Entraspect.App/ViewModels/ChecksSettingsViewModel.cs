@@ -17,6 +17,9 @@ public partial class CheckSettingsRow : ObservableObject
     private readonly SettingsState _settings;
     private readonly Action<string?> _reportError;
 
+    // Set while the toggle is copied from reloaded settings, so it isn't saved straight back.
+    private bool _syncing;
+
     public CheckSettingsRow(ICheck check, string categoryTitle, SettingsState settings, Action<string?> reportError)
     {
         Check = check;
@@ -69,7 +72,21 @@ public partial class CheckSettingsRow : ObservableObject
     public partial bool IsEnabled { get; set; }
 
     // Saved immediately; the next scan picks it up.
-    partial void OnIsEnabledChanged(bool value) => _reportError(_settings.SetCheckEnabled(Check.Id, value));
+    partial void OnIsEnabledChanged(bool value)
+    {
+        if (!_syncing)
+        {
+            _reportError(_settings.SetCheckEnabled(Check.Id, value));
+        }
+    }
+
+    /// <summary>Shows the saved on/off choice again, after settings.json was reloaded.</summary>
+    public void SyncFromSettings()
+    {
+        _syncing = true;
+        IsEnabled = _settings.IsCheckEnabled(Check.Id);
+        _syncing = false;
+    }
 
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
     /// <param name="licence">The connected tenant's licence; <see cref="TenantLicence.Unknown"/> when not connected.</param>
@@ -135,13 +152,8 @@ public partial class ChecksSettingsViewModel : ViewModelBase
             }
         }
 
-        _loading = true;
-        ExpiryWarningDays = settings.Current.CheckOptions.ExpiryWarningDays;
-        ExpiryCriticalDays = settings.Current.CheckOptions.ExpiryCriticalDays;
-        NewGroupGraceDays = settings.Current.CheckOptions.NewGroupGraceDays;
-        ReportOnlyWarningDays = settings.Current.CheckOptions.ReportOnlyWarningDays;
-        SignInLookbackDays = settings.Current.CheckOptions.SignInLookbackDays;
-        _loading = false;
+        LoadOptions();
+        settings.Reloaded += (_, _) => SyncFromSettings();
     }
 
     /// <summary>Every check, in navigation order.</summary>
@@ -188,6 +200,31 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         {
             row.SetConnection(granted, licence);
         }
+    }
+
+    /// <summary>Shows reloaded settings: every toggle and option, replacing anything not yet saved.</summary>
+    private void SyncFromSettings()
+    {
+        foreach (var row in Rows)
+        {
+            row.SyncFromSettings();
+        }
+
+        LoadOptions();
+        OptionsErrorText = string.Empty;
+        SaveErrorText = string.Empty;
+    }
+
+    private void LoadOptions()
+    {
+        var options = _settings.Current.CheckOptions;
+        _loading = true;
+        ExpiryWarningDays = options.ExpiryWarningDays;
+        ExpiryCriticalDays = options.ExpiryCriticalDays;
+        NewGroupGraceDays = options.NewGroupGraceDays;
+        ReportOnlyWarningDays = options.ReportOnlyWarningDays;
+        SignInLookbackDays = options.SignInLookbackDays;
+        _loading = false;
     }
 
     private void SaveOptions()

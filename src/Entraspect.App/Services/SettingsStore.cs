@@ -32,6 +32,8 @@ public sealed class SettingsStore
         _filePath = Path.Combine(_directory, "settings.json");
     }
 
+    public string FilePath => _filePath;
+
     public AppSettings Load(out string? error)
     {
         error = null;
@@ -44,14 +46,7 @@ public sealed class SettingsStore
         {
             var json = File.ReadAllText(_filePath);
             var raw = JsonSerializer.Deserialize<SettingsFile>(json, Options) ?? new SettingsFile();
-            return new AppSettings
-            {
-                DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
-                LastUsedProfileName = raw.LastUsedProfileName,
-                TimeZone = TimeZoneFrom(raw),
-                Theme = ThemeFrom(raw.Theme) ?? AppTheme.System,
-                CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
-            };
+            return ToSettings(raw);
         }
         catch (JsonException)
         {
@@ -68,12 +63,66 @@ public sealed class SettingsStore
         }
     }
 
+    /// <summary>
+    /// Reads settings.json again after the user edited it. Unlike <see cref="Load"/>, nothing is backed up, reset or
+    /// written: returns null with <paramref name="error"/> set if the file is missing, can't be read, or has invalid
+    /// check options or an unknown theme, so the user can fix it. Missing values take their defaults, as in Load.
+    /// </summary>
+    public AppSettings? Reload(out string? error)
+    {
+        if (!File.Exists(_filePath))
+        {
+            error = $"'{_filePath}' doesn't exist.";
+            return null;
+        }
+
+        SettingsFile raw;
+        try
+        {
+            raw = JsonSerializer.Deserialize<SettingsFile>(File.ReadAllText(_filePath), Options) ?? new SettingsFile();
+        }
+        catch (JsonException ex)
+        {
+            error = $"settings.json isn't valid: {ex.Message}";
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            error = $"settings.json could not be read: {ex.Message}";
+            return null;
+        }
+
+        if (raw.CheckOptions is { } options && CheckOptions.Validate(options) is { } optionsError)
+        {
+            error = $"settings.json has invalid check options: {optionsError}";
+            return null;
+        }
+
+        if (raw.Theme is { ValueKind: not JsonValueKind.Null } theme && ThemeFrom(theme) is null)
+        {
+            error = "settings.json has an unknown theme. Use \"System\", \"Light\" or \"Dark\".";
+            return null;
+        }
+
+        error = null;
+        return ToSettings(raw);
+    }
+
     public void Save(AppSettings settings)
     {
         Directory.CreateDirectory(_directory);
         var json = JsonSerializer.Serialize(settings, Options);
         File.WriteAllText(_filePath, json);
     }
+
+    private static AppSettings ToSettings(SettingsFile raw) => new()
+    {
+        DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
+        LastUsedProfileName = raw.LastUsedProfileName,
+        TimeZone = TimeZoneFrom(raw),
+        Theme = ThemeFrom(raw.Theme) ?? AppTheme.System,
+        CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
+    };
 
     private static string TimeZoneFrom(SettingsFile raw)
     {

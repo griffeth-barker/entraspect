@@ -807,6 +807,92 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Open_settings_json_saves_a_missing_file_first()
+    {
+        var vm = CreateViewModel();
+
+        await vm.About.OpenSettingsFileCommand.ExecuteAsync(null);
+
+        Assert.Equal([(SettingsPath, true)], _prompt.OpenedFiles);
+        Assert.Equal(string.Empty, vm.About.SettingsErrorText);
+    }
+
+    [Fact]
+    public async Task Reload_settings_applies_checks_options_time_zone_and_theme_at_once()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+        File.WriteAllText(SettingsPath, $$"""
+            {
+              "DisabledCheckIds": ["{{CheckId}}"],
+              "CheckOptions": { "ExpiryWarningDays": 45, "ExpiryCriticalDays": 10 },
+              "LastUsedProfileName": "p1",
+              "TimeZone": "Asia/Tokyo",
+              "Theme": "Dark"
+            }
+            """);
+        var written = File.ReadAllText(SettingsPath);
+
+        vm.About.ReloadSettingsCommand.Execute(null);
+
+        Assert.Equal(string.Empty, vm.About.SettingsErrorText);
+        Assert.Equal("Reloaded settings.json.", vm.About.SettingsStatusText);
+        Assert.False(AppCheckRow(vm).IsEnabled);
+        Assert.True(CheckPage(vm).IsDisabled);
+        Assert.Equal(45, vm.ChecksSettings.ExpiryWarningDays);
+        Assert.Equal(10, vm.ChecksSettings.ExpiryCriticalDays);
+        Assert.Equal("Asia/Tokyo", vm.Preferences.SelectedTimeZone?.Id);
+        Assert.Equal("Last scan: 2026-01-15 21:00 (UTC+09:00)", vm.Overview.LastScanText);
+        Assert.Equal(AppTheme.Dark, vm.Preferences.SelectedTheme?.Theme);
+        Assert.Equal(AppTheme.Dark, _prompt.Themes[^1]);
+        Assert.Equal(written, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("{ not json", "settings.json isn't valid")]
+    [InlineData("{\"CheckOptions\":{\"ExpiryWarningDays\":5,\"ExpiryCriticalDays\":10}}",
+        "settings.json has invalid check options: Critical days must be less than or equal to warning days.")]
+    [InlineData("{\"TimeZone\":\"Mars/Olympus_Mons\"}",
+        "The time zone 'Mars/Olympus_Mons' isn't available on this computer.")]
+    [InlineData("{\"Theme\":\"Purple\"}", "settings.json has an unknown theme.")]
+    public void Reload_of_invalid_settings_shows_why_and_changes_nothing(string json, string expectedError)
+    {
+        new SettingsStore(_dir).Save(new AppSettings { TimeZone = "Europe/Berlin", Theme = AppTheme.Light });
+        var vm = CreateViewModel();
+        File.WriteAllText(SettingsPath, json);
+
+        vm.About.ReloadSettingsCommand.Execute(null);
+
+        Assert.StartsWith(expectedError, vm.About.SettingsErrorText);
+        Assert.Equal(string.Empty, vm.About.SettingsStatusText);
+        Assert.Equal("Europe/Berlin", vm.Preferences.SelectedTimeZone?.Id);
+        Assert.Equal(AppTheme.Light, vm.Preferences.SelectedTheme?.Theme);
+        Assert.Equal([AppTheme.Light], _prompt.Themes);
+        Assert.True(AppCheckRow(vm).IsEnabled);
+        Assert.Equal(json, File.ReadAllText(SettingsPath));
+        Assert.DoesNotContain(Directory.GetFiles(_dir), f => f.Contains("corrupt"));
+    }
+
+    [Fact]
+    public async Task Reloading_profiles_does_not_disconnect()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        new ProfileStore(_dir).Save([]);
+
+        vm.Profiles.ReloadCommand.Execute(null);
+
+        Assert.Empty(vm.Profiles.Profiles);
+        Assert.True(vm.IsConnected);
+        await vm.ReconnectCommand.ExecuteAsync(null);
+        Assert.True(vm.IsConnected);
+        Assert.Equal(2, _connectCalls.Count);
+    }
+
+    private string SettingsPath => Path.Combine(_dir, "settings.json");
+
+    [Fact]
     public async Task Connection_status_is_shown_as_name_and_tenant()
     {
         var vm = CreateConnectableViewModel();

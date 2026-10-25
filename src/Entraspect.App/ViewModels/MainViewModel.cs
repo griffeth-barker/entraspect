@@ -59,7 +59,7 @@ public partial class MainViewModel : ViewModelBase
         Profiles = new ConnectionProfilesViewModel(profileStore, ui, ConnectCommand, _settings.Current.LastUsedProfileName);
         Overview = new OverviewViewModel(NewBanner(), ExcessPermissions, item => SelectedNavItem = item);
         ChecksSettings = new ChecksSettingsViewModel(Checks, CategoryTitle, _settings);
-        About = new AboutViewModel(ExcessPermissions, profileStore.FolderPath);
+        About = new AboutViewModel(ExcessPermissions, profileStore.FolderPath, _settings, Time, ui);
         Preferences = new PreferencesViewModel(_settings, Time, ui);
 
         OverviewItem = new NavItemViewModel(NavItemKind.Overview, "Overview", "Home", Overview);

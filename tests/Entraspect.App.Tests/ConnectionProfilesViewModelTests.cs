@@ -138,6 +138,104 @@ public sealed class ConnectionProfilesViewModelTests : IDisposable
         Assert.Equal(expected, ConnectionProfilesViewModel.NeedsPassword(Profile("p", path, thumbprint)));
     }
 
+    [Fact]
+    public async Task Open_file_opens_profiles_json_in_the_default_app()
+    {
+        Save(Profile("p1", thumbprint: "AB"));
+        var vm = Create("p1");
+
+        await vm.OpenFileCommand.ExecuteAsync(null);
+
+        Assert.Equal([(ProfilesPath, true)], _ui.OpenedFiles);
+        Assert.Equal(string.Empty, vm.ErrorText);
+    }
+
+    [Fact]
+    public async Task Open_file_saves_a_missing_file_first()
+    {
+        var vm = Create();
+
+        await vm.OpenFileCommand.ExecuteAsync(null);
+
+        Assert.Equal([(ProfilesPath, true)], _ui.OpenedFiles);
+        Assert.Empty(new ProfileStore(_dir).Load(out _));
+    }
+
+    [Fact]
+    public async Task Open_file_shows_the_path_when_no_app_can_open_it()
+    {
+        Save(Profile("p1", thumbprint: "AB"));
+        _ui.OpenFileResult = false;
+        var vm = Create("p1");
+
+        await vm.OpenFileCommand.ExecuteAsync(null);
+
+        Assert.Equal($"No app could open '{ProfilesPath}'.", vm.ErrorText);
+    }
+
+    [Fact]
+    public void Reload_shows_edited_profiles_and_keeps_the_selection()
+    {
+        Save(Profile("p1", thumbprint: "AB"), Profile("p2", thumbprint: "CD"));
+        var vm = Create("p2");
+        Save(Profile("renamed", thumbprint: "AB"), Profile("p2", thumbprint: "EF"), Profile("p3", path: "/x.pfx"));
+
+        vm.ReloadCommand.Execute(null);
+
+        Assert.Equal(["renamed", "p2", "p3"], vm.Profiles.Select(p => p.Name));
+        Assert.Equal("p2", vm.SelectedProfile?.Name);
+        Assert.Equal("EF", vm.SelectedProfile?.Profile.CertificateThumbprint);
+        Assert.Equal(string.Empty, vm.ErrorText);
+        Assert.Equal("Reloaded profiles.json.", vm.StatusText);
+    }
+
+    [Theory]
+    [InlineData("[{ not json", "profiles.json isn't valid")]
+    [InlineData("null", "profiles.json must be a list of profiles.")]
+    [InlineData("[{\"name\":\"bad\",\"tenantId\":\"t\",\"clientId\":\"not-a-guid\",\"certificateThumbprint\":\"AB\"}]",
+        "Profile 'bad' in profiles.json is invalid: Enter the client ID")]
+    [InlineData("[{\"name\":\"both\",\"tenantId\":\"t\",\"clientId\":\"00000000-0000-0000-0000-0000000000c1\",\"certificateThumbprint\":\"AB\",\"certificatePath\":\"/x.pfx\"}]",
+        "Profile 'both' in profiles.json is invalid: Enter either a .pfx path or a certificate thumbprint.")]
+    [InlineData("[{\"name\":\"d\",\"tenantId\":\"t\",\"clientId\":\"00000000-0000-0000-0000-0000000000c1\",\"certificateThumbprint\":\"AB\"},{\"name\":\"d\",\"tenantId\":\"t\",\"clientId\":\"00000000-0000-0000-0000-0000000000c1\",\"certificateThumbprint\":\"CD\"}]",
+        "profiles.json has more than one profile named 'd'.")]
+    public void Reload_of_an_invalid_file_shows_why_and_changes_nothing(string json, string expectedError)
+    {
+        Save(Profile("p1", thumbprint: "AB"));
+        var vm = Create("p1");
+        File.WriteAllText(ProfilesPath, json);
+
+        vm.ReloadCommand.Execute(null);
+
+        Assert.StartsWith(expectedError, vm.ErrorText);
+        Assert.Equal("p1", Assert.Single(vm.Profiles).Name);
+        Assert.Equal("p1", vm.SelectedProfile?.Name);
+        Assert.Equal(json, File.ReadAllText(ProfilesPath));
+        Assert.Equal(["profiles.json"], Directory.GetFiles(_dir).Select(Path.GetFileName));
+    }
+
+    [Fact]
+    public void Reload_of_a_missing_file_shows_why()
+    {
+        var vm = Create();
+
+        vm.ReloadCommand.Execute(null);
+
+        Assert.Equal($"'{ProfilesPath}' doesn't exist.", vm.ErrorText);
+        Assert.False(File.Exists(ProfilesPath));
+    }
+
+    [Fact]
+    public void Reload_is_unavailable_while_editing()
+    {
+        var vm = Create();
+
+        vm.AddCommand.Execute(null);
+
+        Assert.False(vm.ReloadCommand.CanExecute(null));
+    }
+
+    private string ProfilesPath => Path.Combine(_dir, "profiles.json");
+
     private ConnectionProfilesViewModel Create(string? lastUsed = null) =>
         new(new ProfileStore(_dir), _ui, new RelayCommand(() => { }), lastUsed);
 

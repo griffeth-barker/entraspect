@@ -169,11 +169,17 @@ public sealed class EnterpriseAppMappingTests
         Assert.Equal(Thumbprint, GraphDirectoryReader.Thumbprint(credential));
     }
 
+    // Another published SHA-1 test vector, for a second certificate.
+    private static readonly byte[] Abcdbcde = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"u8.ToArray();
+
+    private const string AbcdbcdeSha1 = "84983E441C3BD26EBAAE4AA1F95129E5E54670F1";
+
     [Fact]
-    public void MapServicePrincipal_matches_the_preferred_thumbprint_from_the_key_like_entra_returns_it()
+    public void Sign_credential_takes_its_thumbprint_from_the_verify_credential_like_entra_returns_them()
     {
-        // Shaped like a real SAML app read with GET /servicePrincipals/{id}?$select=keyCredentials: a Sign and Verify
-        // pair sharing a SHA-256 customKeyIdentifier, with the certificate in key.
+        // Shaped like a real SAML app read with GET /servicePrincipals/{id}?$select=keyCredentials: each certificate is
+        // a Verify and Sign pair sharing a SHA-256 customKeyIdentifier, with key only on the Verify credential.
+        byte[] newerId = [.. Sha256Sized.Reverse()];
         var servicePrincipal = new ServicePrincipal
         {
             Id = "sp-1",
@@ -181,20 +187,33 @@ public sealed class EnterpriseAppMappingTests
             PreferredTokenSigningKeyThumbprint = AbcSha1,
             KeyCredentials =
             [
+                WithKey(Key("Verify", Guid.NewGuid(), newerId), Abcdbcde),
+                Key("Sign", Guid.NewGuid(), newerId),
                 WithKey(Key("Verify", Guid.NewGuid(), Sha256Sized)),
-                WithKey(Key("Sign", Guid.NewGuid(), Sha256Sized)),
+                Key("Sign", Guid.NewGuid(), Sha256Sized),
             ],
         };
 
         var app = GraphDirectoryReader.MapServicePrincipal(servicePrincipal);
 
-        Assert.Equal(AbcSha1, Assert.Single(app.SigningCertificates).Thumbprint);
-        Assert.Equal(app.PreferredTokenSigningKeyThumbprint, app.SigningCertificates[0].Thumbprint);
+        Assert.Equal(new[] { AbcdbcdeSha1, AbcSha1 }, app.SigningCertificates.Select(c => c.Thumbprint));
     }
 
-    private static KeyCredential WithKey(KeyCredential credential)
+    [Fact]
+    public void Sign_credential_with_no_paired_key_has_no_thumbprint()
     {
-        credential.Key = Abc;
+        var sign = Key("Sign", Guid.NewGuid(), Sha256Sized);
+        byte[] otherId = [.. Sha256Sized.Reverse()];
+        var unrelated = WithKey(Key("Verify", Guid.NewGuid(), otherId));
+
+        var certificate = GraphDirectoryReader.MapSigningCertificate(sign, [sign, unrelated]);
+
+        Assert.Equal(string.Empty, certificate.Thumbprint);
+    }
+
+    private static KeyCredential WithKey(KeyCredential credential, byte[]? key = null)
+    {
+        credential.Key = key ?? Abc;
         return credential;
     }
 }

@@ -81,7 +81,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     /// Reads every service principal. SAML apps are picked out by the check, not the query. The List
     /// servicePrincipals docs give 100 as the maximum page size, so that is what is asked for; every page is followed.
     /// Listing doesn't return the certificate data (<c>key</c>) that the SHA-1 thumbprint comes from, so each service
-    /// principal with a signing certificate is then read on its own with <c>$select=keyCredentials</c>.
+    /// principal with a signing certificate is then read on its own with <c>$select=keyCredentials</c>; even then,
+    /// only the <c>Verify</c> credential of each pair carries <c>key</c>.
     /// </summary>
     private async Task<IReadOnlyList<EnterpriseApp>> ReadEnterpriseAppsAsync(CancellationToken cancellationToken)
     {
@@ -143,8 +144,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
     }
 
-    public static EnterpriseApp MapServicePrincipal(ServicePrincipal servicePrincipal) =>
-        new()
+    public static EnterpriseApp MapServicePrincipal(ServicePrincipal servicePrincipal)
+    {
+        var credentials = servicePrincipal.KeyCredentials ?? [];
+
+        return new EnterpriseApp
         {
             Id = servicePrincipal.Id ?? string.Empty,
             AppId = Guid.TryParse(servicePrincipal.AppId, out var appId) ? appId : Guid.Empty,
@@ -153,11 +157,12 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             AccountEnabled = servicePrincipal.AccountEnabled ?? true,
             PreferredSingleSignOnMode = servicePrincipal.PreferredSingleSignOnMode,
             PreferredTokenSigningKeyThumbprint = servicePrincipal.PreferredTokenSigningKeyThumbprint,
-            SigningCertificates = (servicePrincipal.KeyCredentials ?? [])
+            SigningCertificates = credentials
                 .Where(IsSigningCertificate)
-                .Select(MapSigningCertificate)
+                .Select(c => MapSigningCertificate(c, credentials))
                 .ToList(),
         };
+    }
 
     /// <summary>
     /// A token signing certificate is an <c>AsymmetricX509Cert</c> key credential with usage <c>Sign</c>. Entra
@@ -167,15 +172,38 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         string.Equals(credential.Type, "AsymmetricX509Cert", StringComparison.OrdinalIgnoreCase) &&
         string.Equals(credential.Usage, "Sign", StringComparison.OrdinalIgnoreCase);
 
-    public static SigningCertificate MapSigningCertificate(KeyCredential credential) =>
+    /// <param name="allCredentials">
+    /// Every key credential of the service principal. Graph returns the certificate (<c>key</c>) only on the
+    /// <c>Verify</c> credential of each pair, so the thumbprint of a <c>Sign</c> credential comes from the credential
+    /// that shares its <c>customKeyIdentifier</c>.
+    /// </param>
+    public static SigningCertificate MapSigningCertificate(
+        KeyCredential credential,
+        IReadOnlyList<KeyCredential>? allCredentials = null) =>
         new()
         {
             KeyId = credential.KeyId ?? Guid.Empty,
-            Thumbprint = Thumbprint(credential),
+            Thumbprint = Thumbprint(PairedCredentialWithKey(credential, allCredentials) ?? credential),
             DisplayName = credential.DisplayName ?? string.Empty,
             StartDateTime = credential.StartDateTime ?? default,
             EndDateTime = credential.EndDateTime,
         };
+
+    private static KeyCredential? PairedCredentialWithKey(
+        KeyCredential credential,
+        IReadOnlyList<KeyCredential>? allCredentials)
+    {
+        if (credential.Key is { Length: > 0 } || credential.CustomKeyIdentifier is not { Length: > 0 } identifier)
+        {
+            return null;
+        }
+
+        return allCredentials?.FirstOrDefault(c =>
+            c != credential &&
+            c.Key is { Length: > 0 } &&
+            c.CustomKeyIdentifier is { } other &&
+            other.AsSpan().SequenceEqual(identifier));
+    }
 
     /// <summary>
     /// The certificate's SHA-1 thumbprint in uppercase hex, the form <c>preferredTokenSigningKeyThumbprint</c> uses: the

@@ -119,6 +119,7 @@ After connecting, entraspect opens **Overview**, which shows the connected tenan
 1. Select **Scan**. It runs every check that is turned on and has its permissions. **Cancel** stops it.
 2. **Overview** shows the Critical, Warning and Info counts for each section, and any check that failed or couldn't run, with the reason.
 3. Select a check in the navigation, or a row on **Overview**, to see its findings. Use **Search** or **Add filter** (pick a property, then a value) to narrow them, as in the Entra admin center.
+4. Select **Export** to save results to a file you choose, as CSV or JSON. On **Overview** it saves every finding from the last scan; on a check page, only the findings shown after search and filters. CSV has one row per finding and opens in Excel; JSON also has each check's status and why it failed or didn't run. Dates in both are UTC (ISO 8601, ending in `Z`). In CSV, a value starting with `=`, `+`, `-` or `@` gets a leading `'` so spreadsheet apps show it as text instead of running it as a formula; JSON keeps values unchanged.
 
 Under **Settings**:
 
@@ -126,7 +127,9 @@ Under **Settings**:
 - **Preferences** chooses whether dates and times show in UTC or your computer's time zone.
 - **About** shows the version and where entraspect stores its files.
 
-Results are kept in memory only and are cleared when you disconnect or close entraspect.
+Results are kept in memory and are cleared when you disconnect or close entraspect, unless you export them.
+
+> **Exports contain tenant data.** An exported file holds your tenant ID and the names and IDs of users, groups, apps and policies. Store it as you would other tenant data, share it only with people who may see it, and never commit it to a repository. Exports never contain passwords, certificates, private keys or tokens.
 
 ## Where entraspect stores its files
 

@@ -9,8 +9,14 @@ public sealed class CheckOptions
     /// <summary>Groups created fewer than this many UTC calendar days ago are skipped by the group checks.</summary>
     public int NewGroupGraceDays { get; init; } = 7;
 
+    /// <summary>
+    /// Report-only Conditional Access policies unchanged for at least this many UTC calendar days are a Warning.
+    /// </summary>
+    public int ReportOnlyWarningDays { get; init; } = 30;
+
     /// <summary>Returns null if <paramref name="options"/> is valid, otherwise what is wrong, for Settings.</summary>
-    public static string? Validate(CheckOptions options) => ExpiryError(options) ?? NewGroupGraceError(options);
+    public static string? Validate(CheckOptions options) =>
+        ExpiryError(options) ?? NewGroupGraceError(options) ?? ReportOnlyError(options);
 
     private static string? ExpiryError(CheckOptions options) =>
         options.ExpiryCriticalDays < 0
@@ -22,11 +28,15 @@ public sealed class CheckOptions
     private static string? NewGroupGraceError(CheckOptions options) =>
         options.NewGroupGraceDays < 0 ? "New group grace days can't be negative." : null;
 
+    private static string? ReportOnlyError(CheckOptions options) =>
+        options.ReportOnlyWarningDays < 0 ? "Report-only warning days can't be negative." : null;
+
     /// <summary>
     /// Returns a valid copy of <paramref name="options"/>, or the defaults if it is null. Each rule only resets the
     /// options it covers, so add new options here with their own rule. Expiry: <c>0 &lt;= ExpiryCriticalDays &lt;=
     /// ExpiryWarningDays</c>, otherwise both expiry values fall back to their defaults. New group grace:
-    /// <c>NewGroupGraceDays &gt;= 0</c>, otherwise it falls back to its default.
+    /// <c>NewGroupGraceDays &gt;= 0</c>, otherwise it falls back to its default. Report-only warning:
+    /// <c>ReportOnlyWarningDays &gt;= 0</c>, otherwise it falls back to its default.
     /// </summary>
     public static CheckOptions Normalize(CheckOptions? options)
     {
@@ -38,12 +48,14 @@ public sealed class CheckOptions
 
         var expiryValid = ExpiryError(options) is null;
         var graceValid = NewGroupGraceError(options) is null;
+        var reportOnlyValid = ReportOnlyError(options) is null;
 
         return new CheckOptions
         {
             ExpiryWarningDays = expiryValid ? options.ExpiryWarningDays : defaults.ExpiryWarningDays,
             ExpiryCriticalDays = expiryValid ? options.ExpiryCriticalDays : defaults.ExpiryCriticalDays,
             NewGroupGraceDays = graceValid ? options.NewGroupGraceDays : defaults.NewGroupGraceDays,
+            ReportOnlyWarningDays = reportOnlyValid ? options.ReportOnlyWarningDays : defaults.ReportOnlyWarningDays,
         };
     }
 }

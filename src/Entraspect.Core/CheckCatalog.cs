@@ -33,5 +33,6 @@ public static class CheckCatalog
             new Checks.AppRiskyRedirectUrisCheck(),
             new Checks.SamlSigningCertificateExpiryCheck(timeProvider),
             new Checks.HighPrivilegeAppPermissionsCheck(),
+            new Checks.ConditionalAccessPolicyHygieneCheck(timeProvider),
         };
 }

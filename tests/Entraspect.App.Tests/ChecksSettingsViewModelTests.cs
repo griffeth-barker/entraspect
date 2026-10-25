@@ -35,11 +35,25 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         vm.ExpiryWarningDays = 45;
         vm.ExpiryCriticalDays = 10;
         vm.NewGroupGraceDays = 0;
+        vm.ReportOnlyWarningDays = 0;
 
         Assert.Equal(string.Empty, vm.OptionsErrorText);
         var options = new SettingsStore(_dir).Load(out _).CheckOptions;
         Assert.Equal((45, 10, 0), (options.ExpiryWarningDays, options.ExpiryCriticalDays, options.NewGroupGraceDays));
+        Assert.Equal(0, options.ReportOnlyWarningDays);
         Assert.Equal(0, Create().NewGroupGraceDays);
+        Assert.Equal(0, Create().ReportOnlyWarningDays);
+    }
+
+    [Fact]
+    public void Negative_report_only_warning_days_show_an_error_and_are_not_saved()
+    {
+        var vm = Create();
+
+        vm.ReportOnlyWarningDays = -1;
+
+        Assert.Contains("Not saved", vm.OptionsErrorText);
+        Assert.Equal(30, new SettingsStore(_dir).Load(out _).CheckOptions.ReportOnlyWarningDays);
     }
 
     [Fact]

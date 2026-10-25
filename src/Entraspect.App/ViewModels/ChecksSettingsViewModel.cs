@@ -114,6 +114,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         ExpiryWarningDays = settings.Current.CheckOptions.ExpiryWarningDays;
         ExpiryCriticalDays = settings.Current.CheckOptions.ExpiryCriticalDays;
         NewGroupGraceDays = settings.Current.CheckOptions.NewGroupGraceDays;
+        ReportOnlyWarningDays = settings.Current.CheckOptions.ReportOnlyWarningDays;
         _loading = false;
     }
 
@@ -129,6 +130,9 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     public partial decimal? NewGroupGraceDays { get; set; }
 
     [ObservableProperty]
+    public partial decimal? ReportOnlyWarningDays { get; set; }
+
+    [ObservableProperty]
     public partial string OptionsErrorText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -139,6 +143,8 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     partial void OnExpiryCriticalDaysChanged(decimal? value) => SaveOptions();
 
     partial void OnNewGroupGraceDaysChanged(decimal? value) => SaveOptions();
+
+    partial void OnReportOnlyWarningDaysChanged(decimal? value) => SaveOptions();
 
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
     public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
@@ -157,7 +163,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         }
 
         if (ExpiryWarningDays is not { } warning || ExpiryCriticalDays is not { } critical ||
-            NewGroupGraceDays is not { } grace)
+            NewGroupGraceDays is not { } grace || ReportOnlyWarningDays is not { } reportOnly)
         {
             OptionsErrorText = "Enter a number of days.";
             return;
@@ -168,6 +174,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
             ExpiryWarningDays = (int)warning,
             ExpiryCriticalDays = (int)critical,
             NewGroupGraceDays = (int)grace,
+            ReportOnlyWarningDays = (int)reportOnly,
         };
 
         if (CheckOptions.Validate(options) is { } error)

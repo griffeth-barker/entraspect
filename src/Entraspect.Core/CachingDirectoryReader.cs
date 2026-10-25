@@ -79,7 +79,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
         if (unknown.Count > 0)
         {
             var known = distinct.Count - unknown.Count;
-            var innerProgress = progress is null ? null : new OffsetProgress(progress, known);
+            var innerProgress = progress is null ? null : new SyncProgress<int>(n => progress.Report(known + n));
             var missing = await _inner.GetMissingUserIdsAsync(unknown, innerProgress, cancellationToken)
                 .ConfigureAwait(false);
             var missingSet = missing.ToHashSet(StringComparer.OrdinalIgnoreCase);
@@ -91,10 +91,5 @@ public sealed class CachingDirectoryReader : IDirectoryReader
         }
 
         return distinct.Where(id => _userIdMissing[id]).ToList();
-    }
-
-    private sealed class OffsetProgress(IProgress<int> target, int offset) : IProgress<int>
-    {
-        public void Report(int value) => target.Report(offset + value);
     }
 }

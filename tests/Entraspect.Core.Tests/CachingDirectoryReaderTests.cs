@@ -346,7 +346,7 @@ public sealed class CachingDirectoryReaderTests
         await caching.GetMissingUserIdsAsync(["a"]);
         var reports = new List<int>();
 
-        await caching.GetMissingUserIdsAsync(["a", "b", "c"], new SyncProgress(reports.Add));
+        await caching.GetMissingUserIdsAsync(["a", "b", "c"], new SyncProgress<int>(reports.Add));
 
         Assert.Equal(new[] { 2, 3 }, reports);
     }
@@ -361,11 +361,5 @@ public sealed class CachingDirectoryReaderTests
         var result = await caching.GetMissingUserIdsAsync(["a"]);
 
         Assert.Equal(new[] { "a" }, result);
-    }
-
-    // Progress<T> reports on the thread pool; this one reports at once, so the test can read the values.
-    private sealed class SyncProgress(Action<int> report) : IProgress<int>
-    {
-        public void Report(int value) => report(value);
     }
 }

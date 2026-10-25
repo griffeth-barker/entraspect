@@ -62,11 +62,15 @@ public sealed class ScanRunner
             }
 
             runPosition++;
-            _progress?.Report(new ScanProgress(runPosition, total, check.Title));
+            var position = runPosition;
+            _progress?.Report(new ScanProgress(position, total, check.Title));
+            var detail = _progress is null
+                ? null
+                : new SyncProgress<string>(d => _progress.Report(new ScanProgress(position, total, check.Title, d)));
 
             try
             {
-                var findings = await check.RunAsync(_reader, _options, cancellationToken).ConfigureAwait(false);
+                var findings = await check.RunAsync(_reader, _options, detail, cancellationToken).ConfigureAwait(false);
                 var dataUpdatedAt = await check.GetDataUpdatedAsync(_reader, cancellationToken).ConfigureAwait(false);
                 results.Add(new CheckResult
                 {

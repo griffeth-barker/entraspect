@@ -30,11 +30,12 @@ public sealed class LicensingTests
     {
         var checks = CheckCatalog.All(new FakeTimeProvider());
 
-        Assert.Equal(
-            LicenceRequirement.EntraIdP1,
-            checks.Single(c => c.Id == "users-mfa-not-registered").RequiredLicence);
+        string[] licensed = ["users-mfa-not-registered", "ca-policy-hygiene"];
         Assert.All(
-            checks.Where(c => c.Id != "users-mfa-not-registered"),
+            checks.Where(c => licensed.Contains(c.Id)),
+            c => Assert.Equal(LicenceRequirement.EntraIdP1, c.RequiredLicence));
+        Assert.All(
+            checks.Where(c => !licensed.Contains(c.Id)),
             c => Assert.Equal(LicenceRequirement.None, c.RequiredLicence));
     }
 

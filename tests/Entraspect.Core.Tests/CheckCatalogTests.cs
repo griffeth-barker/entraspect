@@ -15,7 +15,7 @@ public sealed class CheckCatalogTests
             {
                 "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-credential-expiry",
                 "app-no-owners", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
-                "sp-high-privilege-app-permissions",
+                "sp-high-privilege-app-permissions", "ca-policy-hygiene",
             },
             checks.Select(c => c.Id));
         Assert.Equal(
@@ -23,7 +23,7 @@ public sealed class CheckCatalogTests
             {
                 CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
-                CheckCategory.EnterpriseApps,
+                CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess,
             },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));
@@ -43,7 +43,11 @@ public sealed class CheckCatalogTests
         var permissions = CheckCatalog.All(new FakeTimeProvider()).SelectMany(c => c.RequiredPermissions).Distinct();
 
         Assert.Equal(
-            new[] { "AuditLog.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All" },
+            new[]
+            {
+                "AuditLog.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All",
+                "Policy.Read.All", "User.Read.All",
+            },
             permissions);
     }
 
@@ -155,5 +159,21 @@ public sealed class CheckCatalogTests
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);
         Assert.Equal(permissions, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Policy_hygiene_columns_are_named_like_the_conditional_access_policy_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "ca-policy-hygiene");
+
+        Assert.Equal("Policy hygiene", check.Title);
+        Assert.Equal(CheckCategory.ConditionalAccess, check.Category);
+        Assert.Equal(LicenceRequirement.EntraIdP1, check.RequiredLicence);
+        Assert.Equal(
+            ("Policy name", "Policy ID", "Deleted object ID", "Issue", "Modified date"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+        Assert.Null(check.Labels.UserPrincipalName);
+        Assert.Equal(new[] { "Policy.Read.All", "User.Read.All", "GroupMember.Read.All" }, check.RequiredPermissions);
     }
 }

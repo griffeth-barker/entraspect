@@ -90,7 +90,7 @@ public sealed class ScanRunnerTests
         var progress = new List<ScanProgress>();
         var runner = new ScanRunner(
             new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), checks, new[] { "Application.Read.All" },
-            Options, _time, new SyncProgress(progress.Add), TenantLicence.Free);
+            Options, _time, new SyncProgress<ScanProgress>(progress.Add), TenantLicence.Free);
 
         var results = await runner.RunAsync();
 
@@ -216,7 +216,7 @@ public sealed class ScanRunnerTests
     public async Task Reports_progress_for_each_run_check()
     {
         var messages = new List<string>();
-        var progress = new SyncProgress(p => messages.Add(p.Message));
+        var progress = new SyncProgress<ScanProgress>(p => messages.Add(p.Message));
         var checks = new ICheck[]
         {
             new FakeCheck("c1", title: "First"),
@@ -248,9 +248,58 @@ public sealed class ScanRunnerTests
         Assert.Equal(_time.GetUtcNow(), results[0].CompletedAt);
     }
 
-    /// <summary>Reports synchronously, unlike <see cref="Progress{T}"/>, which posts to the thread pool.</summary>
-    private sealed class SyncProgress(Action<ScanProgress> report) : IProgress<ScanProgress>
+    [Fact]
+    public async Task Reports_progress_detail_from_a_check()
     {
-        public void Report(ScanProgress value) => report(value);
+        var messages = new List<string>();
+        var checks = new ICheck[] { new FakeCheck("c1", title: "First"), new DetailCheck() };
+        var runner = new ScanRunner(
+            new FakeDirectoryReader(System.Array.Empty<AppRegistration>()),
+            checks,
+            new[] { "Application.Read.All" },
+            Options,
+            _time,
+            new SyncProgress<ScanProgress>(p => messages.Add(p.Message)));
+
+        await runner.RunAsync();
+
+        Assert.Equal(
+            new[]
+            {
+                "Running check 1 of 2: First", "Running check 2 of 2: Detailed",
+                "Running check 2 of 2: Detailed (step 1 of 2)", "Running check 2 of 2: Detailed (step 2 of 2)",
+            },
+            messages);
+    }
+
+    /// <summary>A check that reports two progress details while it runs.</summary>
+    private sealed class DetailCheck : ICheck
+    {
+        public string Id => "detail";
+
+        public string Title => "Detailed";
+
+        public string Description => "Reports progress.";
+
+        public CheckCategory Category => CheckCategory.AppRegistrations;
+
+        public IReadOnlyList<string> RequiredPermissions => System.Array.Empty<string>();
+
+        public Task<IReadOnlyList<Finding>> RunAsync(
+            IDirectoryReader reader,
+            CheckOptions options,
+            CancellationToken cancellationToken = default) =>
+            RunAsync(reader, options, null, cancellationToken);
+
+        public Task<IReadOnlyList<Finding>> RunAsync(
+            IDirectoryReader reader,
+            CheckOptions options,
+            IProgress<string>? progress,
+            CancellationToken cancellationToken)
+        {
+            progress?.Report("step 1 of 2");
+            progress?.Report("step 2 of 2");
+            return Task.FromResult<IReadOnlyList<Finding>>(System.Array.Empty<Finding>());
+        }
     }
 }

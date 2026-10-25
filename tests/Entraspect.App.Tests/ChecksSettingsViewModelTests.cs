@@ -207,6 +207,20 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Expanded_cards_list_the_licence_permission_after_the_others_in_one_row()
+    {
+        var vm = Create();
+
+        Assert.Equal(["AuditLog.Read.All", "LicenseAssignment.Read.All"], MfaRow(vm).PermissionLabels.Select(p => p.Name));
+        Assert.Equal(["Application.Read.All"], AppCheckRow(vm).PermissionLabels.Select(p => p.Name));
+
+        vm.SetConnection(["AuditLog.Read.All"], TenantLicence.Unknown);
+
+        Assert.Equal(2, MfaRow(vm).PermissionLabels.Count);
+        Assert.True(MfaRow(vm).PermissionLabels[0].IsGranted);
+    }
+
+    [Fact]
     public void Licence_gated_checks_show_a_p1_pill()
     {
         var vm = Create();

@@ -55,31 +55,24 @@
                                                               OnContent="On" OffContent="Off" />
                                             </ui:FASettingsExpander.Footer>
                                             <ui:FASettingsExpanderItem>
-                                                <StackPanel Spacing="4">
-                                                    <ItemsControl ItemsSource="{Binding Permissions}">
-                                                        <ItemsControl.ItemsPanel>
-                                                            <ItemsPanelTemplate>
-                                                                <WrapPanel Orientation="Horizontal" />
-                                                            </ItemsPanelTemplate>
-                                                        </ItemsControl.ItemsPanel>
-                                                        <ItemsControl.ItemTemplate>
-                                                            <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                <!-- One row that wraps: the permissions, then the licence permission
+                                                     with its info tip. -->
+                                                <ItemsControl ItemsSource="{Binding PermissionLabels}">
+                                                    <ItemsControl.ItemsPanel>
+                                                        <ItemsPanelTemplate>
+                                                            <WrapPanel Orientation="Horizontal" />
+                                                        </ItemsPanelTemplate>
+                                                    </ItemsControl.ItemsPanel>
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                            <StackPanel Orientation="Horizontal">
                                                                 <views:PermissionStatusView />
-                                                            </DataTemplate>
-                                                        </ItemsControl.ItemTemplate>
-                                                    </ItemsControl>
-                                                    <StackPanel Orientation="Horizontal"
-                                                                IsVisible="{Binding LicencePermission, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                                        <ContentControl Content="{Binding LicencePermission}">
-                                                            <ContentControl.ContentTemplate>
-                                                                <DataTemplate x:DataType="vm:PermissionStatusViewModel">
-                                                                    <views:PermissionStatusView />
-                                                                </DataTemplate>
-                                                            </ContentControl.ContentTemplate>
-                                                        </ContentControl>
-                                                        <views:InfoTip Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
-                                                    </StackPanel>
-                                                </StackPanel>
+                                                                <views:InfoTip IsVisible="{Binding IsOptional}" Margin="-2,0,6,0"
+                                                                               Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
+                                                            </StackPanel>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
                                             </ui:FASettingsExpanderItem>
                                         </ui:FASettingsExpander>
                                     </DataTemplate>

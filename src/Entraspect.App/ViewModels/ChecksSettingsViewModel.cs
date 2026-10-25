@@ -45,6 +45,12 @@ public partial class CheckSettingsRow : ObservableObject
 
     public ObservableCollection<PermissionStatusViewModel> Permissions { get; } = [];
 
+    /// <summary>
+    /// What the expanded card shows in one wrapping row: <see cref="Permissions"/>, then the licence permission for a
+    /// check that needs a licence.
+    /// </summary>
+    public ObservableCollection<PermissionStatusViewModel> PermissionLabels { get; } = [];
+
     /// <summary>The licence permission label, for checks that need a licence; null otherwise.</summary>
     [ObservableProperty]
     public partial PermissionStatusViewModel? LicencePermission { get; set; }
@@ -123,6 +129,12 @@ public partial class CheckSettingsRow : ObservableObject
                 CheckCatalog.LicencePermission,
                 granted?.Contains(CheckCatalog.LicencePermission),
                 isOptional: true);
+        PermissionLabels.Clear();
+        foreach (var label in LicencePermission is { } licenceLabel ? Permissions.Append(licenceLabel) : Permissions)
+        {
+            PermissionLabels.Add(label);
+        }
+
         IsLicensed = Licensing.IsLicensed(Check, licence);
         HasMissingPermission = IsLicensed && Permissions.Any(p => p.IsMissing);
     }

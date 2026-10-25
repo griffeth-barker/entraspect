@@ -41,5 +41,8 @@ public static class CheckCatalog
             new Checks.HighPrivilegeAppPermissionsCheck(),
             new Checks.ConditionalAccessPolicyHygieneCheck(timeProvider),
             new Checks.ConditionalAccessUnusedPoliciesCheck(timeProvider),
+            new Checks.CrossTenantAccessDefaultsCheck(),
+            new Checks.CrossTenantAccessPartnersCheck(),
+            new Checks.ExternalCollaborationSettingsCheck(),
         };
 }

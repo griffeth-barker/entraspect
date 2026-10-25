@@ -74,12 +74,8 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.Same(vm.OverviewItem, vm.MenuItems[0]);
         Assert.Equal(
-            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access" },
+            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access", "External Identities" },
             vm.MenuItems.Skip(1).Select(i => i.Title));
-
-        // A category without checks has no section.
-        Assert.Equal("External Identities", MainViewModel.CategoryTitle(CheckCategory.ExternalIdentities));
-        Assert.DoesNotContain(vm.MenuItems, i => i.Title == "External Identities");
         Assert.Equal(
             new[] { MfaCheckId, MfaRequiredCheckId },
             vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
@@ -102,6 +98,16 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             new[] { CaPolicyCheckId, CaUnusedCheckId },
             vm.MenuItems[5].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
+
+        // External Identities is last, as in the Entra admin center, and collapsible like every section.
+        var external = vm.MenuItems[^1];
+        Assert.Equal("Share", external.Icon);
+        Assert.Single(vm.MenuItems, i => i.Icon == external.Icon);
+        Assert.False(external.IsPage);
+        Assert.False(external.IsExpanded);
+        Assert.Equal(
+            new[] { "cross-tenant-access-defaults", "cross-tenant-access-partners", "external-collaboration-settings" },
+            external.Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { "Connection profiles", "Checks", "Preferences", "About" },
             Assert.Single(vm.FooterItems).Children.Select(c => c.Title));
@@ -602,7 +608,8 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(["Policy.Read.All", "User.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
             [
-                "Policy.Read.All: needed by MFA not required, Policy hygiene, Unused policies",
+                "Policy.Read.All: needed by MFA not required, Policy hygiene, Unused policies, Cross-tenant defaults, " +
+                "Cross-tenant partners, External collaboration",
                 "User.Read.All: needed by MFA not required, Policy hygiene",
             ],
             vm.Overview.Banner.Details);

@@ -18,6 +18,7 @@ public sealed class CheckCatalogTests
                 "group-sync-errors", "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
                 "sp-high-privilege-app-permissions", "ca-policy-hygiene", "ca-unused-policies",
+                "cross-tenant-access-defaults", "cross-tenant-access-partners", "external-collaboration-settings",
             },
             checks.Select(c => c.Id));
         Assert.Equal(
@@ -28,6 +29,7 @@ public sealed class CheckCatalogTests
                 CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
                 CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess, CheckCategory.ConditionalAccess,
+                CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities,
             },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));

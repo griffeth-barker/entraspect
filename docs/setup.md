@@ -8,7 +8,7 @@ entraspect is read-only. It only needs read permissions, and it never changes an
 
 - You need a role that can create app registrations and grant admin consent, such as Privileged Role Administrator or Global Administrator. If you can't grant consent yourself, create the app registration and ask an administrator to grant consent for you.
 - entraspect signs in as the application (app-only), with no user present. It only supports certificates. Signing in as yourself and client secrets are not supported.
-- Some checks need Microsoft Entra ID P1 or P2: today, **MFA not registered**. On a tenant without it, those checks fail with "This check needs an Entra ID P1 or P2 licence.", and the other checks still run.
+- Some checks need Microsoft Entra ID P1 or P2: today, **MFA not registered**. With `LicenseAssignment.Read.All` granted (step 2), entraspect reads your tenant's licences when it connects. On a tenant without P1 or P2, those checks are grayed out on **Settings** > **Checks** with "Needs an Entra ID P1 or P2 licence." and Scan skips them. Without that permission, they run and fail with "This check needs an Entra ID P1 or P2 licence." The other checks run either way.
 
 ## 1. Create the app registration
 
@@ -45,10 +45,11 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners |
 | `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
 | `AuditLog.Read.All` | MFA not registered (the Authentication methods user registration details report). Needs Entra ID P1 or P2 |
+| `LicenseAssignment.Read.All` | Optional, recommended. Reads your tenant's subscriptions at connect, so checks your licence doesn't cover are grayed out instead of failing |
 
 Every permission entraspect uses is a read permission. Never grant entraspect's app registration a write permission (any permission containing `ReadWrite`). Anyone with its certificate could then change your tenant.
 
-**Settings** > **Checks** in entraspect lists the permissions each check needs, green when granted and red when missing. If a check's permission is missing, entraspect doesn't run that check, shows a warning badge next to it in the navigation, and shows a banner on its page and on **Overview**. The banner can open this app registration's **API permissions** page in the Entra admin center and copy the permission name. entraspect never adds or consents permissions itself; you do that in the admin center. After granting a permission, select **Reconnect**. A new permission can take a few minutes to take effect.
+**Settings** > **Checks** in entraspect lists the permissions each check needs, green when granted and red when missing. Checks that need a licence also show `LicenseAssignment.Read.All`, green when granted and gray (not red) when missing, because the check runs without it. If a check's permission is missing, entraspect doesn't run that check, shows a warning badge next to it in the navigation, and shows a banner on its page and on **Overview**. The banner can open this app registration's **API permissions** page in the Entra admin center and copy the permission name. entraspect never adds or consents permissions itself; you do that in the admin center. After granting a permission, select **Reconnect**. A new permission can take a few minutes to take effect.
 
 entraspect also warns on **Overview** if the app registration has permissions no check uses, in red for write permissions.
 
@@ -148,4 +149,4 @@ Sign-in errors usually include an `AADSTS` code. The Entra sign-in logs (**Entra
 | Certificate not found | Thumbprint not in the certificate store, or wrong `.pfx` path | Check the thumbprint and store location, or the file path |
 | Wrong password | `.pfx` password incorrect | Enter the password you set when creating the `.pfx` |
 | 403 / `Authorization_RequestDenied` during a scan | Permission missing, added as delegated instead of application, or not consented | Add it as an application permission and grant consent (step 2), then reconnect |
-| A check says it needs Entra ID P1 or P2 | The tenant doesn't have the licence that check needs | No fix inside entraspect; the other checks still run |
+| A check says it needs Entra ID P1 or P2, or is grayed out with "Needs an Entra ID P1 or P2 licence." | The tenant doesn't have the licence that check needs | No fix inside entraspect; the other checks still run. After adding a licence, select **Reconnect** |

@@ -33,13 +33,13 @@ Both expiry checks use the same expiry windows, set in **Settings** > **Checks**
 
 ## Read-only by design
 
-entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
 
 ## Setup
 
 entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`, with admin consent.
+- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`, with admin consent. `LicenseAssignment.Read.All` is optional: with it, entraspect reads your tenant's licences at connect and grays out checks your licence doesn't cover.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.

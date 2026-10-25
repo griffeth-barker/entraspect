@@ -71,10 +71,9 @@ public sealed class AppCredentialExpiryCheck : ICheck
             return null;
         }
 
-        // Whole UTC calendar days, used for both severity and message so they always agree.
-        var daysUntil = (end.Value.UtcDateTime.Date - now.UtcDateTime.Date).Days;
+        var status = ExpiryRules.Evaluate(end.Value, now, options);
 
-        if (end.Value < now)
+        if (status.IsExpired)
         {
             var hasValidReplacement = app.Credentials.Any(c =>
                 c != credential &&
@@ -82,33 +81,32 @@ public sealed class AppCredentialExpiryCheck : ICheck
                 c.EndDateTime is not null &&
                 c.EndDateTime.Value > now);
 
-            var expired = daysUntil == 0 ? "expired today" : $"expired {FormatDays(-daysUntil)} ago";
             var message = hasValidReplacement
-                ? $"{credential.Type} '{credential.DisplayName}' {expired}; a newer credential exists, consider removing this one."
-                : $"{credential.Type} '{credential.DisplayName}' {expired}.";
+                ? $"{credential.Type} '{credential.DisplayName}' {status.Phrase}; a newer credential exists, consider removing this one."
+                : $"{credential.Type} '{credential.DisplayName}' {status.Phrase}.";
 
             var severity = hasValidReplacement ? Severity.Info : Severity.Critical;
 
             return MakeFinding(app, credential, severity, message, end.Value);
         }
 
-        var expires = daysUntil == 0 ? "expires today" : $"expires in {FormatDays(daysUntil)}";
-        if (daysUntil <= options.ExpiryCriticalDays)
+        return status.Window switch
         {
-            var message = $"{credential.Type} '{credential.DisplayName}' {expires} (within critical window).";
-            return MakeFinding(app, credential, Severity.Critical, message, end.Value);
-        }
-
-        if (daysUntil <= options.ExpiryWarningDays)
-        {
-            var message = $"{credential.Type} '{credential.DisplayName}' {expires}.";
-            return MakeFinding(app, credential, Severity.Warning, message, end.Value);
-        }
-
-        return null;
+            Severity.Critical => MakeFinding(
+                app,
+                credential,
+                Severity.Critical,
+                $"{credential.Type} '{credential.DisplayName}' {status.Phrase} (within critical window).",
+                end.Value),
+            Severity.Warning => MakeFinding(
+                app,
+                credential,
+                Severity.Warning,
+                $"{credential.Type} '{credential.DisplayName}' {status.Phrase}.",
+                end.Value),
+            _ => null,
+        };
     }
-
-    private static string FormatDays(int days) => days == 1 ? "1 day" : $"{days} days";
 
     private Finding MakeFinding(
         AppRegistration app,

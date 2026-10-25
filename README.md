@@ -39,20 +39,24 @@ Both group checks skip groups created in the last 7 days (the new group grace pe
 
 Both expiry checks use the same expiry windows, set in **Settings** > **Checks**.
 
+- **Policy hygiene** (Conditional Access): policies that are switched off, stuck in report-only mode, can never apply, or name users or groups that no longer exist. One policy can have several findings, one per issue. Needs Entra ID P1 or P2. Each user a policy names is looked up on its own, so the check can take a while in large tenants; the scan bar shows how far it is.
+  - **Warning:** a report-only policy that hasn't been changed for 30 days or more (the report-only warning days, set in **Settings** > **Checks**); a policy that includes no users or no apps; a policy whose included groups are all empty; or a policy that includes a deleted user or group.
+  - **Info:** a disabled policy, or a policy that excludes a deleted user or group (remove it from the policy). A deleted user still in the recycle bin counts as deleted.
+
 ## Read-only by design
 
-entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All`, `User.Read.All` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
 
 ## Setup
 
 entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`, with admin consent. `LicenseAssignment.Read.All` is optional: with it, entraspect reads your tenant's licences at connect and grays out checks your licence doesn't cover.
+- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All` and `User.Read.All`, with admin consent. `LicenseAssignment.Read.All` is optional: with it, entraspect reads your tenant's licences at connect and grays out checks your licence doesn't cover.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.
 
-Some checks need Microsoft Entra ID P1 or P2 (today, MFA not registered).
+Some checks need Microsoft Entra ID P1 or P2 (today, MFA not registered and Policy hygiene).
 
 See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
 
@@ -60,8 +64,8 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 
 - **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
-- **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations and Enterprise apps today; Conditional Access as its checks are added): each check's findings, with Search and Add filter like the Entra admin center.
-- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows. **Settings > Preferences:** show times in UTC or local time.
+- **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations, Enterprise apps and Conditional Access): each check's findings, with Search and Add filter like the Entra admin center.
+- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period and report-only warning days. **Settings > Preferences:** show times in UTC or local time.
 
 Results stay in memory and are never written to disk.
 

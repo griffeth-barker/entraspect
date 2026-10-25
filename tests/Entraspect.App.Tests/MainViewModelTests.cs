@@ -16,6 +16,12 @@ public sealed class MainViewModelTests : IDisposable
 
     private const string SamlCheckId = "saml-signing-certificate-expiry";
 
+    private const string AppNoOwnersCheckId = "app-no-owners";
+
+    private const string RedirectUriCheckId = "app-risky-redirect-uris";
+
+    private const string HighPrivilegeCheckId = "sp-high-privilege-app-permissions";
+
     private const string MfaCheckId = "users-mfa-not-registered";
     private const string FakePassword = "fake-pfx-password-for-test";
     private const string ClientId = "00000000-0000-0000-0000-0000000000c1";
@@ -79,10 +85,12 @@ public sealed class MainViewModelTests : IDisposable
         var section = vm.MenuItems[3];
         Assert.False(section.IsPage);
         Assert.False(section.IsExpanded);
-        Assert.Equal(CheckId, Assert.IsType<CheckPageViewModel>(Assert.Single(section.Children).Page).Check.Id);
         Assert.Equal(
-            SamlCheckId,
-            Assert.IsType<CheckPageViewModel>(Assert.Single(vm.MenuItems[4].Children).Page).Check.Id);
+            new[] { CheckId, AppNoOwnersCheckId, RedirectUriCheckId },
+            section.Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
+        Assert.Equal(
+            new[] { SamlCheckId, HighPrivilegeCheckId },
+            vm.MenuItems[4].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { "Connection profiles", "Checks", "Preferences", "About" },
             Assert.Single(vm.FooterItems).Children.Select(c => c.Title));
@@ -232,7 +240,11 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task A_disabled_check_is_not_run_and_has_no_badge()
     {
-        new SettingsStore(_dir).Save(new AppSettings { DisabledCheckIds = [CheckId], LastUsedProfileName = "p1" });
+        new SettingsStore(_dir).Save(new AppSettings
+        {
+            DisabledCheckIds = [CheckId, AppNoOwnersCheckId, RedirectUriCheckId],
+            LastUsedProfileName = "p1",
+        });
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
@@ -316,7 +328,8 @@ public sealed class MainViewModelTests : IDisposable
             banner.Message);
         Assert.True(vm.Overview.Banner.IsOpen);
         Assert.Equal(
-            $"Application.Read.All: needed by {CheckPage(vm).Title}, Expiring SAML certificates",
+            $"Application.Read.All: needed by {CheckPage(vm).Title}, Apps with no owners, Risky redirect URIs, " +
+            "Expiring SAML certificates, High-privilege apps",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsMissing);
         Assert.True(vm.ChecksSettingsItem.HasWarning);
@@ -462,16 +475,20 @@ public sealed class MainViewModelTests : IDisposable
         AppCheckRow(vm).IsEnabled = false;
 
         Assert.Equal(
-            "Application.Read.All: needed by Expiring SAML certificates",
+            "Application.Read.All: needed by Apps with no owners, Risky redirect URIs, Expiring SAML certificates, " +
+            "High-privilege apps",
             Assert.Single(vm.Overview.Banner.Details));
 
-        vm.ChecksSettings.Rows.Single(r => r.Check.Id == SamlCheckId).IsEnabled = false;
+        foreach (var id in new[] { AppNoOwnersCheckId, RedirectUriCheckId, SamlCheckId, HighPrivilegeCheckId })
+        {
+            vm.ChecksSettings.Rows.Single(r => r.Check.Id == id).IsEnabled = false;
+        }
 
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.False(vm.ChecksSettingsItem.HasWarning);
         Assert.True(CheckPage(vm).IsDisabled);
         Assert.Equal(
-            new[] { CheckId, SamlCheckId },
+            new[] { CheckId, AppNoOwnersCheckId, RedirectUriCheckId, SamlCheckId, HighPrivilegeCheckId }.Order(),
             new SettingsStore(_dir).Load(out _).DisabledCheckIds.Order());
     }
 

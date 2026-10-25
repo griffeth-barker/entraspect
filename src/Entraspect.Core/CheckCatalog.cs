@@ -29,6 +29,9 @@ public static class CheckCatalog
             new Checks.GroupNoMembersCheck(timeProvider),
             new Checks.GroupNoOwnersCheck(timeProvider),
             new Checks.AppCredentialExpiryCheck(timeProvider),
+            new Checks.AppNoOwnersCheck(),
+            new Checks.AppRiskyRedirectUrisCheck(),
             new Checks.SamlSigningCertificateExpiryCheck(timeProvider),
+            new Checks.HighPrivilegeAppPermissionsCheck(),
         };
 }

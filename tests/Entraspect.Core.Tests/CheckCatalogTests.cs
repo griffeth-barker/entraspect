@@ -14,13 +14,15 @@ public sealed class CheckCatalogTests
             new[]
             {
                 "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-credential-expiry",
-                "saml-signing-certificate-expiry",
+                "app-no-owners", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
+                "sp-high-privilege-app-permissions",
             },
             checks.Select(c => c.Id));
         Assert.Equal(
             new[]
             {
                 CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
+                CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
                 CheckCategory.EnterpriseApps,
             },
             checks.Select(c => c.Category));
@@ -76,6 +78,49 @@ public sealed class CheckCatalogTests
         Assert.Equal("Expiring SAML certificates", check.Title);
         Assert.Equal(
             ("Display name", "Object ID", "Certificate", (string?)null, "Expires"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+        Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Apps_with_no_owners_columns_are_named_like_the_app_registration_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "app-no-owners");
+
+        Assert.Equal("Apps with no owners", check.Title);
+        Assert.Equal(CheckCategory.AppRegistrations, check.Category);
+        Assert.Equal(("Display name", "Object ID"), (check.Labels.ObjectDisplayName, check.Labels.ObjectId));
+        Assert.Null(check.Labels.UserPrincipalName);
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Risky_redirect_uris_columns_are_named_like_the_authentication_page()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "app-risky-redirect-uris");
+
+        Assert.Equal("Risky redirect URIs", check.Title);
+        Assert.Equal(CheckCategory.AppRegistrations, check.Category);
+        Assert.Equal(
+            ("Display name", "Object ID", "Redirect URI", "Platform", (string?)null),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+        Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void High_privilege_apps_columns_are_named_like_the_enterprise_app_permissions_page()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "sp-high-privilege-app-permissions");
+
+        Assert.Equal("High-privilege apps", check.Title);
+        Assert.Equal(CheckCategory.EnterpriseApps, check.Category);
+        Assert.Equal(
+            ("Display name", "Object ID", "Permission", (string?)null, "Granted"),
             (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
                 check.Labels.SubObjectType, check.Labels.DueDate));
         Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);

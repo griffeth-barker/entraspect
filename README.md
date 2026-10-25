@@ -59,6 +59,17 @@ Both expiry checks use the same expiry windows, set in **Settings** > **Checks**
   - **Warning:** an enabled policy that neither granted nor blocked any sign-in.
   - **Info:** a report-only policy that wouldn't have applied to any sign-in.
 
+- **Cross-tenant defaults** (External Identities): the default cross-tenant access settings, which apply to every Entra organisation you haven't added as a partner. One finding per setting.
+  - **Warning:** device claims (compliant or hybrid joined) from every tenant are trusted, invitations are redeemed automatically for every tenant (inbound or outbound), or B2B direct connect is open to every tenant (inbound or outbound). These belong on known partners.
+  - **Info:** MFA from every tenant is trusted, or B2B collaboration is open to every tenant (one finding per direction; this is Microsoft's default).
+- **Cross-tenant partners** (External Identities): partner organisations' settings worth reviewing, one finding per setting: trusted MFA or device claims, automatic redemption, B2B direct connect, and partners marked as service providers. Always **Info**, since partner settings are deliberate. Settings a partner inherits from the defaults aren't reported here. Partners are shown by tenant ID.
+- **External collaboration** (External Identities): the tenant's guest settings.
+  - **Critical:** guests have the same access to directory data as members.
+  - **Warning:** anyone, guests included, can invite guests (Microsoft's default), or people can join the tenant by verifying an email address at one of its domains, without an invitation. That last setting is set only through Microsoft Graph or PowerShell; older tenants often still have it on.
+  - **Info:** guests have limited access to the directory (Microsoft's default), every member can invite guests, or a value entraspect doesn't recognise.
+
+The External Identities checks show each setting's current value in its own column and need no licence.
+
 ## Read-only by design
 
 entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints (v1.0, and beta where a check says so) and sends no telemetry.

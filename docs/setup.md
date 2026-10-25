@@ -41,11 +41,13 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 
 | Permission | Used for |
 | --- | --- |
-| `Application.Read.All` | Expiring app registration secrets and certificates |
+| `Application.Read.All` | Expiring credentials (app registration secrets and certificates) |
 
 Every permission entraspect uses is a read permission. Never grant entraspect's app registration a write permission (any permission containing `ReadWrite`). Anyone with its certificate could then change your tenant.
 
-If a check's permission is missing, entraspect doesn't run that check and shows a banner on its page. The banner can open this app registration's **API permissions** page in the Entra admin center and copy the permission name. entraspect never adds or consents permissions itself; you do that in the admin center. After granting a permission, reconnect in entraspect. A new permission can take a few minutes to take effect.
+**Settings** > **Checks** in entraspect lists the permissions each check needs, green when granted and red when missing. If a check's permission is missing, entraspect doesn't run that check, shows a warning badge next to it in the navigation, and shows a banner on its page and on **Overview**. The banner can open this app registration's **API permissions** page in the Entra admin center and copy the permission name. entraspect never adds or consents permissions itself; you do that in the admin center. After granting a permission, select **Reconnect**. A new permission can take a few minutes to take effect.
+
+entraspect also warns on **Overview** if the app registration has permissions no check uses, in red for write permissions.
 
 ## 3. Add a certificate
 
@@ -93,20 +95,41 @@ rm key.pem cert.pem
 
 ## 4. Connect from entraspect
 
-1. Start entraspect.
-2. Enter a **Profile name**, the **Tenant ID** and the **Client ID** from step 1.
-3. Enter either the **Certificate thumbprint** or the **Certificate (.pfx) path**. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux).
-4. Optionally save the profile so you don't have to enter these again. The certificate password is never saved.
-5. Select **Connect**. If you use a `.pfx` file, enter its password.
-6. Run a scan.
+entraspect opens on **Settings** > **Connection profiles**. Overview and the check pages unlock once you're connected.
 
-Saved profiles are stored in `profiles.json` in an `entraspect` folder in your local application data folder:
+1. Select **Add**.
+2. Enter a **Profile name**, the **Tenant ID** and the **Client ID** from step 1.
+3. Enter either the **Certificate (.pfx) path** or the **Certificate thumbprint**, not both. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux).
+4. Select **Save**. Profiles are saved without passwords.
+5. Select the profile and select **Connect**. If it uses a `.pfx` file, enter the password in the dialog. entraspect asks for it on every connect and never saves it.
+
+The status card at the top of **Connection profiles** shows the connection. Sign-in errors appear there, with their `AADSTS` code (see [Troubleshooting](#troubleshooting)). Use **Reconnect** after changing the app registration's permissions, and **Disconnect** to switch profiles. entraspect remembers the last profile you connected with and selects it next time.
+
+## 5. Scan
+
+After connecting, entraspect opens **Overview**, which shows the connected tenant.
+
+1. Select **Scan**. It runs every check that is turned on and has its permissions. **Cancel** stops it.
+2. **Overview** shows the Critical, Warning and Info counts for each section, and any check that failed or couldn't run, with the reason.
+3. Select a check in the navigation, or a row on **Overview**, to see its findings. Use **Search** or **Add filter** (pick a property, then a value) to narrow them, as in the Entra admin center.
+
+Under **Settings**:
+
+- **Checks** turns checks on or off and sets the expiry windows (warning and critical days).
+- **Preferences** chooses whether dates and times show in UTC or your computer's time zone.
+- **About** shows the version and where entraspect stores its files.
+
+Results are kept in memory only and are cleared when you disconnect or close entraspect.
+
+## Where entraspect stores its files
+
+Profiles and settings are stored in an `entraspect` folder in your local application data folder:
 
 - Windows: `%LOCALAPPDATA%\entraspect`
 - macOS: `~/Library/Application Support/entraspect`
 - Linux: `~/.local/share/entraspect`
 
-The file contains tenant IDs, client IDs and certificate paths or thumbprints, but never passwords or private keys.
+`profiles.json` holds tenant IDs, client IDs and certificate paths or thumbprints. `settings.json` holds which checks are off, the check options, the last used profile and the time zone preference. Neither file ever holds passwords, private keys or tokens.
 
 ## Troubleshooting
 

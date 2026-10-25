@@ -22,11 +22,20 @@ entraspect signs in as an app registration in your tenant, using a certificate (
 - A dedicated app registration with the Microsoft Graph application permission `Application.Read.All` and admin consent.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
-entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run and its page tells you which permission to add.
+entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.
 
 Some checks need Microsoft Entra ID P1 or P2.
 
 See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
+
+## Using entraspect
+
+- **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
+- **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
+- **Check pages**, grouped by object type in the navigation (App registrations today; Users, Groups, Enterprise apps and Conditional Access as their checks are added): each check's findings, with Search and Add filter like the Entra admin center.
+- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows. **Settings > Preferences:** show times in UTC or local time.
+
+Results stay in memory and are never written to disk.
 
 ## Running
 

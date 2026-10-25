@@ -14,6 +14,7 @@ Cross-platform desktop app (C# / .NET 10 / Avalonia) that scans a Microsoft Entr
 
 - .NET 10, C# latest, nullable enabled, warnings as errors (via `Directory.Build.props`)
 - Avalonia (latest stable) with MVVM via CommunityToolkit.Mvvm; `Avalonia.Controls.DataGrid` for tables
+- FluentAvaloniaUI for the theme and controls (`FANavigationView`, `FAInfoBar`, `FAInfoBadge`, `FAContentDialog`). Its theme includes the DataGrid styles, so don't add Avalonia's `FluentTheme` or DataGrid theme
 - Microsoft.Graph .NET SDK (v5+) and Azure.Identity
 - xUnit for tests; `Microsoft.Extensions.TimeProvider.Testing` for date logic
 
@@ -27,6 +28,7 @@ src/Entraspect.Graph/         IDirectoryReader implementation + authentication
 src/Entraspect.App/           Avalonia UI (views, view models)
 tests/Entraspect.Core.Tests/   check tests against fake IDirectoryReader
 tests/Entraspect.Graph.Tests/  pure mapping/helper tests only; never create a Graph client or credential
+tests/Entraspect.App.Tests/    view model, settings and profile store tests, using a temporary folder and fakes
 docs/specs/                   numbered feature specs
 ```
 
@@ -35,19 +37,25 @@ Dependency direction: App → Graph → Core, and App → Core. Core references 
 ## Core concepts
 
 - **`IDirectoryReader`**: async read methods returning simple Core-owned models (e.g. `AppRegistration`, `AppCredential`). Entraspect.Graph is the only place Graph is touched.
-- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `RequiredPermissions`, `Labels` (a `FindingLabels` naming the findings grid columns after the object's properties, for example "Display name" and "Object ID"), and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
+- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `Category` (a `CheckCategory`: the navigation section it appears in), `RequiredPermissions`, `Labels` (a `FindingLabels` naming the findings grid columns after the object's properties, for example "Display name" and "Object ID"), and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
 - **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`, optional `SubObjectType` / `SubObjectDisplayName` (the item inside the object, e.g. a credential inside an app registration).
+- **`CheckCatalog`**: the single list of every check, in navigation order within each category. Register a new check here and nowhere else; the navigation, Settings > Checks and Scan pick it up without UI changes.
+- **`ScanRunner`**: runs the enabled checks one after another and returns one `CheckResult` per check. A check missing a permission isn't run (`MissingPermissions`); a `DirectoryReadException` fails only that check; cancellation marks the rest `Cancelled`.
+- **`CachingDirectoryReader`**: wraps the reader for one scan so each collection is read once. Every new `IDirectoryReader` method must be added here too.
+- **`PermissionReview`**: compares granted permissions with every check's `RequiredPermissions`: missing ones (with the checks they block), and unused ones split into read and write.
+- **`CheckOptions`**: shared check settings (the expiry windows), validated by `CheckOptions.Validate` and `Normalize`. Add new options with their own rule.
 - Checks get "now" from an injected `TimeProvider`, never `DateTime.Now`, so date logic is testable.
 
 ## Authentication
 
-App-only only, via Azure.Identity `ClientCertificateCredential`, scope `https://graph.microsoft.com/.default`: tenant ID, client ID, and a certificate loaded from either a .pfx file (password prompted at runtime, never stored) or the OS certificate store by thumbprint. Interactive (delegated) sign-in is not supported; spec 002 removes the spec 001 implementation. App-only means the granted permissions are exactly the app registration's application permissions, so entraspect can check them.
+App-only only, via Azure.Identity `ClientCertificateCredential`, scope `https://graph.microsoft.com/.default`: tenant ID, client ID, and a certificate loaded from either a .pfx file (password prompted at runtime, never stored) or the OS certificate store by thumbprint. Interactive (delegated) sign-in is not supported. App-only means the granted permissions are exactly the app registration's application permissions, so entraspect can check them.
 
+- `DirectoryConnector.ConnectAsync` gets a token at connect time and returns a Core-owned `DirectoryConnection` (reader, client ID, granted permissions). Graph SDK and Azure.Identity types never leave Entraspect.Graph.
 - Granted permissions come from the access token's `roles` claim, decoded locally at connect. Checks declare the application permissions they need in `RequiredPermissions`; a check whose permissions aren't all granted isn't run, and the UI shows which permission is missing.
 - entraspect never grants or consents permissions itself. It can link to the app registration's API permissions page in the Entra admin center.
 - Warn when the app registration holds permissions entraspect doesn't need, especially write permissions.
 
-Connection profiles (name, tenant ID, client ID, cert path or thumbprint; never passwords) are saved as JSON in the user's application data folder, never in the repo.
+Connection profiles (name, tenant ID, client ID, cert path or thumbprint; never passwords) are saved as `profiles.json`, and `AppSettings` (disabled checks, `CheckOptions`, last used profile, time zone preference) as `settings.json`, in an `entraspect` folder in the user's local application data folder, never in the repo.
 
 ## Target tenants
 
@@ -79,6 +87,8 @@ A step is only done when build and tests both pass.
 
 ## UI conventions
 
+- Layout: navigation on the left, the page on the right, no header. Connection status and Connect, Reconnect and Disconnect live on Settings > Connection profiles; the scan bar (Scan, Cancel, progress) sits on Overview and every check page.
+- View models reach the window (dialogs, clipboard, browser) only through `IUserInteraction`, so tests can fake it.
 - Keep pages light on text. Put descriptions and explainers in an info icon (`InfoTip`) next to the title, heading or field they explain, not in body text. Short status and error messages stay visible.
 - A check's `Title` is its navigation label: at most `CheckCatalog.MaxTitleLength` (26) characters. Don't repeat the section name; "Expiring credentials" sits under App registrations.
 - Every date or time shown goes through `TimeDisplay`, which follows the UTC or local time choice in Settings > Preferences.

@@ -658,6 +658,9 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<UserRegistration>>([]);
+
+        public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<AppPermissionGrant>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -672,6 +675,9 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -704,6 +710,13 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

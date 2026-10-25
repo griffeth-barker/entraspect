@@ -6,17 +6,20 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     private readonly IReadOnlyList<DirectoryGroup> _groups;
     private readonly IReadOnlyList<EnterpriseApp> _enterpriseApps;
     private readonly IReadOnlyList<UserRegistration> _userRegistrations;
+    private readonly IReadOnlyList<AppPermissionGrant> _grants;
 
     public FakeDirectoryReader(
         IReadOnlyList<AppRegistration> apps,
         IReadOnlyList<DirectoryGroup>? groups = null,
         IReadOnlyList<EnterpriseApp>? enterpriseApps = null,
-        IReadOnlyList<UserRegistration>? userRegistrations = null)
+        IReadOnlyList<UserRegistration>? userRegistrations = null,
+        IReadOnlyList<AppPermissionGrant>? grants = null)
     {
         _apps = apps;
         _groups = groups ?? [];
         _enterpriseApps = enterpriseApps ?? [];
         _userRegistrations = userRegistrations ?? [];
+        _grants = grants ?? [];
     }
 
     public FakeDirectoryReader(IReadOnlyList<DirectoryGroup> groups)
@@ -47,4 +50,8 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
         CancellationToken cancellationToken = default) =>
         Task.FromResult(_userRegistrations);
+
+    public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(_grants);
 }

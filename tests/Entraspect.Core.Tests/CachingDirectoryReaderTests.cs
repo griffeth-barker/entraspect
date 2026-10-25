@@ -17,6 +17,8 @@ public sealed class CachingDirectoryReaderTests
 
         public int UserRegistrationCalls { get; private set; }
 
+        public int GrantCalls { get; private set; }
+
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -42,6 +44,13 @@ public sealed class CachingDirectoryReaderTests
             UserRegistrationCalls++;
             return Task.FromResult<IReadOnlyList<UserRegistration>>(Array.Empty<UserRegistration>());
         }
+
+        public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            GrantCalls++;
+            return Task.FromResult<IReadOnlyList<AppPermissionGrant>>(Array.Empty<AppPermissionGrant>());
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -50,6 +59,7 @@ public sealed class CachingDirectoryReaderTests
         private bool _groupsFailed;
         private bool _enterpriseAppsFailed;
         private bool _userRegistrationsFailed;
+        private bool _grantsFailed;
 
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
@@ -95,6 +105,18 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<UserRegistration>>(Array.Empty<UserRegistration>());
+        }
+
+        public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_grantsFailed)
+            {
+                _grantsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<AppPermissionGrant>>(Array.Empty<AppPermissionGrant>());
         }
     }
 
@@ -191,6 +213,30 @@ public sealed class CachingDirectoryReaderTests
 
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetUserRegistrationsAsync());
         var result = await caching.GetUserRegistrationsAsync();
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Fetches_graph_application_permission_grants_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetGraphApplicationPermissionGrantsAsync();
+        await caching.GetGraphApplicationPermissionGrantsAsync();
+
+        Assert.Equal(1, inner.GrantCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_graph_application_permission_grant_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGraphApplicationPermissionGrantsAsync());
+        var result = await caching.GetGraphApplicationPermissionGrantsAsync();
 
         Assert.NotNull(result);
     }

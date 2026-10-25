@@ -13,6 +13,9 @@ public sealed class EnterpriseApp
 
     public required bool AccountEnabled { get; init; }
 
+    /// <summary>The tenant ID of the organization that owns the app; Microsoft's tenant for Microsoft's own apps.</summary>
+    public Guid? AppOwnerOrganizationId { get; init; }
+
     /// <summary>The single sign-on mode set on the app's Single sign-on page, for example <c>saml</c>.</summary>
     public string? PreferredSingleSignOnMode { get; init; }
 

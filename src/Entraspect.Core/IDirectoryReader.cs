@@ -19,4 +19,8 @@ public interface IDirectoryReader
     /// are MFA capable; callers must still test <see cref="UserRegistration.IsMfaCapable"/>.
     /// </summary>
     Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Every Microsoft Graph application permission granted to a service principal in the tenant.</summary>
+    Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
+        CancellationToken cancellationToken = default);
 }

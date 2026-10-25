@@ -22,6 +22,6 @@ public sealed record FindingLabels
 
     public string? DueDate { get; init; } = "Due";
 
-    /// <summary>Header for <see cref="Finding.Value"/>. Hidden unless a check about settings sets it.</summary>
+    /// <summary>Header for <see cref="Finding.Value"/>. Hidden unless a check sets it.</summary>
     public string? Value { get; init; }
 }

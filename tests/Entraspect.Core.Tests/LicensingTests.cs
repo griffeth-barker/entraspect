@@ -32,8 +32,8 @@ public sealed class LicensingTests
 
         string[] licensed =
         [
-            "users-mfa-not-registered", "users-mfa-not-required", "group-license-errors", "ca-policy-hygiene",
-            "ca-unused-policies",
+            "guests-inactive", "users-mfa-not-registered", "users-mfa-not-required", "group-license-errors",
+            "ca-policy-hygiene", "ca-unused-policies",
         ];
         Assert.All(
             checks.Where(c => licensed.Contains(c.Id)),

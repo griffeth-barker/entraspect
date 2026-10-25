@@ -36,8 +36,8 @@ public sealed class Finding
     public string? SubObjectDisplayName { get; init; }
 
     /// <summary>
-    /// The current value of the setting the finding is about, for example "Everyone", for checks that report tenant
-    /// settings rather than objects.
+    /// The current value of the setting or property the finding is about, for example "Everyone" for a tenant setting
+    /// or "Pending" for a guest's invitation state.
     /// </summary>
     public string? Value { get; init; }
 }

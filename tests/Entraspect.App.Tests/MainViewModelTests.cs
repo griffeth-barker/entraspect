@@ -77,7 +77,7 @@ public sealed class MainViewModelTests : IDisposable
             new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access", "External Identities" },
             vm.MenuItems.Skip(1).Select(i => i.Title));
         Assert.Equal(
-            new[] { MfaCheckId, MfaRequiredCheckId },
+            new[] { "guests-admin-roles", "guests-inactive", MfaCheckId, MfaRequiredCheckId, "guests-pending-invites" },
             vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[]
@@ -571,7 +571,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(["AuditLog.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
-            "AuditLog.Read.All: needed by MFA not registered, MFA not required, Unused policies",
+            "AuditLog.Read.All: needed by Inactive guests, MFA not registered, MFA not required, Unused policies",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
@@ -610,7 +610,8 @@ public sealed class MainViewModelTests : IDisposable
             [
                 "Policy.Read.All: needed by MFA not required, Policy hygiene, Unused policies, Cross-tenant defaults, " +
                 "Cross-tenant partners, External collaboration",
-                "User.Read.All: needed by MFA not required, Policy hygiene",
+                "User.Read.All: needed by Guests with admin roles, Inactive guests, MFA not required, " +
+                "Pending guest invitations, Policy hygiene",
             ],
             vm.Overview.Banner.Details);
         Assert.False(CheckPage(vm).Banner.IsOpen);
@@ -629,7 +630,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(["RoleManagement.Read.Directory"], page.Banner.MissingPermissions);
         Assert.Equal(
-            "RoleManagement.Read.Directory: needed by MFA not required",
+            "RoleManagement.Read.Directory: needed by Guests with admin roles, MFA not required",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
@@ -663,15 +664,17 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(string.Empty, page.ErrorText);
         AssertNoBadge(item);
         Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
-        var users = vm.Overview.Categories.Single(c => c.Title == "Users");
-        Assert.False(users.IsAvailable);
-        Assert.Equal("Needs an Entra ID P1 or P2 licence.", users.UnavailableReason);
-        Assert.Equal(("\u2013", "\u2013", "\u2013"), (users.CriticalText, users.WarningText, users.InfoText));
-        Assert.False(vm.Overview.Categories.Single(c => c.Title == "Conditional Access").IsAvailable);
+        // Users still has checks that need no licence; every Conditional Access check needs one.
+        var conditionalAccess = vm.Overview.Categories.Single(c => c.Title == "Conditional Access");
+        Assert.False(conditionalAccess.IsAvailable);
+        Assert.Equal("Needs an Entra ID P1 or P2 licence.", conditionalAccess.UnavailableReason);
+        Assert.Equal(
+            ("\u2013", "\u2013", "\u2013"),
+            (conditionalAccess.CriticalText, conditionalAccess.WarningText, conditionalAccess.InfoText));
         Assert.All(
-            vm.Overview.Categories.Where(c => c.Title is not "Users" and not "Conditional Access"),
+            vm.Overview.Categories.Where(c => c.Title is not "Conditional Access"),
             c => Assert.True(c.IsAvailable));
-        vm.Overview.OpenCommand.Execute(users.Target);
+        vm.Overview.OpenCommand.Execute(conditionalAccess.Target);
         Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
     }
 

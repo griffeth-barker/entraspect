@@ -220,6 +220,52 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task The_status_bar_follows_the_connection_the_scan_and_the_page()
+    {
+        var vm = CreateConnectableViewModel();
+        Assert.Equal(StatusBarViewModel.NotConnectedText, vm.StatusBar.ActivityText);
+        Assert.False(vm.StatusBar.HasProfile);
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal(StatusBarViewModel.ConnectedText, vm.StatusBar.ActivityText);
+        Assert.Equal("p1", vm.StatusBar.ProfileName);
+        Assert.Equal(string.Empty, vm.StatusBar.ContextText);
+        Assert.Same(vm.CancelCommand, vm.StatusBar.CancelCommand);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        Assert.Equal("Scan finished at 12:00 UTC", vm.StatusBar.ActivityText);
+        Assert.False(vm.StatusBar.IsScanning);
+        Assert.Equal("Last scan 2026-01-15 12:00 UTC", vm.StatusBar.ContextText);
+
+        vm.SelectedNavItem = CheckItem(vm);
+        Assert.Equal("Last run 2026-01-15 12:00 UTC", vm.StatusBar.ContextText);
+
+        vm.SelectedNavItem = vm.ChecksSettingsItem;
+        Assert.Equal(string.Empty, vm.StatusBar.ContextText);
+        Assert.Equal("p1", vm.StatusBar.ProfileName);
+
+        vm.DisconnectCommand.Execute(null);
+
+        Assert.Equal(StatusBarViewModel.NotConnectedText, vm.StatusBar.ActivityText);
+        Assert.False(vm.StatusBar.HasProfile);
+        Assert.Equal(string.Empty, vm.StatusBar.ContextText);
+    }
+
+    [Fact]
+    public async Task A_failed_connect_leaves_the_status_bar_not_connected()
+    {
+        _connectError = new DirectoryReadException("Sign-in failed: fake test error");
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.Equal(StatusBarViewModel.NotConnectedText, vm.StatusBar.ActivityText);
+        Assert.False(vm.StatusBar.IsProgressVisible);
+    }
+
+    [Fact]
     public async Task A_collapsed_section_sums_its_checks_and_an_expanded_one_shows_no_badge()
     {
         var vm = CreateConnectableViewModel();
@@ -297,6 +343,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(vm.Checks.Select(c => c.Id), report.Checks.Select(c => c.CheckId));
         Assert.Single(report.Checks.Single(c => c.CheckId == CheckId).Findings);
         Assert.Equal("Exported to scan.json.", vm.ProgressText);
+        Assert.Equal("Exported to scan.json", vm.StatusBar.ActivityText);
         Assert.Equal(string.Empty, vm.ExportErrorText);
     }
 
@@ -428,11 +475,15 @@ public sealed class MainViewModelTests : IDisposable
         var scan = vm.ScanCommand.ExecuteAsync(null);
         await reader.Started.Task.WaitAsync(TimeSpan.FromSeconds(10));
         Assert.True(vm.CancelCommand.CanExecute(null));
-        vm.CancelCommand.Execute(null);
+        Assert.True(vm.StatusBar.IsScanning);
+        Assert.True(vm.StatusBar.IsProgressVisible);
+        vm.StatusBar.CancelCommand.Execute(null);
         await scan.WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.False(vm.IsScanning);
         Assert.Equal("Scan cancelled.", vm.ProgressText);
+        Assert.Equal(StatusBarViewModel.CancelledText, vm.StatusBar.ActivityText);
+        Assert.False(vm.StatusBar.IsScanning);
         AssertNoBadge(CheckItem(vm));
     }
 
@@ -590,7 +641,8 @@ public sealed class MainViewModelTests : IDisposable
         vm.SelectedNavItem = item;
         Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
         Assert.False(page.Banner.IsOpen);
-        Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
+        Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.NotAvailableText);
+        Assert.Equal(string.Empty, page.StatusText);
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.False(vm.ChecksSettingsItem.HasProblem);
         Assert.False(vm.ChecksSettings.Rows.Single(r => r.Check.Id == MfaCheckId).IsLicensed);
@@ -598,7 +650,7 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
+        Assert.Equal(string.Empty, page.StatusText);
         Assert.Equal(string.Empty, page.ErrorText);
         AssertNoBadge(item);
         Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
@@ -800,6 +852,10 @@ public sealed class MainViewModelTests : IDisposable
         SelectTimeZone(vm, AppSettings.LocalTimeZone);
 
         Assert.Equal("Last scan: 2026-01-15 14:00", vm.Overview.LastScanText);
+        Assert.Equal("Scan finished at 14:00", vm.StatusBar.ActivityText);
+        Assert.Equal("Last scan 2026-01-15 14:00", vm.StatusBar.ContextText);
+        vm.SelectedNavItem = CheckItem(vm);
+        Assert.Equal("Last run 2026-01-15 14:00", vm.StatusBar.ContextText);
         Assert.Equal("2026-01-15 14:00", vm.Overview.ConnectedAtText);
         Assert.Equal("Expires (local)", CheckPage(vm).DueHeader);
         Assert.Equal(AppSettings.LocalTimeZone, new SettingsStore(_dir).Load(out _).TimeZone);

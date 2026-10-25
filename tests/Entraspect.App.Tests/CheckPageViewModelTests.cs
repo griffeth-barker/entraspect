@@ -189,6 +189,17 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
+    public void Status_is_empty_before_the_first_scan_and_for_an_unlicensed_check()
+    {
+        var page = CreatePage();
+        Assert.Equal(string.Empty, page.StatusText);
+
+        page.SetResult(new CheckResult { CheckId = "fake", Status = CheckResultStatus.MissingLicence });
+
+        Assert.Equal(string.Empty, page.StatusText);
+    }
+
+    [Fact]
     public void Status_shows_when_the_report_was_updated()
     {
         var page = CreatePage();

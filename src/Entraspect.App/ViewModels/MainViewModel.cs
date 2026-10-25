@@ -61,6 +61,7 @@ public partial class MainViewModel : ViewModelBase
         ChecksSettings = new ChecksSettingsViewModel(Checks, CategoryTitle, _settings);
         About = new AboutViewModel(ExcessPermissions, profileStore.FolderPath, _settings, Time, ui);
         Preferences = new PreferencesViewModel(_settings, Time, ui);
+        StatusBar = new StatusBarViewModel(Time, CancelCommand);
 
         OverviewItem = new NavItemViewModel(NavItemKind.Overview, "Overview", "Home", Overview);
         MenuItems.Add(OverviewItem);
@@ -127,6 +128,8 @@ public partial class MainViewModel : ViewModelBase
     public PreferencesViewModel Preferences { get; }
 
     public TimeDisplay Time { get; }
+
+    public StatusBarViewModel StatusBar { get; }
 
     public ExcessPermissionsViewModel ExcessPermissions { get; }
 
@@ -228,6 +231,8 @@ public partial class MainViewModel : ViewModelBase
         CurrentPage = newValue.Page;
     }
 
+    partial void OnCurrentPageChanged(ViewModelBase? value) => StatusBar.SetPage(value);
+
     private bool CanConnect() => !IsConnected && !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
@@ -271,6 +276,7 @@ public partial class MainViewModel : ViewModelBase
         ScanErrorText = string.Empty;
         ConnectionErrorText = string.Empty;
         ApplyResults(null, null);
+        StatusBar.SetConnection(null);
         UpdateConnectionState();
         SelectedNavItem = ConnectionProfilesItem;
     }
@@ -295,6 +301,7 @@ public partial class MainViewModel : ViewModelBase
             if (generation == _scanGeneration && IsScanning)
             {
                 ProgressText = p.Message;
+                StatusBar.ScanProgressed(p);
             }
         });
 
@@ -310,7 +317,8 @@ public partial class MainViewModel : ViewModelBase
         IsScanning = true;
         ScanErrorText = string.Empty;
         ExportErrorText = string.Empty;
-        ProgressText = "Starting scan…";
+        ProgressText = StatusBarViewModel.StartingScanText;
+        StatusBar.ScanStarted();
 
         try
         {
@@ -321,16 +329,18 @@ public partial class MainViewModel : ViewModelBase
                 return;
             }
 
-            ApplyResults(results, _timeProvider.GetUtcNow());
-            ProgressText = results.Any(r => r.Status == CheckResultStatus.Cancelled)
-                ? "Scan cancelled."
-                : $"Scan finished at {Time.Time(_timeProvider.GetUtcNow())}.";
+            var finishedAt = _timeProvider.GetUtcNow();
+            ApplyResults(results, finishedAt);
+            var cancelled = results.Any(r => r.Status == CheckResultStatus.Cancelled);
+            ProgressText = cancelled ? "Scan cancelled." : $"Scan finished at {Time.Time(finishedAt)}.";
+            StatusBar.ScanEnded(cancelled ? ScanEnd.Cancelled : ScanEnd.Finished, finishedAt);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             if (generation == _scanGeneration)
             {
                 ProgressText = "Scan cancelled.";
+                StatusBar.ScanEnded(ScanEnd.Cancelled);
             }
         }
         catch (Exception ex)
@@ -340,6 +350,7 @@ public partial class MainViewModel : ViewModelBase
             {
                 ScanErrorText = $"The scan stopped with an unexpected error: {ex.Message}";
                 ProgressText = string.Empty;
+                StatusBar.ScanEnded(ScanEnd.Failed);
             }
         }
         finally
@@ -387,6 +398,7 @@ public partial class MainViewModel : ViewModelBase
             await using var stream = await file.OpenWriteAsync();
             await ScanExport.WriteAsync(stream, report, file.Format);
             ProgressText = $"Exported to {file.Name}.";
+            StatusBar.Exported(file.Name);
         }
         catch (Exception ex)
         {
@@ -437,6 +449,7 @@ public partial class MainViewModel : ViewModelBase
         }
 
         IsConnecting = true;
+        StatusBar.SetConnecting(profile.Name);
         try
         {
             // Loading the certificate and getting the token both stay off the UI thread.
@@ -451,6 +464,7 @@ public partial class MainViewModel : ViewModelBase
             ProgressText = string.Empty;
             ScanErrorText = string.Empty;
             ApplyResults(null, null);
+            StatusBar.SetConnection(profile.Name);
             UpdateConnectionState();
             if (_settings.SetLastUsedProfile(profile.Name) is { } saveError)
             {
@@ -470,6 +484,7 @@ public partial class MainViewModel : ViewModelBase
         finally
         {
             IsConnecting = false;
+            StatusBar.SetConnecting(null);
         }
     }
 
@@ -557,6 +572,7 @@ public partial class MainViewModel : ViewModelBase
             MenuItems.Where(i => i.Kind == NavItemKind.Section),
             results,
             scannedAt is { } at ? Time.DateTime(at) : null);
+        StatusBar.SetLastScan(scannedAt);
         ExportCommand.NotifyCanExecuteChanged();
     }
 
@@ -565,6 +581,7 @@ public partial class MainViewModel : ViewModelBase
     {
         ApplyResults(_lastResults, _lastScanAt);
         Overview.SetConnection(_connectedProfile, _connectedAt is { } at ? Time.DateTime(at) : null);
+        StatusBar.Refresh();
     }
 
     private IEnumerable<NavItemViewModel> AllItems() =>

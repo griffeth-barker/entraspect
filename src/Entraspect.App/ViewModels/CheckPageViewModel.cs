@@ -16,7 +16,6 @@ namespace Entraspect.App.ViewModels;
 /// </summary>
 public partial class CheckPageViewModel : ViewModelBase
 {
-    public const string NotRunText = "Not run yet.";
     public const string DisabledText = "Turned off in Settings > Checks.";
 
     private readonly TimeDisplay _time;
@@ -52,7 +51,7 @@ public partial class CheckPageViewModel : ViewModelBase
 
     public string Description => Check.Description;
 
-    /// <summary>The status line for a check the tenant isn't licensed for.</summary>
+    /// <summary>Why the page is empty when the tenant isn't licensed for the check.</summary>
     public string NotAvailableText
     {
         get
@@ -68,8 +67,12 @@ public partial class CheckPageViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool IsDisabled { get; set; }
 
+    /// <summary>
+    /// How the check's last run went, shown in the status bar: for example "Last run 2026-01-15 12:00 UTC". Empty
+    /// before the first scan and when the tenant isn't licensed for the check.
+    /// </summary>
     [ObservableProperty]
-    public partial string StatusText { get; set; } = NotRunText;
+    public partial string StatusText { get; set; } = string.Empty;
 
     [ObservableProperty]
     public partial string ErrorText { get; set; } = string.Empty;
@@ -121,7 +124,7 @@ public partial class CheckPageViewModel : ViewModelBase
 
     /// <summary>
     /// Shows the permission banner when any required permission isn't granted, unless the tenant isn't licensed for
-    /// the check: then the status line says so and there is no banner.
+    /// the check: then the page says so and there is no banner.
     /// </summary>
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
     public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
@@ -148,12 +151,9 @@ public partial class CheckPageViewModel : ViewModelBase
 
         switch (result?.Status)
         {
-            case null when !_isLicensed:
-            case CheckResultStatus.MissingLicence:
-                StatusText = NotAvailableText;
-                break;
             case null:
-                StatusText = NotRunText;
+            case CheckResultStatus.MissingLicence:
+                StatusText = string.Empty;
                 break;
             case CheckResultStatus.Succeeded:
                 // Default order: most severe first, then the soonest due date (no due date last).

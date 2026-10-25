@@ -103,16 +103,25 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.Free);
 
         Assert.False(row.IsLicensed);
+        Assert.False(row.IsOn);
         Assert.True(row.IsEnabled);
+        row.IsOn = true;
+        Assert.False(row.IsOn);
         Assert.Equal("Needs an Entra ID P1 or P2 licence.", row.LicenceNote);
         Assert.Empty(new SettingsStore(_dir).Load(out _).DisabledCheckIds);
         Assert.True(AppCheckRow(vm).IsLicensed);
 
         vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.EntraIdP1);
         Assert.True(row.IsLicensed);
+        Assert.True(row.IsOn);
+
+        row.IsOn = false;
+        Assert.False(row.IsEnabled);
+        Assert.Equal(new[] { "users-mfa-not-registered" }, new SettingsStore(_dir).Load(out _).DisabledCheckIds);
 
         vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.Unknown);
         Assert.True(row.IsLicensed);
+        Assert.False(row.IsOn);
     }
 
     [Fact]

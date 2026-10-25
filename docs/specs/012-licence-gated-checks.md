@@ -35,7 +35,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 ## Step 4: UI
 
-- **Settings > Checks:** for an unlicensed check, the toggle is grayed out (not clickable) and the card shows a short note, "Needs an Entra ID P1 or P2 licence." The saved on/off choice isn't changed, so the check comes back as it was if the tenant gets the licence.
+- **Settings > Checks:** for an unlicensed check, the toggle is grayed out (not clickable) in the off position and the card shows a short note, "Needs an Entra ID P1 or P2 licence." The saved on/off choice isn't changed, so the check comes back as it was if the tenant gets the licence.
 - **Settings > Checks, licence-gated checks only:** a `LicenseAssignment.Read.All` label next to the required permissions. Green when granted. When missing, neutral (not red, because the check still runs) with an `InfoTip`: "Grant it so entraspect can tell whether your tenant's licence covers this check."
 - **Check page:** no permission banner and no red error. The status line says "Not available: needs an Entra ID P1 or P2 licence." Scan isn't clickable on this page.
 - **Navigation:** the check's item is grayed out and can't be opened, with the note as its tooltip. No warning badge. After disconnecting it shows "Connect to a tenant first" like the other pages.

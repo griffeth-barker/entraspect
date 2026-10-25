@@ -8,7 +8,8 @@ namespace Entraspect.App.ViewModels;
 
 /// <summary>
 /// One check on Settings > Checks: its enable toggle, category and required permissions. A check the tenant isn't
-/// licensed for has its toggle grayed out with a note; its saved on/off choice is kept.
+/// licensed for has its toggle grayed out in the off position with a note; its saved on/off choice is kept, so the
+/// check comes back as it was if the tenant gets the licence.
 /// </summary>
 public partial class CheckSettingsRow : ObservableObject
 {
@@ -40,11 +41,30 @@ public partial class CheckSettingsRow : ObservableObject
 
     /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOn))]
     public partial bool IsLicensed { get; set; } = true;
+
+    /// <summary>
+    /// What the toggle shows: off for an unlicensed check, whatever is saved. Changing it saves
+    /// <see cref="IsEnabled"/>; an unlicensed check's toggle is grayed out, so it can't be changed.
+    /// </summary>
+    public bool IsOn
+    {
+        get => IsLicensed && IsEnabled;
+        set
+        {
+            if (IsLicensed)
+            {
+                IsEnabled = value;
+            }
+        }
+    }
 
     public string LicenceNote { get; }
 
+    /// <summary>The saved on/off choice.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsOn))]
     public partial bool IsEnabled { get; set; }
 
     // Saved immediately; the next scan picks it up.

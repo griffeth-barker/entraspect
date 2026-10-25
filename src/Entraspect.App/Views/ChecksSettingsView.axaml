@@ -52,7 +52,7 @@
                                     <TextBlock Text="{Binding LicenceNote}" Classes="muted" FontSize="12"
                                                IsVisible="{Binding !IsLicensed}" />
                                 </StackPanel>
-                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsEnabled}"
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
                                               IsEnabled="{Binding IsLicensed}"
                                               OnContent="On" OffContent="Off" VerticalAlignment="Top" />
                             </Grid>

@@ -63,3 +63,5 @@ Tests for every rule, the special values, the report-only boundary, a policy wit
 - **Application references:** a policy can include an app that no longer has a service principal in the tenant. Some Microsoft apps are valid targets without one, so this could cause false positives.
 - **Directory role references:** `IncludeRoles` holds role template IDs; roles with no active members are like empty groups but need role membership reads (`RoleManagement.Read.Directory`).
 - **Deleted users still in the recycle bin:** a soft-deleted user returns 404 from `/users/{id}`, so it counts as deleted even though it can be restored for 30 days.
+- **Decision (step 1): application filters.** A policy can include apps through an application filter (custom security attributes) instead of listing them in `includeApplications`. The model has `IncludeApplicationsByFilter` so such a policy isn't reported as targeting no apps.
+- **Decision (step 1): progress for user lookups.** `GetMissingUserIdsAsync` takes an optional `IProgress<int>` (IDs looked up so far) before the `CancellationToken`, so the scan bar can show how far the lookups are.

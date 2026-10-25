@@ -5,6 +5,8 @@ using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Abstractions;
+using ConditionalAccessPolicy = Entraspect.Core.ConditionalAccessPolicy;
+using ConditionalAccessPolicyState = Entraspect.Core.ConditionalAccessPolicyState;
 using UserType = Entraspect.Core.UserType;
 
 namespace Entraspect.Graph;
@@ -32,6 +34,18 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGraphApplicationPermissionGrantsAsync(cancellationToken));
+
+    // Implemented in spec 007 step 3.
+    public Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading Conditional Access policies isn't available yet.");
+
+    // Implemented in spec 007 step 3.
+    public Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
+        IReadOnlyCollection<string> userIds,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Looking up users isn't available yet.");
 
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";

@@ -23,4 +23,18 @@ public interface IDirectoryReader
     /// <summary>Every Microsoft Graph application permission granted to a service principal in the tenant.</summary>
     Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>Every Conditional Access policy, whatever its state.</summary>
+    Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The IDs in <paramref name="userIds"/> that don't belong to a user in the tenant, for example because the user
+    /// was deleted. An implementation may look up each user on its own, so it reports through
+    /// <paramref name="progress"/> how many of the IDs it has looked up so far.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
+        IReadOnlyCollection<string> userIds,
+        IProgress<int>? progress = null,
+        CancellationToken cancellationToken = default);
 }

@@ -686,6 +686,15 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<AppPermissionGrant>>([]);
+
+        public Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<ConditionalAccessPolicy>>([]);
+
+        public Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
+            IReadOnlyCollection<string> userIds,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<string>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -703,6 +712,15 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
+            IReadOnlyCollection<string> userIds,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -742,6 +760,23 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
+            IReadOnlyCollection<string> userIds,
+            IProgress<int>? progress = null,
+            CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

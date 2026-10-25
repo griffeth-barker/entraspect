@@ -1,10 +1,13 @@
+using System.Globalization;
 using System.Security.Cryptography;
+using System.Text.Json;
 using Azure.Identity;
 using Entraspect.Core;
 using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Abstractions;
+using Microsoft.Kiota.Abstractions.Serialization;
 using ConditionalAccessPolicy = Entraspect.Core.ConditionalAccessPolicy;
 using ConditionalAccessPolicyState = Entraspect.Core.ConditionalAccessPolicyState;
 using UserType = Entraspect.Core.UserType;
@@ -45,36 +48,30 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadMissingUserIdsAsync(userIds, progress, cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading users isn't available yet.");
+        ReadAsync(() => ReadUsersAsync(cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading directory role assignments isn't available yet.");
+        ReadAsync(() => ReadDirectoryRoleAssignmentsAsync(cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
         string groupId,
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading group members isn't available yet.");
+        ReadAsync(() => ReadGroupTransitiveUserIdsAsync(groupId, cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading security defaults isn't available yet.");
+        ReadAsync(() => ReadSecurityDefaultsEnabledAsync(cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<PerUserMfaState> GetPerUserMfaStateAsync(
         string userId,
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading per-user MFA state isn't available yet.");
+        ReadAsync(() => ReadPerUserMfaStateAsync(userId, cancellationToken));
 
-    // Implemented in spec 008 step 4.
     public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
         DateTimeOffset since,
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading sign-ins isn't available yet.");
+        ReadAsync(() => ReadSingleFactorSignInsAsync(since, cancellationToken));
 
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
@@ -93,6 +90,13 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         catch (AuthenticationFailedException ex)
         {
             throw new DirectoryReadException($"Sign-in failed: {ex.Message}", innerException: ex);
+        }
+        catch (JsonException ex)
+        {
+            // Only beta responses are parsed here; a response that isn't JSON fails just the check that read it.
+            throw new DirectoryReadException(
+                $"Microsoft Graph beta returned a response that couldn't be read: {ex.Message}",
+                innerException: ex);
         }
     }
 
@@ -246,7 +250,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         {
             config.QueryParameters.Select =
             [
-                "id", "displayName", "state", "createdDateTime", "modifiedDateTime", "conditions",
+                "id", "displayName", "state", "createdDateTime", "modifiedDateTime", "conditions", "grantControls",
             ];
         }, cancellationToken).ConfigureAwait(false);
 
@@ -268,13 +272,15 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
     /// <summary>
     /// Maps a Graph policy defensively: missing lists are empty, blank entries are dropped, and a missing state counts
-    /// as enabled so the policy's other rules still apply.
+    /// as enabled so the policy's other rules still apply. A missing grant operator counts as <c>OR</c>, so another
+    /// control never makes a policy look stricter than it is.
     /// </summary>
     public static ConditionalAccessPolicy MapConditionalAccessPolicy(Microsoft.Graph.Models.ConditionalAccessPolicy policy)
     {
         var users = policy.Conditions?.Users;
         var applications = policy.Conditions?.Applications;
         var clientApplications = policy.Conditions?.ClientApplications;
+        var grant = policy.GrantControls;
 
         return new ConditionalAccessPolicy
         {
@@ -294,17 +300,95 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             IncludeGroups = Values(users?.IncludeGroups),
             ExcludeGroups = Values(users?.ExcludeGroups),
             IncludeRoles = Values(users?.IncludeRoles),
+            ExcludeRoles = Values(users?.ExcludeRoles),
             IncludeGuestTypes = GuestTypes(users?.IncludeGuestsOrExternalUsers),
+            IncludeGuestsLimitedToTenants = IsLimitedToTenants(users?.IncludeGuestsOrExternalUsers),
+            ExcludeGuestTypes = GuestTypes(users?.ExcludeGuestsOrExternalUsers),
+            ExcludeGuestsLimitedToTenants = IsLimitedToTenants(users?.ExcludeGuestsOrExternalUsers),
             IncludeApplications = Values(applications?.IncludeApplications),
             IncludeApplicationsByFilter = IsIncludeFilter(applications?.ApplicationFilter),
+            ExcludeApplications = Values(applications?.ExcludeApplications),
+            ExcludeApplicationsByFilter = IsFilter(applications?.ApplicationFilter, FilterMode.Exclude),
             IncludeUserActions = Values(applications?.IncludeUserActions),
             IncludeAuthenticationContexts = Values(applications?.IncludeAuthenticationContextClassReferences),
             TargetsServicePrincipals =
                 Values(clientApplications?.IncludeServicePrincipals)
                     .Any(v => !string.Equals(v, "None", StringComparison.OrdinalIgnoreCase)) ||
                 IsIncludeFilter(clientApplications?.ServicePrincipalFilter),
+            GrantBuiltInControls = grant?.BuiltInControls?
+                .Where(c => c is not null)
+                .Select(c => GrantControlName(c!.Value))
+                .ToList() ?? [],
+            GrantOperator = string.Equals(grant?.Operator, "AND", StringComparison.OrdinalIgnoreCase)
+                ? GrantOperator.And
+                : GrantOperator.Or,
+            HasAuthenticationStrength = HasAuthenticationStrength(grant),
+            HasNarrowingConditions = HasNarrowingConditions(policy.Conditions),
         };
     }
+
+    /// <summary>The control as Graph spells it, for example <c>mfa</c> or <c>compliantDevice</c>.</summary>
+    private static string GrantControlName(ConditionalAccessGrantControl control)
+    {
+        var name = control.ToString();
+        return char.ToLowerInvariant(name[0]) + name[1..];
+    }
+
+    /// <summary>Whether the grant needs an authentication strength; Graph returns the strength object with the policy.</summary>
+    private static bool HasAuthenticationStrength(ConditionalAccessGrantControls? grant) =>
+        grant?.AuthenticationStrength is { } strength &&
+        (!string.IsNullOrEmpty(strength.Id) || !string.IsNullOrEmpty(strength.DisplayName));
+
+    /// <summary>
+    /// Whether the policy applies only under some conditions: locations or device platforms other than all, any user,
+    /// sign-in or insider risk level, a device filter, authentication flows, or client app types other than all (a
+    /// set with both browser and mobile apps and desktop clients counts as all).
+    /// </summary>
+    public static bool HasNarrowingConditions(ConditionalAccessConditionSet? conditions)
+    {
+        if (conditions is null)
+        {
+            return false;
+        }
+
+        var locations = conditions.Locations;
+        if (!IsAllOrEmpty(Values(locations?.IncludeLocations)) || Values(locations?.ExcludeLocations).Count > 0)
+        {
+            return true;
+        }
+
+        var platforms = conditions.Platforms;
+        var includePlatforms = platforms?.IncludePlatforms?.Where(p => p is not null).Select(p => p!.Value).ToList() ?? [];
+        if ((includePlatforms.Count > 0 && !includePlatforms.Contains(ConditionalAccessDevicePlatform.All)) ||
+            platforms?.ExcludePlatforms?.Any(p => p is not null) == true)
+        {
+            return true;
+        }
+
+        if (conditions.UserRiskLevels?.Any(l => l is not null) == true ||
+            conditions.SignInRiskLevels?.Any(l => l is not null) == true ||
+            conditions.InsiderRiskLevels is not null ||
+            IsFilter(conditions.Devices?.DeviceFilter, mode: null) ||
+            conditions.AuthenticationFlows?.TransferMethods is { } methods && methods != ConditionalAccessTransferMethods.None)
+        {
+            return true;
+        }
+
+        var clientApps = conditions.ClientAppTypes?.Where(c => c is not null).Select(c => c!.Value).ToList() ?? [];
+        return clientApps.Count > 0 &&
+            !clientApps.Contains(ConditionalAccessClientApp.All) &&
+            !(clientApps.Contains(ConditionalAccessClientApp.Browser) &&
+                clientApps.Contains(ConditionalAccessClientApp.MobileAppsAndDesktopClients));
+    }
+
+    private static bool IsAllOrEmpty(IReadOnlyList<string> values) =>
+        values.All(v => string.Equals(v, "All", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Whether guest settings apply only to listed external tenants rather than to all of them.</summary>
+    private static bool IsLimitedToTenants(ConditionalAccessGuestsOrExternalUsers? guests) =>
+        guests?.ExternalTenants is { } tenants &&
+        (tenants is ConditionalAccessEnumeratedExternalTenants ||
+            tenants.MembershipKind == ConditionalAccessExternalTenantsMembershipKind.Enumerated);
 
     /// <summary>
     /// The guest or external user types, mapped flag by flag; a missing object or type list, or an unknown future
@@ -336,8 +420,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         (ConditionalAccessGuestOrExternalUserTypes.ServiceProvider, GuestOrExternalUserTypes.ServiceProvider),
     ];
 
-    private static bool IsIncludeFilter(ConditionalAccessFilter? filter) =>
-        filter?.Mode == FilterMode.Include && !string.IsNullOrWhiteSpace(filter.Rule);
+    private static bool IsIncludeFilter(ConditionalAccessFilter? filter) => IsFilter(filter, FilterMode.Include);
+
+    /// <summary>Whether the filter has a rule and, unless <paramref name="mode"/> is null, that mode.</summary>
+    private static bool IsFilter(ConditionalAccessFilter? filter, FilterMode? mode) =>
+        filter is not null && (mode is null || filter.Mode == mode) && !string.IsNullOrWhiteSpace(filter.Rule);
 
     private static List<string> Values(IEnumerable<string>? values) =>
         values?.Where(v => !string.IsNullOrWhiteSpace(v)).ToList() ?? [];
@@ -372,6 +459,297 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
 
         return missing;
+    }
+
+    /// <summary><c>GET /users?$select=id,displayName,userPrincipalName,userType,accountEnabled&amp;$top=999</c>, following every page.</summary>
+    private async Task<IReadOnlyList<DirectoryUser>> ReadUsersAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<DirectoryUser>();
+
+        UserCollectionResponse? response = await _client.Users.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["id", "displayName", "userPrincipalName", "userType", "accountEnabled"];
+            config.QueryParameters.Top = 999;
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value.Where(u => !string.IsNullOrEmpty(u.Id)).Select(MapUser));
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await _client.Users.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    public static DirectoryUser MapUser(User user) =>
+        new()
+        {
+            Id = user.Id ?? string.Empty,
+            UserPrincipalName = user.UserPrincipalName ?? string.Empty,
+            DisplayName = user.DisplayName ?? string.Empty,
+            // Anything but guest, including a missing value, counts as a member so it isn't played down.
+            UserType = string.Equals(user.UserType, "Guest", StringComparison.OrdinalIgnoreCase)
+                ? UserType.Guest
+                : UserType.Member,
+            // Missing means enabled, so the user is checked rather than silently skipped.
+            AccountEnabled = user.AccountEnabled ?? true,
+        };
+
+    /// <summary>
+    /// <c>GET /roleManagement/directory/roleAssignments?$select=roleDefinitionId,principalId</c>, following every
+    /// page. Lists only active assignments; PIM-eligible ones are a separate resource.
+    /// </summary>
+    private async Task<IReadOnlyList<DirectoryRoleAssignment>> ReadDirectoryRoleAssignmentsAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = new List<DirectoryRoleAssignment>();
+        var requests = _client.RoleManagement.Directory.RoleAssignments;
+
+        UnifiedRoleAssignmentCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["roleDefinitionId", "principalId"];
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                foreach (var assignment in response.Value)
+                {
+                    if (MapRoleAssignment(assignment) is { } mapped)
+                    {
+                        result.Add(mapped);
+                    }
+                }
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    /// <summary>The assignment, or null when Graph leaves out the role or the principal.</summary>
+    public static DirectoryRoleAssignment? MapRoleAssignment(UnifiedRoleAssignment assignment) =>
+        string.IsNullOrEmpty(assignment.RoleDefinitionId) || string.IsNullOrEmpty(assignment.PrincipalId)
+            ? null
+            : new DirectoryRoleAssignment
+            {
+                RoleDefinitionId = assignment.RoleDefinitionId,
+                PrincipalId = assignment.PrincipalId,
+            };
+
+    /// <summary>
+    /// <c>GET /groups/{id}/transitiveMembers/microsoft.graph.user?$select=id&amp;$top=999</c>, following every page.
+    /// The OData cast is an advanced query, so it sends <c>ConsistencyLevel: eventual</c> and <c>$count=true</c> as the
+    /// docs require. A 404 (the ID isn't a group, or the group was deleted) means no members.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> ReadGroupTransitiveUserIdsAsync(
+        string groupId,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<string>();
+        var requests = _client.Groups[groupId].TransitiveMembers.GraphUser;
+        UserCollectionResponse? response;
+
+        try
+        {
+            response = await requests.GetAsync(config =>
+            {
+                config.QueryParameters.Select = ["id"];
+                config.QueryParameters.Top = 999;
+                config.QueryParameters.Count = true;
+                config.Headers.Add("ConsistencyLevel", "eventual");
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+        {
+            return [];
+        }
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value.Select(u => u.Id).OfType<string>().Where(id => id.Length > 0));
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(config => config.Headers.Add("ConsistencyLevel", "eventual"), cancellationToken)
+                    .ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    /// <summary><c>GET /policies/identitySecurityDefaultsEnforcementPolicy?$select=isEnabled</c>.</summary>
+    private async Task<bool> ReadSecurityDefaultsEnabledAsync(CancellationToken cancellationToken)
+    {
+        var policy = await _client.Policies.IdentitySecurityDefaultsEnforcementPolicy.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["isEnabled"];
+        }, cancellationToken).ConfigureAwait(false);
+
+        return policy?.IsEnabled == true;
+    }
+
+    /// <summary>The Microsoft Graph beta endpoint, for data that v1.0 doesn't have.</summary>
+    public const string BetaBaseUrl = "https://graph.microsoft.com/beta";
+
+    /// <summary>
+    /// Beta: <c>GET /beta/users/{id}/authentication/requirements</c>, reading <c>perUserMfaState</c>; v1.0 has no
+    /// per-user MFA state. A 404 (the user was deleted since it was listed) is unknown.
+    /// </summary>
+    private async Task<PerUserMfaState> ReadPerUserMfaStateAsync(string userId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var document = await GetBetaAsync(
+                $"{BetaBaseUrl}/users/{Uri.EscapeDataString(userId)}/authentication/requirements",
+                cancellationToken).ConfigureAwait(false);
+            return MapPerUserMfaState(document.RootElement);
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+        {
+            return PerUserMfaState.Unknown;
+        }
+    }
+
+    /// <summary>A missing, non-text or unrecognised <c>perUserMfaState</c> is unknown.</summary>
+    public static PerUserMfaState MapPerUserMfaState(JsonElement requirements) =>
+        requirements.ValueKind == JsonValueKind.Object &&
+        requirements.TryGetProperty("perUserMfaState", out var state) &&
+        state.ValueKind == JsonValueKind.String
+            ? state.GetString()?.ToLowerInvariant() switch
+            {
+                "disabled" => PerUserMfaState.Disabled,
+                "enabled" => PerUserMfaState.Enabled,
+                "enforced" => PerUserMfaState.Enforced,
+                _ => PerUserMfaState.Unknown,
+            }
+            : PerUserMfaState.Unknown;
+
+    /// <summary>The <c>authenticationRequirement</c> of a sign-in that used only one factor.</summary>
+    public const string SingleFactorAuthentication = "singleFactorAuthentication";
+
+    /// <summary>
+    /// Beta: <c>GET /beta/auditLogs/signIns</c>, because v1.0 sign-ins have no <c>authenticationRequirement</c>. The
+    /// beta docs list <c>$filter</c> (<c>eq</c>) on <c>authenticationRequirement</c> and <c>status/errorCode</c>, so
+    /// only successful single-factor sign-ins since <paramref name="since"/> are asked for, 1,000 a page; without a
+    /// <c>signInEventTypes</c> filter Graph returns interactive sign-ins only. Each page is added to the totals and
+    /// dropped before the next is read, and cancellation is checked between pages.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, SingleFactorSignIns>> ReadSingleFactorSignInsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken)
+    {
+        var totals = new Dictionary<string, SingleFactorSignIns>(StringComparer.OrdinalIgnoreCase);
+        var url = SingleFactorSignInsUrl(since);
+
+        while (url is not null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var page = await GetBetaAsync(url, cancellationToken).ConfigureAwait(false);
+            url = AddSingleFactorSignIns(page.RootElement, totals);
+        }
+
+        return totals;
+    }
+
+    public static string SingleFactorSignInsUrl(DateTimeOffset since)
+    {
+        var filter =
+            $"createdDateTime ge {since.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ} and " +
+            $"authenticationRequirement eq '{SingleFactorAuthentication}' and status/errorCode eq 0";
+        return $"{BetaBaseUrl}/auditLogs/signIns?$filter={Uri.EscapeDataString(filter)}&$top=1000" +
+            "&$select=userId,createdDateTime,authenticationRequirement,status";
+    }
+
+    /// <summary>
+    /// Adds one page of sign-ins to <paramref name="totals"/> and returns the next page's link, or null on the last
+    /// page. The server filter is checked again, so only successful single-factor sign-ins count. A sign-in without a
+    /// user ID or a readable date is skipped; missing or unexpected values never throw.
+    /// </summary>
+    public static string? AddSingleFactorSignIns(JsonElement page, IDictionary<string, SingleFactorSignIns> totals)
+    {
+        if (page.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (page.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var signIn in value.EnumerateArray())
+            {
+                if (signIn.ValueKind != JsonValueKind.Object ||
+                    String(signIn, "userId") is not { Length: > 0 } userId ||
+                    !string.Equals(
+                        String(signIn, "authenticationRequirement"),
+                        SingleFactorAuthentication,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    !Succeeded(signIn) ||
+                    !DateTimeOffset.TryParse(
+                        String(signIn, "createdDateTime"),
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.AssumeUniversal,
+                        out var created))
+                {
+                    continue;
+                }
+
+                totals[userId] = totals.TryGetValue(userId, out var total)
+                    ? new SingleFactorSignIns(total.Count + 1, created > total.LastSignIn ? created : total.LastSignIn)
+                    : new SingleFactorSignIns(1, created);
+            }
+        }
+
+        return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
+    }
+
+    private static bool Succeeded(JsonElement signIn) =>
+        signIn.TryGetProperty("status", out var status) &&
+        status.ValueKind == JsonValueKind.Object &&
+        status.TryGetProperty("errorCode", out var code) &&
+        code.ValueKind == JsonValueKind.Number &&
+        code.TryGetInt64(out var number) &&
+        number == 0;
+
+    private static string? String(JsonElement element, string property) =>
+        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    /// <summary>
+    /// A GET to a beta URL through the Graph client's own request adapter, so authentication, retries and error mapping
+    /// are the same as for v1.0. Graph errors come back as <see cref="ODataError"/>.
+    /// </summary>
+    private async Task<JsonDocument> GetBetaAsync(string url, CancellationToken cancellationToken)
+    {
+        var request = new RequestInformation { HttpMethod = Method.GET, URI = new Uri(url) };
+        request.Headers.Add("Accept", "application/json");
+        var errorMapping = new Dictionary<string, ParsableFactory<IParsable>>
+        {
+            ["XXX"] = ODataError.CreateFromDiscriminatorValue,
+        };
+
+        await using var stream = await _client.RequestAdapter
+            .SendPrimitiveAsync<Stream>(request, errorMapping, cancellationToken).ConfigureAwait(false);
+
+        return stream is null
+            ? JsonDocument.Parse("{}")
+            : await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>App role IDs to their values (permission names, for example <c>Mail.Send</c>).</summary>

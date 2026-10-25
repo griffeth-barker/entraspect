@@ -1,4 +1,6 @@
 using Microsoft.Graph.Models;
+using GrantOperator = Entraspect.Core.GrantOperator;
+using GuestOrExternalUserTypes = Entraspect.Core.GuestOrExternalUserTypes;
 using CorePolicyState = Entraspect.Core.ConditionalAccessPolicyState;
 using GraphPolicy = Microsoft.Graph.Models.ConditionalAccessPolicy;
 
@@ -164,10 +166,195 @@ public sealed class ConditionalAccessMappingTests
         Assert.Equal(new[] { "None" }, result.IncludeApplications);
     }
 
+    [Fact]
+    public void Maps_an_or_grant_with_mfa_and_a_compliant_device()
+    {
+        var result = Map(grant: new ConditionalAccessGrantControls
+        {
+            Operator = "OR",
+            BuiltInControls = [ConditionalAccessGrantControl.Mfa, ConditionalAccessGrantControl.CompliantDevice, null],
+        });
+
+        Assert.Equal(new[] { "mfa", "compliantDevice" }, result.GrantBuiltInControls);
+        Assert.Equal(GrantOperator.Or, result.GrantOperator);
+        Assert.False(result.HasAuthenticationStrength);
+    }
+
+    [Fact]
+    public void Maps_an_and_grant_and_an_authentication_strength()
+    {
+        var result = Map(grant: new ConditionalAccessGrantControls
+        {
+            Operator = "AND",
+            BuiltInControls = [ConditionalAccessGrantControl.DomainJoinedDevice],
+            AuthenticationStrength = new AuthenticationStrengthPolicy
+            {
+                Id = "00000000-0000-0000-0000-000000000004",
+                DisplayName = "Phishing-resistant MFA",
+            },
+        });
+
+        Assert.Equal(new[] { "domainJoinedDevice" }, result.GrantBuiltInControls);
+        Assert.Equal(GrantOperator.And, result.GrantOperator);
+        Assert.True(result.HasAuthenticationStrength);
+    }
+
+    [Fact]
+    public void Missing_grant_controls_need_nothing()
+    {
+        var result = Map();
+
+        Assert.Empty(result.GrantBuiltInControls);
+        Assert.Equal(GrantOperator.Or, result.GrantOperator);
+        Assert.False(result.HasAuthenticationStrength);
+        Assert.False(result.HasNarrowingConditions);
+        Assert.Equal(GuestOrExternalUserTypes.None, result.ExcludeGuestTypes);
+    }
+
+    [Fact]
+    public void Unknown_grant_controls_keep_their_name()
+    {
+        var result = Map(grant: new ConditionalAccessGrantControls
+        {
+            BuiltInControls = [ConditionalAccessGrantControl.Mfa, ConditionalAccessGrantControl.UnknownFutureValue],
+        });
+
+        Assert.Equal(new[] { "mfa", "unknownFutureValue" }, result.GrantBuiltInControls);
+    }
+
+    [Fact]
+    public void Maps_excluded_roles_and_apps()
+    {
+        var result = Map(
+            users: new ConditionalAccessUsers { IncludeUsers = ["All"], ExcludeRoles = [RoleId, ""] },
+            applications: new ConditionalAccessApplications
+            {
+                IncludeApplications = ["All"],
+                ExcludeApplications = ["00000002-0000-0ff1-ce00-000000000000"],
+                ApplicationFilter = new ConditionalAccessFilter
+                {
+                    Mode = FilterMode.Exclude,
+                    Rule = "CustomSecurityAttribute.App_Tier -eq \"Low\"",
+                },
+            });
+
+        Assert.Equal(new[] { RoleId }, result.ExcludeRoles);
+        Assert.Equal(new[] { "00000002-0000-0ff1-ce00-000000000000" }, result.ExcludeApplications);
+        Assert.True(result.ExcludeApplicationsByFilter);
+        Assert.False(result.IncludeApplicationsByFilter);
+    }
+
+    [Fact]
+    public void Maps_included_and_excluded_guest_types_and_tenant_limits()
+    {
+        var result = Map(users: new ConditionalAccessUsers
+        {
+            IncludeGuestsOrExternalUsers = new ConditionalAccessGuestsOrExternalUsers
+            {
+                GuestOrExternalUserTypes =
+                    ConditionalAccessGuestOrExternalUserTypes.InternalGuest |
+                    ConditionalAccessGuestOrExternalUserTypes.B2bCollaborationGuest |
+                    ConditionalAccessGuestOrExternalUserTypes.ServiceProvider,
+                ExternalTenants = new ConditionalAccessAllExternalTenants
+                {
+                    MembershipKind = ConditionalAccessExternalTenantsMembershipKind.All,
+                },
+            },
+            ExcludeGuestsOrExternalUsers = new ConditionalAccessGuestsOrExternalUsers
+            {
+                GuestOrExternalUserTypes = ConditionalAccessGuestOrExternalUserTypes.B2bCollaborationGuest,
+                ExternalTenants = new ConditionalAccessEnumeratedExternalTenants
+                {
+                    MembershipKind = ConditionalAccessExternalTenantsMembershipKind.Enumerated,
+                    Members = ["11111111-0000-0000-0000-000000000001"],
+                },
+            },
+        });
+
+        Assert.Equal(
+            GuestOrExternalUserTypes.InternalGuest | GuestOrExternalUserTypes.B2bCollaborationGuest |
+            GuestOrExternalUserTypes.ServiceProvider,
+            result.IncludeGuestTypes);
+        Assert.False(result.IncludeGuestsLimitedToTenants);
+        Assert.Equal(GuestOrExternalUserTypes.B2bCollaborationGuest, result.ExcludeGuestTypes);
+        Assert.True(result.ExcludeGuestsLimitedToTenants);
+    }
+
+    [Fact]
+    public void Unknown_guest_types_add_nothing()
+    {
+        var result = Map(users: new ConditionalAccessUsers
+        {
+            IncludeGuestsOrExternalUsers = new ConditionalAccessGuestsOrExternalUsers
+            {
+                GuestOrExternalUserTypes = ConditionalAccessGuestOrExternalUserTypes.UnknownFutureValue,
+            },
+        });
+
+        Assert.Equal(GuestOrExternalUserTypes.None, result.IncludeGuestTypes);
+    }
+
+    public static TheoryData<string, ConditionalAccessConditionSet, bool> NarrowingConditions => new()
+    {
+        { "no conditions", new ConditionalAccessConditionSet(), false },
+        { "all locations", new() { Locations = new() { IncludeLocations = ["All"] } }, false },
+        { "trusted locations", new() { Locations = new() { IncludeLocations = ["AllTrusted"] } }, true },
+        { "excluded location", new() { Locations = new() { IncludeLocations = ["All"], ExcludeLocations = ["l1"] } }, true },
+        { "all platforms", new() { Platforms = new() { IncludePlatforms = [ConditionalAccessDevicePlatform.All] } }, false },
+        { "one platform", new() { Platforms = new() { IncludePlatforms = [ConditionalAccessDevicePlatform.IOS] } }, true },
+        {
+            "excluded platform",
+            new()
+            {
+                Platforms = new()
+                {
+                    IncludePlatforms = [ConditionalAccessDevicePlatform.All],
+                    ExcludePlatforms = [ConditionalAccessDevicePlatform.Linux],
+                },
+            },
+            true
+        },
+        { "user risk", new() { UserRiskLevels = [RiskLevel.High] }, true },
+        { "sign-in risk", new() { SignInRiskLevels = [RiskLevel.Medium, RiskLevel.High] }, true },
+        { "empty risk lists", new() { UserRiskLevels = [], SignInRiskLevels = [] }, false },
+        { "insider risk", new() { InsiderRiskLevels = ConditionalAccessInsiderRiskLevels.Elevated }, true },
+        {
+            "device filter",
+            new() { Devices = new() { DeviceFilter = new() { Mode = FilterMode.Exclude, Rule = "device.isCompliant -eq True" } } },
+            true
+        },
+        { "empty device filter", new() { Devices = new() { DeviceFilter = new() { Mode = FilterMode.Include, Rule = "" } } }, false },
+        {
+            "authentication flows",
+            new() { AuthenticationFlows = new() { TransferMethods = ConditionalAccessTransferMethods.DeviceCodeFlow } },
+            true
+        },
+        { "all client apps", new() { ClientAppTypes = [ConditionalAccessClientApp.All] }, false },
+        {
+            "browser and modern clients",
+            new() { ClientAppTypes = [ConditionalAccessClientApp.Browser, ConditionalAccessClientApp.MobileAppsAndDesktopClients] },
+            false
+        },
+        { "browser only", new() { ClientAppTypes = [ConditionalAccessClientApp.Browser] }, true },
+        {
+            "legacy clients only",
+            new() { ClientAppTypes = [ConditionalAccessClientApp.ExchangeActiveSync, ConditionalAccessClientApp.Other] },
+            true
+        },
+    };
+
+    [Theory]
+    [MemberData(nameof(NarrowingConditions))]
+    public void Detects_each_narrowing_condition(string name, ConditionalAccessConditionSet conditions, bool expected)
+    {
+        Assert.True(expected == GraphDirectoryReader.HasNarrowingConditions(conditions), name);
+    }
+
     private static Core.ConditionalAccessPolicy Map(
         ConditionalAccessUsers? users = null,
         ConditionalAccessApplications? applications = null,
-        ConditionalAccessClientApplications? clientApplications = null) =>
+        ConditionalAccessClientApplications? clientApplications = null,
+        ConditionalAccessGrantControls? grant = null) =>
         GraphDirectoryReader.MapConditionalAccessPolicy(new GraphPolicy
         {
             Id = "p1",
@@ -179,5 +366,6 @@ public sealed class ConditionalAccessMappingTests
                 Applications = applications,
                 ClientApplications = clientApplications,
             },
+            GrantControls = grant,
         });
 }

@@ -19,11 +19,11 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 Both group checks skip groups created in the last 7 days (the new group grace period, set in **Settings** > **Checks**).
 
+- **Apps with no owners** (app registrations): app registrations with no owners, so no one is accountable for their credentials and permissions. Always **Warning**. P2P Server, which Entra ID creates for remote desktop to Entra-joined devices, is skipped.
 - **Expiring credentials** (app registrations): client secrets and certificates on app registrations that have expired or expire soon.
   - **Critical:** expires within 7 days, or already expired with no other valid credential of the same type.
   - **Warning:** expires within 30 days.
   - **Info:** already expired, but the app has another valid credential of the same type. Consider removing the expired one.
-- **Apps with no owners** (app registrations): app registrations with no owners, so no one is accountable for their credentials and permissions. Always **Warning**. P2P Server, which Entra ID creates for remote desktop to Entra-joined devices, is skipped.
 - **Risky redirect URIs** (app registrations): one finding per risky redirect URI, with its platform. entraspect only reads the URI text; it never looks up or contacts the URI.
   - **Warning:** a wildcard (`*`) on any platform, or `http://` to a host other than this computer on the Web or Single-page application platform.
   - **Info:** `localhost`, `127.0.0.1` or `[::1]` on the Web or Single-page application platform, usually left over from development, or a URI that isn't valid. Localhost on the Mobile and desktop applications platform is normal for desktop and command-line apps and isn't reported.

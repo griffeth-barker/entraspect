@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace Entraspect.Core;
 
 /// <summary>
-/// The single list of every check in the app, in navigation order within each category.
-/// Later specs register new checks here and nowhere else.
+/// The single list of every check in the app, in navigation order: within each category, sorted by title so users can
+/// find a check by name. Later specs register new checks here and nowhere else, in title order.
 /// </summary>
 public static class CheckCatalog
 {
@@ -28,8 +28,8 @@ public static class CheckCatalog
             new Checks.UsersMfaNotRegisteredCheck(),
             new Checks.GroupNoMembersCheck(timeProvider),
             new Checks.GroupNoOwnersCheck(timeProvider),
-            new Checks.AppCredentialExpiryCheck(timeProvider),
             new Checks.AppNoOwnersCheck(),
+            new Checks.AppCredentialExpiryCheck(timeProvider),
             new Checks.AppRiskyRedirectUrisCheck(),
             new Checks.SamlSigningCertificateExpiryCheck(timeProvider),
             new Checks.HighPrivilegeAppPermissionsCheck(),

@@ -87,7 +87,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(section.IsPage);
         Assert.False(section.IsExpanded);
         Assert.Equal(
-            new[] { CheckId, AppNoOwnersCheckId, RedirectUriCheckId },
+            new[] { AppNoOwnersCheckId, CheckId, RedirectUriCheckId },
             section.Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { SamlCheckId, HighPrivilegeCheckId },
@@ -332,7 +332,7 @@ public sealed class MainViewModelTests : IDisposable
             banner.Message);
         Assert.True(vm.Overview.Banner.IsOpen);
         Assert.Equal(
-            $"Application.Read.All: needed by {CheckPage(vm).Title}, Apps with no owners, Risky redirect URIs, " +
+            $"Application.Read.All: needed by Apps with no owners, {CheckPage(vm).Title}, Risky redirect URIs, " +
             "Expiring SAML certificates, High-privilege apps",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsMissing);
@@ -577,8 +577,11 @@ public sealed class MainViewModelTests : IDisposable
 
         vm.Overview.OpenCommand.Execute(category.Target);
 
-        Assert.Same(CheckItem(vm), vm.SelectedNavItem);
-        Assert.Same(CheckPage(vm), vm.CurrentPage);
+        // The section opens at its first check, in title order.
+        var first = vm.MenuItems.Single(i => i.Title == "App registrations").Children[0];
+        Assert.Equal(AppNoOwnersCheckId, ((CheckPageViewModel)first.Page!).Check.Id);
+        Assert.Same(first, vm.SelectedNavItem);
+        Assert.Same(first.Page, vm.CurrentPage);
     }
 
     [Fact]

@@ -13,8 +13,8 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-credential-expiry",
-                "app-no-owners", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
+                "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-no-owners",
+                "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
                 "sp-high-privilege-app-permissions", "ca-policy-hygiene",
             },
             checks.Select(c => c.Id));
@@ -27,6 +27,17 @@ public sealed class CheckCatalogTests
             },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));
+    }
+
+    [Fact]
+    public void Checks_are_sorted_by_title_within_each_category()
+    {
+        // The catalog order is the navigation order, and users scan a section by name.
+        foreach (var category in CheckCatalog.All(new FakeTimeProvider()).GroupBy(c => c.Category))
+        {
+            var titles = category.Select(c => c.Title).ToList();
+            Assert.Equal(titles.Order(StringComparer.CurrentCultureIgnoreCase), titles);
+        }
     }
 
     [Fact]

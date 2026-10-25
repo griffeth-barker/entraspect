@@ -62,9 +62,9 @@
                                          ToolTip.Tip="{Binding ToolTip}"
                                          ToolTip.ShowOnDisabled="True">
                     <ui:FANavigationViewItem.InfoBadge>
-                        <ui:FAInfoBadge Value="{Binding BadgeValue}"
-                                        IsVisible="{Binding HasBadge}"
-                                        Classes.warning="{Binding HasWarning}" />
+                        <ui:FAInfoBadge Value="{Binding BadgeCount}"
+                                        IsVisible="{Binding ShowBadges}"
+                                        Classes.warning="{Binding HasProblem}" />
                     </ui:FANavigationViewItem.InfoBadge>
                 </ui:FANavigationViewItem>
             </DataTemplate>

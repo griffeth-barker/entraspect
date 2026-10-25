@@ -204,17 +204,40 @@ public sealed class MainViewModelTests : IDisposable
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
-        Assert.False(CheckItem(vm).HasBadge);
+        AssertNoBadge(CheckItem(vm));
         await vm.ScanCommand.ExecuteAsync(null);
 
         var item = CheckItem(vm);
-        Assert.True(item.HasBadge);
-        Assert.False(item.HasWarning);
-        Assert.Equal(1, item.BadgeValue);
+        Assert.Equal(1, item.BadgeCount);
+        Assert.Equal(Severity.Critical, item.BadgeSeverity);
+        Assert.Equal("1 critical", item.CountToolTip);
+        Assert.False(item.HasProblem);
+        Assert.True(item.ShowBadges);
         Assert.Single(CheckPage(vm).Findings);
         Assert.False(vm.IsScanning);
         Assert.StartsWith("Scan finished", vm.ProgressText);
         Assert.StartsWith("Last scan:", vm.Overview.LastScanText);
+    }
+
+    [Fact]
+    public async Task A_collapsed_section_sums_its_checks_and_an_expanded_one_shows_no_badge()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        var section = vm.MenuItems.Single(i => i.Title == "App registrations");
+        Assert.False(section.IsExpanded);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        Assert.Equal(1, section.BadgeCount);
+        Assert.Equal(Severity.Critical, section.BadgeSeverity);
+        Assert.Equal("1 critical", section.CountToolTip);
+        Assert.False(section.HasProblem);
+
+        vm.SelectedNavItem = CheckItem(vm);
+
+        Assert.True(section.IsExpanded);
+        AssertNoBadge(section);
     }
 
     [Fact]
@@ -357,8 +380,9 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        Assert.True(CheckItem(vm).HasBadge);
-        Assert.True(CheckItem(vm).HasWarning);
+        Assert.True(CheckItem(vm).HasProblem);
+        Assert.Equal(NavItemViewModel.MissingPermissionsToolTip, CheckItem(vm).ProblemToolTip);
+        Assert.Equal(0, CheckItem(vm).BadgeCount);
         Assert.Equal(["Application.Read.All"], CheckPage(vm).Banner.MissingPermissions);
     }
 
@@ -371,7 +395,8 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        Assert.True(CheckItem(vm).HasWarning);
+        Assert.True(CheckItem(vm).HasProblem);
+        Assert.Equal(NavItemViewModel.FailedToolTip, CheckItem(vm).ProblemToolTip);
         Assert.Contains("fake read failure", CheckPage(vm).ErrorText);
     }
 
@@ -388,7 +413,7 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        Assert.False(CheckItem(vm).HasBadge);
+        AssertNoBadge(CheckItem(vm));
         Assert.Equal(0, ((FakeReader)_reader).Reads);
     }
 
@@ -408,7 +433,7 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.False(vm.IsScanning);
         Assert.Equal("Scan cancelled.", vm.ProgressText);
-        Assert.False(CheckItem(vm).HasBadge);
+        AssertNoBadge(CheckItem(vm));
     }
 
     [Fact]
@@ -426,7 +451,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Same(vm.ConnectionProfilesItem, vm.SelectedNavItem);
         Assert.False(vm.OverviewItem.IsEnabled);
         Assert.False(CheckItem(vm).IsEnabled);
-        Assert.False(CheckItem(vm).HasBadge);
+        AssertNoBadge(CheckItem(vm));
         Assert.Empty(CheckPage(vm).Findings);
         Assert.Equal(OverviewViewModel.NoScanText, vm.Overview.LastScanText);
         Assert.False(vm.ScanCommand.CanExecute(null));
@@ -447,7 +472,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(2, _connectCalls.Count);
         Assert.Equal(2, _prompt.Calls);
         Assert.Contains("Directory.Read.All", vm.GrantedPermissions);
-        Assert.False(CheckItem(vm).HasBadge);
+        AssertNoBadge(CheckItem(vm));
     }
 
     [Fact]
@@ -470,8 +495,8 @@ public sealed class MainViewModelTests : IDisposable
             "Expiring SAML certificates, High-privilege apps",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsMissing);
-        Assert.True(vm.ChecksSettingsItem.HasWarning);
-        Assert.True(vm.ChecksSettingsItem.HasBadge);
+        Assert.True(vm.ChecksSettingsItem.HasProblem);
+        Assert.Equal(NavItemViewModel.MissingPermissionsWarning, vm.ChecksSettingsItem.ProblemToolTip);
     }
 
     [Fact]
@@ -567,7 +592,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(page.Banner.IsOpen);
         Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
         Assert.False(vm.Overview.Banner.IsOpen);
-        Assert.False(vm.ChecksSettingsItem.HasWarning);
+        Assert.False(vm.ChecksSettingsItem.HasProblem);
         Assert.False(vm.ChecksSettings.Rows.Single(r => r.Check.Id == MfaCheckId).IsLicensed);
         Assert.False(vm.ExcessPermissions.HasUnusedReadPermissions);
 
@@ -575,7 +600,7 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
         Assert.Equal(string.Empty, page.ErrorText);
-        Assert.False(item.HasBadge);
+        AssertNoBadge(item);
         Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
         var users = vm.Overview.Categories.Single(c => c.Title == "Users");
         Assert.False(users.IsAvailable);
@@ -630,8 +655,7 @@ public sealed class MainViewModelTests : IDisposable
 
         var (item, page) = MfaItemAndPage(vm);
         Assert.StartsWith("Last run", page.StatusText);
-        Assert.True(item.HasBadge);
-        Assert.Equal(0, item.BadgeValue);
+        AssertNoBadge(item);
         var users = vm.Overview.Categories.Single(c => c.Title == "Users");
         Assert.True(users.IsAvailable);
         Assert.Equal("0", users.CriticalText);
@@ -647,7 +671,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(CheckPage(vm).Banner.IsOpen);
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsGranted);
-        Assert.False(vm.ChecksSettingsItem.HasBadge);
+        Assert.False(vm.ChecksSettingsItem.HasProblem);
     }
 
     [Fact]
@@ -689,7 +713,7 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         Assert.False(vm.Overview.Banner.IsOpen);
-        Assert.False(vm.ChecksSettingsItem.HasWarning);
+        Assert.False(vm.ChecksSettingsItem.HasProblem);
         Assert.True(CheckPage(vm).IsDisabled);
         Assert.Equal(
             new[] { CheckId, AppNoOwnersCheckId, RedirectUriCheckId, SamlCheckId, HighPrivilegeCheckId }.Order(),
@@ -934,6 +958,14 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal("p1 (t1)", vm.ConnectedProfileTitle);
         vm.DisconnectCommand.Execute(null);
         Assert.Equal(string.Empty, vm.ConnectedProfileTitle);
+    }
+
+    private static void AssertNoBadge(NavItemViewModel item)
+    {
+        Assert.Equal(0, item.BadgeCount);
+        Assert.Null(item.BadgeSeverity);
+        Assert.False(item.HasProblem);
+        Assert.False(item.ShowBadges);
     }
 
     private static void SelectTimeZone(MainViewModel vm, string id) =>

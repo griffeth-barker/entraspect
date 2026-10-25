@@ -6,6 +6,10 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## What it checks
 
+- **MFA not registered** (users): users who can't do multifactor authentication because they haven't registered a method that the current policy allows, including users synced from on-premises Active Directory. It answers "who isn't registered for MFA", not "who isn't required to use MFA". Needs Entra ID P1 or P2. The check page shows when Microsoft last updated the report it reads.
+  - **Critical:** an admin.
+  - **Warning:** a member.
+  - **Info:** a guest. Guests may do MFA in their home tenant, depending on your cross-tenant access settings.
 - **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
   - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.
@@ -29,18 +33,18 @@ Both expiry checks use the same expiry windows, set in **Settings** > **Checks**
 
 ## Read-only by design
 
-entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All` and `Member.Read.Hidden`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
 
 ## Setup
 
 entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All` and `Member.Read.Hidden`, with admin consent.
+- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden` and `AuditLog.Read.All`, with admin consent.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.
 
-Some checks need Microsoft Entra ID P1 or P2.
+Some checks need Microsoft Entra ID P1 or P2 (today, MFA not registered).
 
 See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
 
@@ -48,7 +52,7 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 
 - **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
-- **Check pages**, grouped by object type in the navigation (Groups, App registrations and Enterprise apps today; Users and Conditional Access as their checks are added): each check's findings, with Search and Add filter like the Entra admin center.
+- **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations and Enterprise apps today; Conditional Access as its checks are added): each check's findings, with Search and Add filter like the Entra admin center.
 - **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows. **Settings > Preferences:** show times in UTC or local time.
 
 Results stay in memory and are never written to disk.

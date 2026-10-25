@@ -8,7 +8,7 @@ entraspect is read-only. It only needs read permissions, and it never changes an
 
 - You need a role that can create app registrations and grant admin consent, such as Privileged Role Administrator or Global Administrator. If you can't grant consent yourself, create the app registration and ask an administrator to grant consent for you.
 - entraspect signs in as the application (app-only), with no user present. It only supports certificates. Signing in as yourself and client secrets are not supported.
-- Some checks need Microsoft Entra ID P1 or P2. On a tenant without it, those checks fail with a message saying so, and the other checks still run.
+- Some checks need Microsoft Entra ID P1 or P2: today, **MFA not registered**. On a tenant without it, those checks fail with "This check needs an Entra ID P1 or P2 licence.", and the other checks still run.
 
 ## 1. Create the app registration
 
@@ -44,6 +44,7 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 | `Application.Read.All` | Expiring credentials (app registration secrets and certificates), Expiring SAML certificates (enterprise app SAML signing certificates) |
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners |
 | `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
+| `AuditLog.Read.All` | MFA not registered (the Authentication methods user registration details report). Needs Entra ID P1 or P2 |
 
 Every permission entraspect uses is a read permission. Never grant entraspect's app registration a write permission (any permission containing `ReadWrite`). Anyone with its certificate could then change your tenant.
 

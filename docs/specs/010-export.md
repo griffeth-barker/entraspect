@@ -1,6 +1,6 @@
 # Spec 010: Export results
 
-**Status:** Ready (depends on spec 002)
+**Status:** Done
 **Goal:** Save scan results to a CSV or JSON file, from a single check page or for the whole scan.
 
 **Out of scope for this spec:** scheduled or unattended scans, sending results anywhere (email, webhook, upload), HTML or PDF reports, comparing two scans.

@@ -13,4 +13,7 @@ public sealed class DirectoryConnection
     public required string ClientId { get; init; }
 
     public required IReadOnlyList<string> GrantedPermissions { get; init; }
+
+    /// <summary>The tenant's Entra ID licence, read at connect, or <see cref="TenantLicence.Unknown"/>.</summary>
+    public TenantLicence TenantLicence { get; init; } = TenantLicence.Unknown;
 }

@@ -22,6 +22,9 @@ public sealed class UsersMfaNotRegisteredCheck : ICheck
 
     public IReadOnlyList<string> RequiredPermissions => new[] { "AuditLog.Read.All" };
 
+    // The user registration details report needs Entra ID P1 or P2.
+    public LicenceRequirement RequiredLicence => LicenceRequirement.EntraIdP1;
+
     // Named like the user list in the Entra admin center. Findings are about the user itself, with no due date.
     public FindingLabels Labels { get; } = new()
     {

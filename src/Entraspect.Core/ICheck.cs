@@ -16,6 +16,9 @@ public interface ICheck
 
     IReadOnlyList<string> RequiredPermissions { get; }
 
+    /// <summary>The licence the tenant needs for this check. A tenant without it doesn't run the check.</summary>
+    LicenceRequirement RequiredLicence => LicenceRequirement.None;
+
     /// <summary>Column headers for this check's findings. Defaults to generic labels.</summary>
     FindingLabels Labels => FindingLabels.Default;
 

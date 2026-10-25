@@ -44,7 +44,7 @@ Today Settings > Preferences has two radio buttons, UTC and local time (`AppSett
 
 The logo artwork is in `assets/`. The About page uses `entraspect-icon-with-lettermark-cropped-xp.png` (the logo with its lettermark, transparent background) and the window icon is `entraspect-icon-square.png`.
 
-- Show the logo at the top of Settings > About, next to or above "About entraspect", at a size that fits the page without scrolling on a small window.
+- Show the logo at the top of Settings > About, at a size that fits the page without scrolling on a small window. The logo's lettermark is the page heading, so the page has no "About entraspect" title.
 - Use it as the window icon too.
 - Light and dark versions, if the logo has them, follow the theme from step 2.
 - Packaging icons (macOS `.icns`, Windows `.ico`) are out of scope; add them to Open questions when the logo exists.

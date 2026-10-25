@@ -11,11 +11,12 @@
                 <ColumnDefinition Width="*" MaxWidth="820" />
             </Grid.ColumnDefinitions>
         <StackPanel Spacing="8">
-            <!-- The logo with its lettermark, transparent background. 1095 x 228 pixels, shown 48 high. -->
+            <!-- The logo with its lettermark is the page heading, so there is no "About entraspect" title.
+                 Transparent background; 1095 x 228 pixels, shown 48 high. -->
             <Image Source="/Assets/entraspect-icon-with-lettermark-cropped-xp.png" Height="48"
                    HorizontalAlignment="Left" Stretch="Uniform" Margin="0,0,0,4"
+                   AutomationProperties.Name="entraspect"
                    RenderOptions.BitmapInterpolationMode="HighQuality" />
-            <TextBlock Text="About entraspect" Classes="pageTitle" />
             <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" />
             <StackPanel Orientation="Horizontal">
                 <TextBlock Text="Read-only: entraspect never changes your tenant." />

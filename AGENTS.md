@@ -37,10 +37,10 @@ Dependency direction: App → Graph → Core, and App → Core. Core references 
 ## Core concepts
 
 - **`IDirectoryReader`**: async read methods returning simple Core-owned models (e.g. `AppRegistration`, `AppCredential`). Entraspect.Graph is the only place Graph is touched.
-- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `Category` (a `CheckCategory`: the navigation section it appears in), `RequiredPermissions`, `Labels` (a `FindingLabels` naming the findings grid columns after the object's properties, for example "Display name" and "Object ID"), and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`.
-- **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`, optional `SubObjectType` / `SubObjectDisplayName` (the item inside the object, e.g. a credential inside an app registration).
+- **`ICheck`**: one hygiene check. Has `Id` (stable, kebab-case), `Title`, `Description`, `Category` (a `CheckCategory`: the navigation section it appears in), `RequiredPermissions`, `Labels` (a `FindingLabels` naming the findings grid columns after the object's properties, for example "Display name" and "Object ID"; a null label hides that column), and `Task<IReadOnlyList<Finding>> RunAsync(IDirectoryReader reader, CheckOptions options, CancellationToken ct)`. A check that reads a report Microsoft refreshes on its own schedule also implements `GetDataUpdatedAsync` (default null) so its page shows when the report was last updated.
+- **`Finding`**: `CheckId`, `Severity` (Info / Warning / Critical), `ObjectType`, `ObjectId`, `ObjectDisplayName`, `Message`, optional `DueDate`, optional `UserPrincipalName` (findings about users), optional `SubObjectType` / `SubObjectDisplayName` (the item inside the object, e.g. a credential inside an app registration). Never combine two properties in one field, such as a display name with a UPN: a display name is for presentation and can repeat, while IDs and UPNs are unique. Give each its own field and column.
 - **`CheckCatalog`**: the single list of every check, in navigation order within each category. Register a new check here and nowhere else; the navigation, Settings > Checks and Scan pick it up without UI changes.
-- **`ScanRunner`**: runs the enabled checks one after another and returns one `CheckResult` per check. A check missing a permission isn't run (`MissingPermissions`); a `DirectoryReadException` fails only that check; cancellation marks the rest `Cancelled`.
+- **`ScanRunner`**: runs the enabled checks one after another and returns one `CheckResult` per check. A check missing a permission isn't run (`MissingPermissions`); a `DirectoryReadException` fails only that check, keeping its `StatusCode` and Graph `ErrorCode` in the `CheckResult`; cancellation marks the rest `Cancelled`.
 - **`CachingDirectoryReader`**: wraps the reader for one scan so each collection is read once. Every new `IDirectoryReader` method must be added here too.
 - **`PermissionReview`**: compares granted permissions with every check's `RequiredPermissions`: missing ones (with the checks they block), and unused ones split into read and write.
 - **`CheckOptions`**: shared check settings (the expiry windows), validated by `CheckOptions.Validate` and `Normalize`. Add new options with their own rule.
@@ -59,7 +59,7 @@ Connection profiles (name, tenant ID, client ID, cert path or thumbprint; never 
 
 ## Target tenants
 
-Design checks for tenants with Entra ID P1 or P2. When Graph says the tenant lacks the licence a check needs, that check fails with a plain message and the others still run. Prefer Graph v1.0. Beta endpoints are allowed when the data isn't available in v1.0, under these rules:
+Design checks for tenants with Entra ID P1 or P2. When Graph says the tenant lacks the licence a check needs, that check fails with a plain message and the others still run: `CheckFailureMessage` maps the Graph error code (for example `Authentication_RequestFromNonPremiumTenantOrB2CTenant`) to "This check needs an Entra ID P1 or P2 licence." Add any new licence error code there. Prefer Graph v1.0. Beta endpoints are allowed when the data isn't available in v1.0, under these rules:
 
 - The spec names each beta endpoint and why v1.0 isn't enough. Don't switch a v1.0 call to beta on your own.
 - The read-only rules apply to beta exactly as to v1.0.

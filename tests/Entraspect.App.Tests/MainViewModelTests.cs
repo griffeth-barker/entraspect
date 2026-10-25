@@ -74,7 +74,11 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.Same(vm.OverviewItem, vm.MenuItems[0]);
         Assert.Equal(
-            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access", "External Identities" },
+            new[]
+            {
+                "Users", "Groups", "App registrations", "Enterprise apps", "Roles & admins", "Conditional Access",
+                "External Identities",
+            },
             vm.MenuItems.Skip(1).Select(i => i.Title));
         Assert.Equal(
             new[]
@@ -99,9 +103,20 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             new[] { SamlCheckId, HighPrivilegeCheckId },
             vm.MenuItems[4].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
+        var roles = vm.MenuItems[5];
+        Assert.Equal("Admin", roles.Icon);
+        Assert.False(roles.IsPage);
+        Assert.False(roles.IsExpanded);
+        Assert.Equal(
+            new[]
+            {
+                "roles-admin-counts", "roles-licensed-admins", "roles-admins-no-phishing-resistant-mfa",
+                "roles-synced-admins",
+            },
+            roles.Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { CaPolicyCheckId, CaUnusedCheckId },
-            vm.MenuItems[5].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
+            vm.MenuItems[6].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
 
         // External Identities is last, as in the Entra admin center, and collapsible like every section.
         var external = vm.MenuItems[^1];
@@ -127,15 +142,6 @@ public sealed class MainViewModelTests : IDisposable
                 "External Identities",
             },
             Enum.GetValues<CheckCategory>().Select(MainViewModel.CategoryTitle));
-    }
-
-    [Fact]
-    public void A_section_without_checks_is_hidden()
-    {
-        var vm = CreateViewModel();
-
-        Assert.DoesNotContain(vm.Checks, c => c.Category == CheckCategory.RolesAndAdmins);
-        Assert.DoesNotContain(vm.MenuItems, i => i.Title == "Roles & admins");
     }
 
     [Fact]
@@ -607,7 +613,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(["AuditLog.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
             "AuditLog.Read.All: needed by Inactive guests, Inactive users, MFA not registered, MFA not required, " +
-            "Unused policies",
+            "No phishing-resistant MFA, Unused policies",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
@@ -647,7 +653,8 @@ public sealed class MainViewModelTests : IDisposable
                 "Policy.Read.All: needed by MFA not required, Policy hygiene, Unused policies, Cross-tenant defaults, " +
                 "Cross-tenant partners, External collaboration",
                 "User.Read.All: needed by Disabled users with access, Guests with admin roles, Inactive guests, " +
-                "Inactive users, MFA not required, Pending guest invitations, Policy hygiene",
+                "Inactive users, MFA not required, Pending guest invitations, Admin role counts, Licensed admins, " +
+                "No phishing-resistant MFA, Synced admins, Policy hygiene",
             ],
             vm.Overview.Banner.Details);
         Assert.False(CheckPage(vm).Banner.IsOpen);
@@ -667,7 +674,8 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(["RoleManagement.Read.Directory"], page.Banner.MissingPermissions);
         Assert.Equal(
             "RoleManagement.Read.Directory: needed by Disabled users with access, Guests with admin roles, " +
-            "Inactive users, MFA not required",
+            "Inactive users, MFA not required, Admin role counts, Licensed admins, No phishing-resistant MFA, " +
+            "Synced admins",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }

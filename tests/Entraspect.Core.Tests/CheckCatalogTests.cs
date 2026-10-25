@@ -19,7 +19,8 @@ public sealed class CheckCatalogTests
                 "group-single-owner", "group-license-errors", "group-dynamic-paused", "group-public",
                 "group-sync-errors", "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
-                "sp-high-privilege-app-permissions", "ca-policy-hygiene", "ca-unused-policies",
+                "sp-high-privilege-app-permissions", "roles-admin-counts", "roles-licensed-admins",
+                "roles-admins-no-phishing-resistant-mfa", "roles-synced-admins", "ca-policy-hygiene", "ca-unused-policies",
                 "cross-tenant-access-defaults", "cross-tenant-access-partners", "external-collaboration-settings",
             },
             checks.Select(c => c.Id));
@@ -32,7 +33,9 @@ public sealed class CheckCatalogTests
                 CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups,
                 CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
-                CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess, CheckCategory.ConditionalAccess,
+                CheckCategory.EnterpriseApps, CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins,
+                CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins, CheckCategory.ConditionalAccess,
+                CheckCategory.ConditionalAccess,
                 CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities,
             },
             checks.Select(c => c.Category));
@@ -365,5 +368,65 @@ public sealed class CheckCatalogTests
         Assert.Null(check.Labels.SubObjectDisplayName);
         Assert.Null(check.Labels.SubObjectType);
         Assert.Equal(new[] { "IdentityRiskyUser.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Theory]
+    [InlineData("roles-synced-admins", "Synced admins", null)]
+    [InlineData("roles-licensed-admins", "Licensed admins", "Licences")]
+    public void Admin_checks_name_their_columns_like_the_user_list(string id, string title, string? value)
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
+
+        Assert.Equal(title, check.Title);
+        Assert.Equal(CheckCategory.RolesAndAdmins, check.Category);
+        Assert.Equal(LicenceRequirement.None, check.RequiredLicence);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Roles", value),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.SubObjectDisplayName, check.Labels.Value));
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(
+            new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
+            check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void No_phishing_resistant_mfa_reads_the_registration_report_and_needs_p1()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "roles-admins-no-phishing-resistant-mfa");
+
+        Assert.Equal("No phishing-resistant MFA", check.Title);
+        Assert.Equal(CheckCategory.RolesAndAdmins, check.Category);
+        Assert.Equal(LicenceRequirement.EntraIdP1, check.RequiredLicence);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Roles"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.SubObjectDisplayName));
+        Assert.Null(check.Labels.Value);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(
+            new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All", "AuditLog.Read.All" },
+            check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Admin_role_counts_columns_are_about_roles()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "roles-admin-counts");
+
+        Assert.Equal("Admin role counts", check.Title);
+        Assert.Equal(CheckCategory.RolesAndAdmins, check.Category);
+        Assert.Equal(LicenceRequirement.None, check.RequiredLicence);
+        Assert.Equal(
+            ("Role", "Object ID", "Holders"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.Value));
+        Assert.Null(check.Labels.UserPrincipalName);
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(
+            new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
+            check.RequiredPermissions);
     }
 }

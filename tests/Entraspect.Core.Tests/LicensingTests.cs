@@ -33,7 +33,8 @@ public sealed class LicensingTests
         string[] licensed =
         [
             "guests-inactive", "users-inactive", "users-mfa-not-registered", "users-mfa-not-required",
-            "group-license-errors", "ca-policy-hygiene", "ca-unused-policies",
+            "group-license-errors", "roles-admins-no-phishing-resistant-mfa", "ca-policy-hygiene",
+            "ca-unused-policies",
         ];
         string[] p2 = ["users-risky"];
         Assert.All(

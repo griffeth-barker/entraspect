@@ -155,7 +155,11 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         var catalog = CheckCatalog.All(TimeProvider.System);
 
         Assert.Equal(
-            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access", "External Identities" },
+            new[]
+            {
+                "Users", "Groups", "App registrations", "Enterprise apps", "Roles & admins", "Conditional Access",
+                "External Identities",
+            },
             vm.Sections.Select(s => s.Title));
         Assert.All(vm.Sections, section => Assert.Equal(
             catalog.Where(c => MainViewModel.CategoryTitle(c.Category) == section.Title).Select(c => c.Id),
@@ -171,8 +175,23 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         var vm = new ChecksSettingsViewModel(checks, MainViewModel.CategoryTitle, new SettingsState(new SettingsStore(_dir)));
 
         Assert.Equal(
-            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access", "External Identities" },
+            new[]
+            {
+                "Users", "Groups", "App registrations", "Enterprise apps", "Roles & admins", "Conditional Access",
+                "External Identities",
+            },
             vm.Sections.Select(s => s.Title));
+        Assert.Equal(checks.Count, vm.Rows.Count);
+    }
+
+    [Fact]
+    public void A_section_without_checks_is_hidden()
+    {
+        var checks = CheckCatalog.All(TimeProvider.System).Where(c => c.Category != CheckCategory.RolesAndAdmins).ToList();
+
+        var vm = new ChecksSettingsViewModel(checks, MainViewModel.CategoryTitle, new SettingsState(new SettingsStore(_dir)));
+
+        Assert.DoesNotContain(vm.Sections, s => s.Title == "Roles & admins");
         Assert.Equal(checks.Count, vm.Rows.Count);
     }
 

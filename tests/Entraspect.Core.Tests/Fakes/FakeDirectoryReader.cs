@@ -62,9 +62,12 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_enterpriseApps);
 
+    /// <summary>When set, <see cref="GetUserRegistrationsAsync"/> throws it.</summary>
+    public DirectoryReadException? UserRegistrationsFailure { get; init; }
+
     public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
         CancellationToken cancellationToken = default) =>
-        Task.FromResult(_userRegistrations);
+        UserRegistrationsFailure is { } failure ? throw failure : Task.FromResult(_userRegistrations);
 
     public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
         CancellationToken cancellationToken = default) =>

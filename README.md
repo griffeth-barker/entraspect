@@ -69,6 +69,15 @@ Groups with no members, Groups with no owners and Groups with one owner skip gro
 
 Both expiry checks use the same expiry windows, set in **Settings** > **Checks**.
 
+The Roles & admins checks look at admins: users, members and guests, holding at least one Tier 0 role (such as Global Administrator, Privileged Role Administrator or Hybrid Identity Administrator) or another role Microsoft marks privileged. Roles count when active, at any scope, directly or through a role-assignable group; eligible (PIM) assignments aren't included. Each admin's privileged roles have their own column, highest tier first.
+
+- **Admin role counts** (roles & admins): how many users hold Global Administrator, and how many privileged role assignments there are. Users who get a role through a group count once each.
+  - **Warning:** 5 or more Global Administrators (Microsoft recommends fewer than five), or fewer than 2 (keep at least two, such as two emergency access accounts).
+  - **Info:** 10 or more privileged role assignments (Microsoft recommends fewer than ten).
+- **Licensed admins** (roles & admins): admins whose account has licences assigned, with the number in its own column. Always **Info**: use a separate, unlicensed account for admin work, so email and everyday apps aren't used with admin rights.
+- **No phishing-resistant MFA** (roles & admins): enabled admins who haven't registered a passkey, FIDO2 security key, Windows Hello for Business, Platform Credential for macOS or certificate-based authentication. **Warning** for Tier 0 admins, **Info** for other admins and for admins missing from the registration report. Admins without any MFA are also reported by MFA not registered. Needs Entra ID P1 or P2. The check page shows when Microsoft last updated the report it reads.
+- **Synced admins** (roles & admins): admins whose account is synced from on-premises Active Directory, so anyone who takes over that account or the sync server gets their roles. **Critical** for Tier 0 admins, **Warning** for other admins. Use cloud-only accounts for admin work.
+
 - **Policy hygiene** (Conditional Access): policies that are switched off, stuck in report-only mode, can never apply, or name users or groups that no longer exist. One policy can have several findings, one per issue. Needs Entra ID P1 or P2. Each user a policy names is looked up on its own, so the check can take a while in large tenants; the scan bar shows how far it is.
   - **Warning:** a report-only policy that hasn't been changed for 30 days or more (the report-only warning days, set in **Settings** > **Checks**); a policy that includes no users or no apps; a policy whose included groups are all empty; or a policy that includes a deleted user or group.
   - **Info:** a disabled policy, or a policy that excludes a deleted user or group (remove it from the policy). A deleted user still in the recycle bin counts as deleted.
@@ -108,7 +117,7 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 
 - **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here. **Open profiles.json** opens the profiles in your default app for JSON files; after editing and saving, select **Reload**.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
-- **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations, Enterprise apps and Conditional Access): each check's findings, with Search and Add filter like the Entra admin center.
+- **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations, Enterprise apps, Roles & admins, Conditional Access and External Identities): each check's findings, with Search and Add filter like the Entra admin center.
 - **Navigation pills:** after a scan, a check with findings shows their count, coloured by the most severe one (red critical, yellow warning, blue info); hover for the count by severity. A gray **!** means the check has no result because it failed or is missing a permission; hover for the reason. A check with no findings shows nothing. A collapsed section shows the total for its checks, and a gray **!** when any of them has no result.
 - **Status bar**, along the bottom: what entraspect is doing (connecting, the check being run with a progress bar, or how the last scan ended), with a small **X** to cancel a running scan. On the right: when the check on the page last ran (or the last scan, on Overview) and the connected profile.
 - **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period, report-only warning days and sign-in lookback days. **Settings > Preferences:** show dates and times in UTC, your computer's time zone or any other time zone, and choose a light, dark or system theme.

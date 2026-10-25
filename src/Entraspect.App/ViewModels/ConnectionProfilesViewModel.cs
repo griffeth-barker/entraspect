@@ -25,7 +25,7 @@ public sealed class ProfileListItem
 }
 
 /// <summary>
-/// Settings > Connection profiles: the saved profiles with add, edit and delete, and profiles.json to edit in a text
+/// Settings > Connection profiles: the saved profiles, each with edit and delete, an add button by the heading, and profiles.json to edit in a text
 /// editor and reload. Connect here or in the header connects the selected profile. Profiles never contain passwords.
 /// </summary>
 public partial class ConnectionProfilesViewModel : ViewModelBase
@@ -158,16 +158,19 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
         IsEditing = true;
     }
 
-    private bool CanEditOrDelete() => SelectedProfile is not null && !IsEditing;
+    // The card's own buttons pass their profile; without one, the selected profile is used.
+    private bool CanEditOrDelete(ProfileListItem? item) => (item ?? SelectedProfile) is not null && !IsEditing;
 
     [RelayCommand(CanExecute = nameof(CanEditOrDelete))]
-    private void Edit()
+    private void Edit(ProfileListItem? item)
     {
-        if (SelectedProfile?.Profile is not { } profile)
+        if ((item ?? SelectedProfile) is not { } target)
         {
             return;
         }
 
+        var profile = target.Profile;
+        SelectedProfile = target;
         _editingName = profile.Name;
         EditorTitle = $"Edit '{profile.Name}'";
         Fill(profile);
@@ -237,9 +240,9 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
     }
 
     [RelayCommand(CanExecute = nameof(CanEditOrDelete))]
-    private async Task DeleteAsync()
+    private async Task DeleteAsync(ProfileListItem? target)
     {
-        if (SelectedProfile is not { } item)
+        if ((target ?? SelectedProfile) is not { } item)
         {
             return;
         }
@@ -259,8 +262,13 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
             return;
         }
 
+        var wasSelected = SelectedProfile == item;
         Profiles.Remove(item);
-        SelectedProfile = Profiles.FirstOrDefault();
+        if (wasSelected || SelectedProfile is null)
+        {
+            SelectedProfile = Profiles.FirstOrDefault();
+        }
+
         ErrorText = string.Empty;
     }
 

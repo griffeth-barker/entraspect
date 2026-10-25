@@ -60,6 +60,35 @@ public sealed class ConnectionProfilesViewModelTests : IDisposable
         Assert.Equal("new", Assert.Single(new ProfileStore(_dir).Load(out _)).Name);
     }
 
+    [Fact]
+    public void Edit_on_a_card_edits_that_profile_and_selects_it()
+    {
+        Save(Profile("p1", thumbprint: "AB"), Profile("p2", thumbprint: "CD"));
+        var vm = Create("p1");
+        var p2 = vm.Profiles.Single(p => p.Name == "p2");
+
+        vm.EditCommand.Execute(p2);
+
+        Assert.True(vm.IsEditing);
+        Assert.Equal("p2", vm.Name);
+        Assert.Equal("CD", vm.CertificateThumbprint);
+        Assert.Same(p2, vm.SelectedProfile);
+        Assert.False(vm.EditCommand.CanExecute(p2));
+    }
+
+    [Fact]
+    public async Task Delete_on_a_card_removes_that_profile_and_keeps_the_selection()
+    {
+        Save(Profile("p1", thumbprint: "AB"), Profile("p2", thumbprint: "CD"));
+        var vm = Create("p1");
+
+        await ((IAsyncRelayCommand)vm.DeleteCommand).ExecuteAsync(vm.Profiles.Single(p => p.Name == "p2"));
+
+        Assert.Equal("p1", Assert.Single(vm.Profiles).Name);
+        Assert.Equal("p1", vm.SelectedProfile?.Name);
+        Assert.Equal("p1", Assert.Single(new ProfileStore(_dir).Load(out _)).Name);
+    }
+
     [Theory]
     [InlineData("", "t", ClientId, "AB", null, "Enter a profile name.")]
     [InlineData("n", "", ClientId, "AB", null, "Enter the tenant ID.")]

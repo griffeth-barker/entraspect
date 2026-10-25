@@ -104,13 +104,13 @@ rm key.pem cert.pem
 
 entraspect opens on **Settings** > **Connection profiles**. Overview and the check pages unlock once you're connected.
 
-1. Select **Add**.
+1. Select **+** next to the **Connection profiles** heading.
 2. Enter a **Profile name**, the **Tenant ID** and the **Client ID** from step 1.
 3. Enter either the **Certificate (.pfx) path** or the **Certificate thumbprint**, not both. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux).
 4. Select **Save**. Profiles are saved without passwords.
 5. Select the profile and select **Connect**. If it uses a `.pfx` file, enter the password in the dialog. entraspect asks for it on every connect and never saves it.
 
-The status card at the top of **Connection profiles** shows the connection. Sign-in errors appear there, with their `AADSTS` code (see [Troubleshooting](#troubleshooting)). Use **Reconnect** after changing the app registration's permissions, and **Disconnect** to switch profiles. entraspect remembers the last profile you connected with and selects it next time.
+The status card at the top of **Connection profiles** shows the connection. Sign-in errors appear there, with their `AADSTS` code (see [Troubleshooting](#troubleshooting)). Use **Reconnect** after changing the app registration's permissions, and **Disconnect** to switch profiles. entraspect remembers the last profile you connected with and selects it next time. Each profile in the list has edit and delete buttons; editing shows its tenant ID, client ID and certificate.
 
 ## 5. Scan
 

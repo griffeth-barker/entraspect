@@ -6,7 +6,7 @@ using Entraspect.Core;
 
 namespace Entraspect.App.ViewModels;
 
-/// <summary>Finding counts for one navigation section. Selecting it opens the section's first check.</summary>
+/// <summary>Finding counts for one navigation section. Selecting it opens the section's first available check.</summary>
 public sealed record CategorySummary(string Title, int Critical, int Warning, int Info, NavItemViewModel Target);
 
 /// <summary>A check that failed or is missing permissions in the last scan, with the reason.</summary>
@@ -114,7 +114,7 @@ public partial class OverviewViewModel : ViewModelBase
                         findings.Count(f => f.Severity == Severity.Critical),
                         findings.Count(f => f.Severity == Severity.Warning),
                         findings.Count(f => f.Severity == Severity.Info),
-                        section.Children[0]));
+                        section.Children.FirstOrDefault(c => c.IsEnabled) ?? section.Children[0]));
                 }
             }
         }

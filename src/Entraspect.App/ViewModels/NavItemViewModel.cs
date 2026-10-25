@@ -55,7 +55,12 @@ public partial class NavItemViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsExpanded { get; set; }
 
-    public string? ToolTip => IsEnabled ? null : ConnectFirstToolTip;
+    /// <summary>Why the item is disabled, shown as its tooltip; null means it needs a connection.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ToolTip))]
+    public partial string? DisabledReason { get; set; }
+
+    public string? ToolTip => IsEnabled ? null : DisabledReason ?? ConnectFirstToolTip;
 
     /// <summary>The finding count, or -1 when the badge shows the warning marker instead.</summary>
     [ObservableProperty]

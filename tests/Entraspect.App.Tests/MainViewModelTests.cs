@@ -351,6 +351,11 @@ public sealed class MainViewModelTests : IDisposable
         await vm.ConnectCommand.ExecuteAsync(null);
 
         var (item, page) = MfaItemAndPage(vm);
+        Assert.False(item.IsEnabled);
+        Assert.Equal("Needs an Entra ID P1 or P2 licence.", item.ToolTip);
+        Assert.True(CheckItem(vm).IsEnabled);
+        vm.SelectedNavItem = item;
+        Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
         Assert.False(page.Banner.IsOpen);
         Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
         Assert.False(vm.Overview.Banner.IsOpen);
@@ -366,6 +371,38 @@ public sealed class MainViewModelTests : IDisposable
         Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
         var users = vm.Overview.Categories.Single(c => c.Title == "Users");
         Assert.Equal((0, 0, 0), (users.Critical, users.Warning, users.Info));
+        vm.Overview.OpenCommand.Execute(users.Target);
+        Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
+    }
+
+    [Fact]
+    public async Task Scan_is_not_available_on_an_unlicensed_check_page()
+    {
+        _licence = TenantLicence.Free;
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.True(vm.ScanCommand.CanExecute(null));
+
+        // The page can't be opened from the navigation; this covers it being current anyway.
+        vm.CurrentPage = MfaItemAndPage(vm).Page;
+        Assert.False(vm.ScanCommand.CanExecute(null));
+
+        vm.CurrentPage = CheckPage(vm);
+        Assert.True(vm.ScanCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Disconnecting_puts_back_the_connect_first_tooltip_on_an_unlicensed_check()
+    {
+        _licence = TenantLicence.Free;
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        vm.DisconnectCommand.Execute(null);
+
+        var (item, _) = MfaItemAndPage(vm);
+        Assert.False(item.IsEnabled);
+        Assert.Equal(NavItemViewModel.ConnectFirstToolTip, item.ToolTip);
     }
 
     [Fact]

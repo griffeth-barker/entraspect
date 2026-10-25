@@ -23,6 +23,9 @@ public partial class CheckPageViewModel : ViewModelBase
     private CheckResult? _result;
     private bool _isLicensed = true;
 
+    /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
+    public bool IsLicensed => _isLicensed;
+
     // The filter being edited, or null when adding a new one.
     private ActiveFilter? _editingFilter;
 
@@ -127,6 +130,7 @@ public partial class CheckPageViewModel : ViewModelBase
         if (licensed != _isLicensed)
         {
             _isLicensed = licensed;
+            OnPropertyChanged(nameof(IsLicensed));
             SetResult(_result);
         }
     }

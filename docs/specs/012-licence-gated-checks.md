@@ -37,8 +37,9 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 - **Settings > Checks:** for an unlicensed check, the toggle is grayed out (not clickable) and the card shows a short note, "Needs an Entra ID P1 or P2 licence." The saved on/off choice isn't changed, so the check comes back as it was if the tenant gets the licence.
 - **Settings > Checks, licence-gated checks only:** a `LicenseAssignment.Read.All` label next to the required permissions. Green when granted. When missing, neutral (not red, because the check still runs) with an `InfoTip`: "Grant it so entraspect can tell whether your tenant's licence covers this check."
-- **Check page:** no permission banner and no red error. The status line says "Not available: needs an Entra ID P1 or P2 licence." The scan bar stays.
-- **Navigation and Overview:** no warning badge for an unlicensed check, and it isn't listed as a problem on Overview. Overview's counts leave it out.
+- **Check page:** no permission banner and no red error. The status line says "Not available: needs an Entra ID P1 or P2 licence." Scan isn't clickable on this page.
+- **Navigation:** the check's item is grayed out and can't be opened, with the note as its tooltip. No warning badge. After disconnecting it shows "Connect to a tenant first" like the other pages.
+- **Overview:** an unlicensed check isn't listed as a problem, and Overview's counts leave it out. Selecting a section opens its first available check.
 - **Fallback:** if Graph still returns a licence error (licence `Unknown`, or the detection was wrong), the check fails with the spec 005 licence message as today.
 - Tests: view model tests for each point above, using a `DirectoryConnection` with each `TenantLicence`.
 
@@ -53,7 +54,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - `dotnet build` and `dotnet test` pass with no warnings.
 - No test makes a network call.
 - Only permissions from earlier specs plus `LicenseAssignment.Read.All` are requested or documented.
-- Manual check, tenant without P1 or P2, with `LicenseAssignment.Read.All` granted: MFA not registered's toggle is grayed out with the note, Scan doesn't run it, its page shows the "Not available" status with no red error, and there's no permission banner or warning badge for it, even with `AuditLog.Read.All` missing.
+- Manual check, tenant without P1 or P2, with `LicenseAssignment.Read.All` granted: MFA not registered's toggle is grayed out with the note, its navigation item is grayed out and can't be opened, Scan doesn't run it, and there's no permission banner or warning badge for it, even with `AuditLog.Read.All` missing.
 - Same tenant without `LicenseAssignment.Read.All`: behaviour is as in spec 005 (the check runs and shows the licence message), and the check's card shows the neutral `LicenseAssignment.Read.All` label.
 - Tenant with P1 or P2: the check runs as in spec 005.
 

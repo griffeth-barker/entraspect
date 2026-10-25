@@ -138,6 +138,7 @@ public partial class MainViewModel : ViewModelBase
     public partial NavItemViewModel? SelectedNavItem { get; set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ScanCommand))]
     public partial ViewModelBase? CurrentPage { get; set; }
 
     [ObservableProperty]
@@ -250,7 +251,10 @@ public partial class MainViewModel : ViewModelBase
         SelectedNavItem = ConnectionProfilesItem;
     }
 
-    [RelayCommand(CanExecute = nameof(CanReconnectOrScan))]
+    // Not on the page of a check the tenant isn't licensed for: the scan there would do nothing for it.
+    private bool CanScan() => CanReconnectOrScan() && CurrentPage is not CheckPageViewModel { IsLicensed: false };
+
+    [RelayCommand(CanExecute = nameof(CanScan))]
     private async Task ScanAsync(CancellationToken cancellationToken)
     {
         if (_connection is not { } connection)
@@ -393,11 +397,6 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(GrantedPermissions));
         OnPropertyChanged(nameof(TenantLicence));
 
-        foreach (var item in AllItems().Where(i => i.RequiresConnection))
-        {
-            item.IsEnabled = IsConnected;
-        }
-
         RefreshPermissions();
     }
 
@@ -418,6 +417,18 @@ public partial class MainViewModel : ViewModelBase
             page.IsDisabled = !_settings.IsCheckEnabled(checkId);
             page.SetConnection(granted, licence);
         }
+
+        // Overview and the check pages need a connection; a check page also needs the tenant licensed for its check.
+        foreach (var item in AllItems().Where(i => i.RequiresConnection))
+        {
+            var unlicensed = item.Page is CheckPageViewModel { IsLicensed: false } checkPage ? checkPage : null;
+            item.IsEnabled = IsConnected && unlicensed is null;
+            item.DisabledReason = IsConnected && unlicensed is not null
+                ? Licensing.Needs(unlicensed.Check.RequiredLicence)
+                : null;
+        }
+
+        ScanCommand.NotifyCanExecuteChanged();
 
         ChecksSettings.SetConnection(granted, licence);
         About.IsConnected = granted is not null;

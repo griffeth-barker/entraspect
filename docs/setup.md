@@ -41,7 +41,7 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 
 | Permission | Used for |
 | --- | --- |
-| `Application.Read.All` | Expiring credentials (app registration secrets and certificates) |
+| `Application.Read.All` | Expiring credentials (app registration secrets and certificates), Expiring SAML certificates (enterprise app SAML signing certificates) |
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners |
 | `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
 

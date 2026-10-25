@@ -19,6 +19,13 @@ Both group checks skip groups created in the last 7 days (the new group grace pe
   - **Critical:** expires within 7 days, or already expired with no other valid credential of the same type.
   - **Warning:** expires within 30 days.
   - **Info:** already expired, but the app has another valid credential of the same type. Consider removing the expired one.
+- **Expiring SAML certificates** (enterprise apps): the active token signing certificate of enterprise apps that use SAML single sign-on, the one shown as Active in the app's SAML Certificates section.
+  - **Critical:** the active certificate expires within 7 days or has already expired. Once it expires, SAML sign-in to the app may fail.
+  - **Warning:** the active certificate expires within 30 days, or the app has no active signing certificate.
+  - **Info:** an inactive signing certificate has expired; consider removing it. Findings on disabled apps are also Info.
+  - When a newer certificate exists but isn't active, the finding says so: make it active and give it to the service provider.
+
+Both expiry checks use the same expiry windows, set in **Settings** > **Checks**.
 
 ## Read-only by design
 
@@ -41,7 +48,7 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 
 - **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
-- **Check pages**, grouped by object type in the navigation (App registrations today; Users, Groups, Enterprise apps and Conditional Access as their checks are added): each check's findings, with Search and Add filter like the Entra admin center.
+- **Check pages**, grouped by object type in the navigation (Groups, App registrations and Enterprise apps today; Users and Conditional Access as their checks are added): each check's findings, with Search and Add filter like the Entra admin center.
 - **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows. **Settings > Preferences:** show times in UTC or local time.
 
 Results stay in memory and are never written to disk.

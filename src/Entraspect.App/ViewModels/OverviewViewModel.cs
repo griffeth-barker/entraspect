@@ -6,8 +6,29 @@ using Entraspect.Core;
 
 namespace Entraspect.App.ViewModels;
 
-/// <summary>Finding counts for one navigation section. Selecting it opens the section's first available check.</summary>
-public sealed record CategorySummary(string Title, int Critical, int Warning, int Info, NavItemViewModel Target);
+/// <summary>
+/// Finding counts for one navigation section. Selecting it opens the section's first available check. A section
+/// whose checks all need a licence the tenant lacks is unavailable: its counts show as a dash on gray, so they don't
+/// read as "nothing found".
+/// </summary>
+public sealed record CategorySummary(
+    string Title,
+    int Critical,
+    int Warning,
+    int Info,
+    NavItemViewModel Target,
+    string? UnavailableReason = null)
+{
+    public bool IsAvailable => UnavailableReason is null;
+
+    public string CriticalText => Count(Critical);
+
+    public string WarningText => Count(Warning);
+
+    public string InfoText => Count(Info);
+
+    private string Count(int value) => IsAvailable ? value.ToString() : "\u2013";
+}
 
 /// <summary>A check that failed or is missing permissions in the last scan, with the reason.</summary>
 public sealed record CheckProblem(string Title, string Reason, NavItemViewModel Target);
@@ -93,11 +114,22 @@ public partial class OverviewViewModel : ViewModelBase
             foreach (var section in sections)
             {
                 var findings = new List<Finding>();
+                var ran = false;
+                string? unlicensedReason = null;
                 foreach (var item in section.Children)
                 {
                     if (item.Page is not CheckPageViewModel page || !byId.TryGetValue(page.Check.Id, out var result))
                     {
                         continue;
+                    }
+
+                    if (result.Status == CheckResultStatus.MissingLicence)
+                    {
+                        unlicensedReason ??= Licensing.Needs(page.Check.RequiredLicence);
+                    }
+                    else
+                    {
+                        ran = true;
                     }
 
                     findings.AddRange(result.Findings);
@@ -114,7 +146,8 @@ public partial class OverviewViewModel : ViewModelBase
                         findings.Count(f => f.Severity == Severity.Critical),
                         findings.Count(f => f.Severity == Severity.Warning),
                         findings.Count(f => f.Severity == Severity.Info),
-                        section.Children.FirstOrDefault(c => c.IsEnabled) ?? section.Children[0]));
+                        section.Children.FirstOrDefault(c => c.IsEnabled) ?? section.Children[0],
+                        ran ? null : unlicensedReason));
                 }
             }
         }

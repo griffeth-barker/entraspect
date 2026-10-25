@@ -383,7 +383,12 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(item.HasBadge);
         Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
         var users = vm.Overview.Categories.Single(c => c.Title == "Users");
-        Assert.Equal((0, 0, 0), (users.Critical, users.Warning, users.Info));
+        Assert.False(users.IsAvailable);
+        Assert.Equal("Needs an Entra ID P1 or P2 licence.", users.UnavailableReason);
+        Assert.Equal(("\u2013", "\u2013", "\u2013"), (users.CriticalText, users.WarningText, users.InfoText));
+        Assert.All(
+            vm.Overview.Categories.Where(c => c.Title != "Users"),
+            c => Assert.True(c.IsAvailable));
         vm.Overview.OpenCommand.Execute(users.Target);
         Assert.Same(vm.OverviewItem, vm.SelectedNavItem);
     }
@@ -431,6 +436,9 @@ public sealed class MainViewModelTests : IDisposable
         Assert.StartsWith("Last run", page.StatusText);
         Assert.True(item.HasBadge);
         Assert.Equal(0, item.BadgeValue);
+        var users = vm.Overview.Categories.Single(c => c.Title == "Users");
+        Assert.True(users.IsAvailable);
+        Assert.Equal("0", users.CriticalText);
     }
 
     [Fact]

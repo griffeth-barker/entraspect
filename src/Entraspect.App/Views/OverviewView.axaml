@@ -52,17 +52,22 @@
                             <Button Command="{Binding $parent[UserControl].((vm:OverviewViewModel)DataContext).OpenCommand}"
                                     CommandParameter="{Binding Target}"
                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
-                                    Background="Transparent" BorderThickness="0" Padding="12,6">
+                                    Background="Transparent" BorderThickness="0" Padding="12,6"
+                                    ToolTip.Tip="{Binding UnavailableReason}">
+                                <!-- Gray dashes for a section the tenant's licence doesn't cover, not zeros. -->
                                 <Grid ColumnDefinitions="240,90,90,90">
                                     <TextBlock Grid.Column="0" Text="{Binding Title}" />
-                                    <Border Grid.Column="1" Classes="label critical">
-                                        <TextBlock Text="{Binding Critical}" />
+                                    <Border Grid.Column="1" Classes="label"
+                                            Classes.critical="{Binding IsAvailable}" Classes.neutral="{Binding !IsAvailable}">
+                                        <TextBlock Text="{Binding CriticalText}" />
                                     </Border>
-                                    <Border Grid.Column="2" Classes="label warning">
-                                        <TextBlock Text="{Binding Warning}" />
+                                    <Border Grid.Column="2" Classes="label"
+                                            Classes.warning="{Binding IsAvailable}" Classes.neutral="{Binding !IsAvailable}">
+                                        <TextBlock Text="{Binding WarningText}" />
                                     </Border>
-                                    <Border Grid.Column="3" Classes="label info">
-                                        <TextBlock Text="{Binding Info}" />
+                                    <Border Grid.Column="3" Classes="label"
+                                            Classes.info="{Binding IsAvailable}" Classes.neutral="{Binding !IsAvailable}">
+                                        <TextBlock Text="{Binding InfoText}" />
                                     </Border>
                                 </Grid>
                             </Button>

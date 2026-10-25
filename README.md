@@ -49,6 +49,9 @@ Both expiry checks use the same expiry windows, set in **Settings** > **Checks**
 - **Policy hygiene** (Conditional Access): policies that are switched off, stuck in report-only mode, can never apply, or name users or groups that no longer exist. One policy can have several findings, one per issue. Needs Entra ID P1 or P2. Each user a policy names is looked up on its own, so the check can take a while in large tenants; the scan bar shows how far it is.
   - **Warning:** a report-only policy that hasn't been changed for 30 days or more (the report-only warning days, set in **Settings** > **Checks**); a policy that includes no users or no apps; a policy whose included groups are all empty; or a policy that includes a deleted user or group.
   - **Info:** a disabled policy, or a policy that excludes a deleted user or group (remove it from the policy). A deleted user still in the recycle bin counts as deleted.
+- **Unused policies** (Conditional Access): enabled and report-only policies that didn't apply to any interactive sign-in in the last 7 days (the sign-in lookback, set in **Settings** > **Checks**). It only looks at interactive sign-ins: non-interactive, service principal and managed identity sign-ins aren't read, so a policy aimed only at them looks unused. Policies that target service principals, disabled policies (see Policy hygiene) and policies created during the period are skipped. Needs Entra ID P1 or P2. Every sign-in in the period is read, so the check can take a while in busy tenants; the check page shows the period and how many sign-ins were read.
+  - **Warning:** an enabled policy that neither granted nor blocked any sign-in.
+  - **Info:** a report-only policy that wouldn't have applied to any sign-in.
 
 ## Read-only by design
 
@@ -63,7 +66,7 @@ entraspect signs in as an app registration in your tenant, using a certificate (
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.
 
-Some checks need Microsoft Entra ID P1 or P2 (today, MFA not registered and Policy hygiene).
+Some checks need Microsoft Entra ID P1 or P2 (today, MFA not registered, MFA not required, Policy hygiene and Unused policies).
 
 See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshooting.
 

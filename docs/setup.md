@@ -8,7 +8,7 @@ entraspect is read-only. It only needs read permissions, and it never changes an
 
 - You need a role that can create app registrations and grant admin consent, such as Privileged Role Administrator or Global Administrator. If you can't grant consent yourself, create the app registration and ask an administrator to grant consent for you.
 - entraspect signs in as the application (app-only), with no user present. It only supports certificates. Signing in as yourself and client secrets are not supported.
-- Some checks need Microsoft Entra ID P1 or P2: today, **MFA not registered**, **MFA not required** and Conditional Access **Policy hygiene**. With `LicenseAssignment.Read.All` granted (step 2), entraspect reads your tenant's licences when it connects. On a tenant without P1 or P2, those checks are grayed out on **Settings** > **Checks** and in the navigation, with "Needs an Entra ID P1 or P2 licence.", and Scan skips them. Without that permission, they run and fail with "This check needs an Entra ID P1 or P2 licence." The other checks run either way.
+- Some checks need Microsoft Entra ID P1 or P2: today, **MFA not registered**, **MFA not required** and Conditional Access **Policy hygiene** and **Unused policies**. With `LicenseAssignment.Read.All` granted (step 2), entraspect reads your tenant's licences when it connects. On a tenant without P1 or P2, those checks are grayed out on **Settings** > **Checks** and in the navigation, with "Needs an Entra ID P1 or P2 licence.", and Scan skips them. Without that permission, they run and fail with "This check needs an Entra ID P1 or P2 licence." The other checks run either way.
 
 ## 1. Create the app registration
 
@@ -44,8 +44,8 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 | `Application.Read.All` | Expiring credentials (app registration secrets and certificates), Apps with no owners, Risky redirect URIs, Expiring SAML certificates (enterprise app SAML signing certificates), High-privilege apps (Microsoft Graph application permissions granted to enterprise apps) |
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners, Policy hygiene (which groups a Conditional Access policy names still exist, and whether they have members), MFA not required (the users in groups that Conditional Access policies and role assignments name) |
 | `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
-| `AuditLog.Read.All` | MFA not registered (the Authentication methods user registration details report), MFA not required (recent single-factor sign-ins, from beta Graph). Needs Entra ID P1 or P2 |
-| `Policy.Read.All` | Policy hygiene and MFA not required (read Conditional Access policies); MFA not required also reads security defaults and each user's per-user MFA state (beta Graph). Needs Entra ID P1 or P2 |
+| `AuditLog.Read.All` | MFA not registered (the Authentication methods user registration details report), MFA not required (recent single-factor sign-ins, from beta Graph), Unused policies (interactive sign-in logs). Needs Entra ID P1 or P2 |
+| `Policy.Read.All` | Policy hygiene, MFA not required and Unused policies (read Conditional Access policies); MFA not required also reads security defaults and each user's per-user MFA state (beta Graph). Without it, sign-in logs leave out which Conditional Access policies applied, so Unused policies can't run. Needs Entra ID P1 or P2 |
 | `User.Read.All` | Policy hygiene (checks that the users a Conditional Access policy names still exist), MFA not required (lists every user). `User.ReadBasic.All` would be enough for Policy hygiene, but it is delegated only |
 | `RoleManagement.Read.Directory` | MFA not required (active directory role assignments, to find admins and the roles a policy includes or excludes) |
 | `LicenseAssignment.Read.All` | Optional, recommended. Reads your tenant's subscriptions at connect, so checks your licence doesn't cover are grayed out instead of failing |
@@ -122,7 +122,7 @@ After connecting, entraspect opens **Overview**, which shows the connected tenan
 
 Under **Settings**:
 
-- **Checks** turns checks on or off and sets the check options: the expiry windows (warning and critical days) the new group grace period (groups created fewer than this many days ago are skipped by the group checks), and the report-only warning days (Policy hygiene warns about report-only Conditional Access policies unchanged for at least this many days).
+- **Checks** turns checks on or off and sets the check options: the expiry windows (warning and critical days) the new group grace period (groups created fewer than this many days ago are skipped by the group checks), the report-only warning days (Policy hygiene warns about report-only Conditional Access policies unchanged for at least this many days), and the sign-in lookback days (how many days of sign-in logs MFA not required and Unused policies read, 1 to 30). Unused policies reads every interactive sign-in in that period, so in a busy tenant a longer period makes the scan much slower; the scan bar shows how many sign-ins it has read, and **Cancel** stops it within one page of 1,000 sign-ins.
 - **Preferences** chooses whether dates and times show in UTC or your computer's time zone.
 - **About** shows the version and where entraspect stores its files.
 
@@ -152,4 +152,6 @@ Sign-in errors usually include an `AADSTS` code. The Entra sign-in logs (**Entra
 | Certificate not found | Thumbprint not in the certificate store, or wrong `.pfx` path | Check the thumbprint and store location, or the file path |
 | Wrong password | `.pfx` password incorrect | Enter the password you set when creating the `.pfx` |
 | 403 / `Authorization_RequestDenied` during a scan | Permission missing, added as delegated instead of application, or not consented | Add it as an application permission and grant consent (step 2), then reconnect |
+| Unused policies: "Sign-in logs don't include Conditional Access data" | `Policy.Read.All` isn't granted or consented, so Graph leaves applied policies out of the sign-in logs | Grant `Policy.Read.All` (step 2), then reconnect |
+| Unused policies: "No interactive sign-ins found in the last N days" | No one signed in interactively during the sign-in lookback days | Increase the sign-in lookback days in **Settings** > **Checks** |
 | A check says it needs Entra ID P1 or P2, or is grayed out with "Needs an Entra ID P1 or P2 licence." | The tenant doesn't have the licence that check needs | No fix inside entraspect; the other checks still run. After adding a licence, select **Reconnect** |

@@ -6,10 +6,18 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## What it checks
 
+- **Disabled users with access** (users): disabled members who still hold a directory role (active, at any scope, directly or through a role-assignable group) or have licences assigned. Re-enabling the account restores that access at once. One finding per role, and one for licences, with the access and the source (Cloud or Synced) in their own columns. Messages about users synced from on-premises Active Directory say that the account is managed there.
+  - **Critical:** a Tier 0 or privileged role (the built-in roles Microsoft marks PRIVILEGED).
+  - **Warning:** any other role.
+  - **Info:** licences assigned.
 - **Guests with admin roles** (users): guests holding an active directory role, built-in or custom, at any scope, directly or through a role-assignable group. Always **Critical**: a guest's identity is managed by another organisation. One finding per guest and role, with the role in its own column. Eligible (PIM) assignments aren't included.
 - **Inactive guests** (users): guests, invited or synced from on-premises, with no successful sign-in for at least 90 days (the inactive guest days, set in **Settings** > **Checks**, from 30 to 365). Microsoft started recording successful sign-ins in December 2023, so for a guest without one the latest sign-in attempt counts, and the message says so. The last sign-in and the invitation state (Accepted or Pending) have their own columns. Needs Entra ID P1 or P2.
   - **Warning:** an enabled guest with no recent sign-in, or one who never signed in and was added at least that long ago.
   - **Info:** a disabled guest that would be reported (consider deleting it), or a guest who never signed in whose creation date is unknown.
+- **Inactive users** (users): members, cloud-only or synced from on-premises, with no successful sign-in for at least 90 days (the inactive user days, set in **Settings** > **Checks**, from 30 to 365, separate from the guest setting). As for guests, the latest sign-in attempt counts for a user without a recorded successful sign-in. The last sign-in and the source (Cloud or Synced) have their own columns. Needs Entra ID P1 or P2.
+  - **Critical:** an inactive user holding a Tier 0 or privileged role; the message names the role.
+  - **Warning:** an enabled member with no recent sign-in, or one who never signed in and was created at least that long ago.
+  - **Info:** a disabled member without a role (consider deleting it; disabled members with a role are under Disabled users with access), or a member who never signed in whose creation date is unknown.
 - **MFA not registered** (users): users who can't do multifactor authentication because they haven't registered a method that the current policy allows, including users synced from on-premises Active Directory. It answers "who isn't registered for MFA", not "who isn't required to use MFA". Needs Entra ID P1 or P2. The check page shows when Microsoft last updated the report it reads.
   - **Critical:** an admin.
   - **Warning:** a member.
@@ -22,6 +30,10 @@ Status: early development. See `docs/specs/` for the roadmap.
   - Single-factor sign-ins in the last 7 days (the sign-in lookback, set in **Settings** > **Checks**) are counted in the message, with the most recent in its own column.
   - With security defaults on, there is one Info finding and no per-user findings.
 - **Pending guest invitations** (users): guests who haven't accepted their invitation 30 days after it was sent (the pending invitation days, set in **Settings** > **Checks**). Always **Info**: resend the invitation, or delete the guest if it's no longer needed. The invitation date has its own column.
+- **Risky users** (users): members and guests that Microsoft Entra ID Protection rates at risk, or that an admin confirmed compromised; remediated, dismissed and confirmed-safe users aren't reported. The risk level and when the risk was last updated have their own columns. Investigate in the Entra admin center under **ID Protection** > **Risky users**; entraspect never confirms or dismisses risk. Needs Entra ID P2.
+  - **Critical:** confirmed compromised, or at risk with a high risk level.
+  - **Warning:** at risk with a medium risk level.
+  - **Info:** at risk with a low risk level, or with the level hidden.
 - **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
   - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.

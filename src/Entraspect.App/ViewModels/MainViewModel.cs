@@ -500,7 +500,7 @@ public partial class MainViewModel : ViewModelBase
         CheckCategory.Groups => "People",
         CheckCategory.AppRegistrations => "AllApps",
         CheckCategory.EnterpriseApps => "Globe",
-        CheckCategory.ConditionalAccess => "Shield",
+        CheckCategory.ConditionalAccess => "Permissions",
         _ => "AllApps",
     };
 }

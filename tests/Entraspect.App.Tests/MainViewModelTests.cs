@@ -359,6 +359,24 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Every_navigation_item_has_a_known_icon()
+    {
+        var vm = CreateViewModel();
+
+        foreach (var item in vm.MenuItems.Concat(vm.FooterItems).SelectMany(i => i.Children.Prepend(i)))
+        {
+            if (item.Kind == NavItemKind.Check)
+            {
+                continue;
+            }
+
+            Assert.True(
+                Enum.TryParse<FluentAvalonia.UI.Controls.FASymbol>(item.Icon, out _),
+                $"'{item.Title}' has icon '{item.Icon}', which isn't a FASymbol.");
+        }
+    }
+
+    [Fact]
     public async Task Missing_policy_and_user_permissions_show_the_banner_on_policy_hygiene()
     {
         _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All"];

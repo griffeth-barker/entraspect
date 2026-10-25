@@ -29,10 +29,12 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadUserRegistrationsAsync(cancellationToken));
 
-    // Implemented in spec 006 step 3.
     public Task<IReadOnlyList<AppPermissionGrant>> GetGraphApplicationPermissionGrantsAsync(
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading application permissions isn't available yet.");
+        ReadAsync(() => ReadGraphApplicationPermissionGrantsAsync(cancellationToken));
+
+    /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
+    public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
 
     // Turns Graph SDK and Azure.Identity failures into DirectoryReadException, so no SDK types leave this assembly.
     private static async Task<T> ReadAsync<T>(Func<Task<T>> read)
@@ -63,27 +65,56 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             string.IsNullOrEmpty(error?.Code) ? null : error.Code);
     }
 
+    /// <summary>
+    /// Reads every application, then which have at least one owner from a second listing that expands
+    /// <c>owners($select=id)</c>, as for groups: an expanded relationship returns up to 20 items, enough to tell
+    /// empty from not empty. The owners listing is separate so the first listing keeps its 999 page size; selecting
+    /// <c>keyCredentials</c> is throttled to 150 requests a minute per tenant. Never uses <c>POST /$batch</c>.
+    /// </summary>
     private async Task<IReadOnlyList<AppRegistration>> ReadAppRegistrationsAsync(CancellationToken cancellationToken)
     {
-        var result = new List<AppRegistration>();
-
-        ApplicationCollectionResponse? response = await _client.Applications.GetAsync(config =>
+        var applications = await ListApplicationsAsync(config =>
         {
             config.QueryParameters.Select =
             [
-                "id", "appId", "displayName", "passwordCredentials", "keyCredentials",
+                "id", "appId", "displayName", "passwordCredentials", "keyCredentials", "signInAudience", "web",
+                "spa", "publicClient",
             ];
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
+
+        var owned = await ListApplicationsAsync(config =>
+        {
+            config.QueryParameters.Select = ["id"];
+            config.QueryParameters.Expand = ["owners($select=id)"];
+            // Graph may return smaller pages when expanding; every page is followed either way.
+            config.QueryParameters.Top = 100;
+        }, cancellationToken).ConfigureAwait(false);
+
+        var withOwners = owned
+            .Where(a => a.Id is not null && a.Owners is { Count: > 0 })
+            .Select(a => a.Id!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        return applications
+            .Select(a => MapApplication(a, withOwners.Contains(a.Id ?? string.Empty)))
+            .ToList();
+    }
+
+    private async Task<List<Application>> ListApplicationsAsync(
+        Action<RequestConfiguration<Microsoft.Graph.Applications.ApplicationsRequestBuilder.ApplicationsRequestBuilderGetQueryParameters>> configure,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<Application>();
+
+        ApplicationCollectionResponse? response =
+            await _client.Applications.GetAsync(configure, cancellationToken).ConfigureAwait(false);
 
         while (response is not null)
         {
             if (response.Value is not null)
             {
-                foreach (var application in response.Value)
-                {
-                    result.Add(MapApplication(application));
-                }
+                result.AddRange(response.Value);
             }
 
             response = string.IsNullOrEmpty(response.OdataNextLink)
@@ -93,6 +124,111 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Every Microsoft Graph application permission granted in the tenant. Reads the Microsoft Graph service
+    /// principal (<c>GET /servicePrincipals(appId='00000003-0000-0000-c000-000000000000')</c>) for its app roles,
+    /// which map role IDs to permission names, then lists
+    /// <c>GET /servicePrincipals/{id}/appRoleAssignedTo</c>, following every page: one listing with every app role
+    /// assignment on Microsoft Graph instead of one call per app. The docs list no <c>$top</c> for it, so Graph's
+    /// default page size is used. Assignments to users and groups are skipped. A tenant without the Microsoft Graph
+    /// service principal has no grants.
+    /// </summary>
+    private async Task<IReadOnlyList<AppPermissionGrant>> ReadGraphApplicationPermissionGrantsAsync(
+        CancellationToken cancellationToken)
+    {
+        ServicePrincipal? graph;
+        try
+        {
+            graph = await _client.ServicePrincipalsWithAppId(MicrosoftGraphAppId).GetAsync(config =>
+            {
+                config.QueryParameters.Select = ["id", "appRoles"];
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+        {
+            return [];
+        }
+
+        if (graph?.Id is not { Length: > 0 } graphId)
+        {
+            return [];
+        }
+
+        var roleNames = MapAppRoleNames(graph.AppRoles);
+        var requests = _client.ServicePrincipals[graphId].AppRoleAssignedTo;
+        var result = new List<AppPermissionGrant>();
+
+        AppRoleAssignmentCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Select =
+            [
+                "id", "appRoleId", "createdDateTime", "principalDisplayName", "principalId", "principalType",
+            ];
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                foreach (var assignment in response.Value)
+                {
+                    if (MapAppRoleAssignment(assignment, roleNames) is { } grant)
+                    {
+                        result.Add(grant);
+                    }
+                }
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    /// <summary>App role IDs to their values (permission names, for example <c>Mail.Send</c>).</summary>
+    public static IReadOnlyDictionary<Guid, string> MapAppRoleNames(IEnumerable<AppRole>? appRoles)
+    {
+        var result = new Dictionary<Guid, string>();
+
+        foreach (var role in appRoles ?? [])
+        {
+            if (role.Id is { } id && !string.IsNullOrEmpty(role.Value))
+            {
+                result.TryAdd(id, role.Value);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// The grant, or null when the assignment isn't to a service principal. An app role ID that isn't in
+    /// <paramref name="roleNames"/> keeps the ID as its name, so it is never mistaken for a known permission.
+    /// </summary>
+    public static AppPermissionGrant? MapAppRoleAssignment(
+        AppRoleAssignment assignment,
+        IReadOnlyDictionary<Guid, string> roleNames)
+    {
+        if (!string.Equals(assignment.PrincipalType, "ServicePrincipal", StringComparison.OrdinalIgnoreCase) ||
+            assignment.PrincipalId is not { } principalId)
+        {
+            return null;
+        }
+
+        var roleId = assignment.AppRoleId ?? Guid.Empty;
+
+        return new AppPermissionGrant
+        {
+            ServicePrincipalId = principalId.ToString(),
+            ServicePrincipalDisplayName = assignment.PrincipalDisplayName ?? string.Empty,
+            PermissionName = roleNames.TryGetValue(roleId, out var name) ? name : roleId.ToString(),
+            CreatedDateTime = assignment.CreatedDateTime,
+        };
     }
 
     /// <summary>
@@ -110,7 +246,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         {
             config.QueryParameters.Select =
             [
-                "id", "appId", "displayName", "accountEnabled", "preferredSingleSignOnMode",
+                "id", "appId", "displayName", "accountEnabled", "appOwnerOrganizationId", "preferredSingleSignOnMode",
                 "preferredTokenSigningKeyThumbprint", "keyCredentials",
             ];
             config.QueryParameters.Top = 100;
@@ -173,6 +309,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             DisplayName = servicePrincipal.DisplayName ?? string.Empty,
             // Graph always returns accountEnabled; if it's missing, assume enabled so findings keep their severity.
             AccountEnabled = servicePrincipal.AccountEnabled ?? true,
+            AppOwnerOrganizationId = servicePrincipal.AppOwnerOrganizationId,
             PreferredSingleSignOnMode = servicePrincipal.PreferredSingleSignOnMode,
             PreferredTokenSigningKeyThumbprint = servicePrincipal.PreferredTokenSigningKeyThumbprint,
             SigningCertificates = credentials
@@ -417,7 +554,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     private static bool HasGroupType(IEnumerable<string>? groupTypes, string groupType) =>
         groupTypes?.Any(t => string.Equals(t, groupType, StringComparison.OrdinalIgnoreCase)) == true;
 
-    public static AppRegistration MapApplication(Application application)
+    /// <param name="hasOwners">Whether the owners listing returned at least one owner for the application.</param>
+    public static AppRegistration MapApplication(Application application, bool hasOwners = true)
     {
         var credentials = new List<AppCredential>();
 
@@ -443,7 +581,31 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             AppId = Guid.TryParse(application.AppId, out var appId) ? appId : Guid.Empty,
             DisplayName = application.DisplayName ?? string.Empty,
             Credentials = credentials,
+            SignInAudience = application.SignInAudience,
+            RedirectUris = MapRedirectUris(application),
+            HasOwners = hasOwners,
         };
+    }
+
+    /// <summary>The redirect URIs of the Web, single-page application and public client platforms, in that order.</summary>
+    public static IReadOnlyList<RedirectUri> MapRedirectUris(Application application)
+    {
+        var result = new List<RedirectUri>();
+        Add(RedirectUriPlatform.Web, application.Web?.RedirectUris);
+        Add(RedirectUriPlatform.Spa, application.Spa?.RedirectUris);
+        Add(RedirectUriPlatform.PublicClient, application.PublicClient?.RedirectUris);
+        return result;
+
+        void Add(RedirectUriPlatform platform, IEnumerable<string>? uris)
+        {
+            foreach (var uri in uris ?? [])
+            {
+                if (uri is not null)
+                {
+                    result.Add(new RedirectUri(platform, uri));
+                }
+            }
+        }
     }
 
     private static AppCredential MapCredential(

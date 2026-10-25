@@ -23,8 +23,14 @@ Status: early development. See `docs/specs/` for the roadmap.
 - **Groups with no owners** (groups): Microsoft 365 and security groups with no owners, including security groups synced from on-premises. Microsoft Graph documents owners as unavailable for distribution and mail-enabled security groups, so those are never reported. Groups converted to cloud management are checked like cloud groups.
   - **Warning:** a Microsoft 365 group with no owners. No one can manage its membership, and it can't be renewed when group expiration is on.
   - **Info:** a security group with no owners. For a synced security group, the owner may be set only in Active Directory (managedBy), which isn't synced to Entra ID.
+- **Groups with one owner** (groups): Microsoft 365 and security groups with exactly one owner, including security groups synced from on-premises. Always **Info**. If that owner leaves, no one can manage the group. Groups with 20 or more owners are never reported (Graph returns at most 20).
 
-Both group checks skip groups created in the last 7 days (the new group grace period, set in **Settings** > **Checks**).
+Groups with no members, Groups with no owners and Groups with one owner skip groups created in the last 7 days (the new group grace period, set in **Settings** > **Checks**).
+
+- **Licence errors** (groups): groups that assign licences (group-based licensing) where some members didn't get them. Always **Warning**. Needs Entra ID P1 or P2.
+- **Paused dynamic groups** (groups): dynamic groups whose membership processing is paused, so members are no longer added or removed. Always **Warning**.
+- **Public groups** (groups): public Microsoft 365 groups, which anyone in the organisation can join and read. Always **Info**.
+- **Sync errors** (groups): one finding per on-premises sync error on a group, with the property, the error category and when it occurred. Always **Warning**. Only tenants that sync groups from Active Directory have these.
 
 - **Apps with no owners** (app registrations): app registrations with no owners, so no one is accountable for their credentials and permissions. Always **Warning**. P2P Server, which Entra ID creates for remote desktop to Entra-joined devices, is skipped.
 - **Expiring credentials** (app registrations): client secrets and certificates on app registrations that have expired or expire soon.

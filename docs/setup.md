@@ -43,6 +43,7 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 | --- | --- |
 | `Application.Read.All` | Expiring credentials (app registration secrets and certificates) |
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners |
+| `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
 
 Every permission entraspect uses is a read permission. Never grant entraspect's app registration a write permission (any permission containing `ReadWrite`). Anyone with its certificate could then change your tenant.
 

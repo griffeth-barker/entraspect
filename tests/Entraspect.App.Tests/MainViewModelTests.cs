@@ -27,7 +27,7 @@ public sealed class MainViewModelTests : IDisposable
     private readonly List<(ConnectionProfile Profile, string? Password)> _connectCalls = [];
 
     private IDirectoryReader _reader = new FakeReader(OneExpiringApp());
-    private IReadOnlyList<string> _granted = ["Application.Read.All", "GroupMember.Read.All"];
+    private IReadOnlyList<string> _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden"];
     private Exception? _connectError;
 
     public void Dispose()
@@ -289,7 +289,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_permission_shows_banners_on_connect_before_any_scan()
     {
-        _granted = ["GroupMember.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -325,7 +325,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Banner_buttons_open_the_api_permissions_page_and_copy_the_names()
     {
-        _granted = ["GroupMember.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
@@ -343,7 +343,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_a_check_removes_it_from_the_overview_banner_and_is_saved()
     {
-        _granted = ["GroupMember.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.True(vm.Overview.Banner.IsOpen);

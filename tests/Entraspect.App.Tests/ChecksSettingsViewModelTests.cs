@@ -61,7 +61,8 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         var groupRows = vm.Rows.Where(r => r.CategoryTitle == "Groups").ToList();
 
         Assert.Equal(new[] { "Groups with no members", "Groups with no owners" }, groupRows.Select(r => r.Title));
-        Assert.All(groupRows, r => Assert.Equal("GroupMember.Read.All", Assert.Single(r.Permissions).Name));
+        Assert.Equal(new[] { "GroupMember.Read.All", "Member.Read.Hidden" }, groupRows[0].Permissions.Select(p => p.Name));
+        Assert.Equal(new[] { "GroupMember.Read.All" }, groupRows[1].Permissions.Select(p => p.Name));
     }
 
     [Fact]

@@ -18,9 +18,10 @@ public sealed class GroupNoOwnersCheck : ICheck
     public string Title => "Groups with no owners";
 
     public string Description =>
-        "Surfaces Microsoft 365 and security groups with no owners. Synced, distribution and mail-enabled security " +
-        "groups are skipped because Microsoft Graph doesn't return their owners. Groups newer than the new group " +
-        "grace period are skipped.";
+        "Surfaces Microsoft 365 and security groups with no owners. Groups synced from on-premises, distribution " +
+        "groups and mail-enabled security groups are reported only when Microsoft Graph returns their owners: Graph " +
+        "documents owners as unavailable for them, so an empty list doesn't mean no owner. Groups converted to " +
+        "cloud management are checked like cloud groups. Groups newer than the new group grace period are skipped.";
 
     public CheckCategory Category => CheckCategory.Groups;
 
@@ -51,7 +52,8 @@ public sealed class GroupNoOwnersCheck : ICheck
 
     private Finding? Evaluate(DirectoryGroup group, CheckOptions options, DateTimeOffset now)
     {
-        // Graph doesn't return owners for synced groups; the reader reports them as null, and this guards it.
+        // Graph documents owners as unavailable for synced groups, so the reader never reports them as ownerless;
+        // this guards it.
         if (group.HasOwners is not false || group.IsSyncedFromOnPremises || GroupCheckRules.IsNew(group, options, now))
         {
             return null;

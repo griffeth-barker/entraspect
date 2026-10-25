@@ -18,12 +18,14 @@ public sealed class GroupNoMembersCheck : ICheck
     public string Title => "Groups with no members";
 
     public string Description =>
-        "Surfaces groups with no direct members. Empty dynamic groups are Info: their membership rule matches no one. " +
-        "Groups newer than the new group grace period are skipped.";
+        "Surfaces groups with no direct members, including groups synced from on-premises. Empty dynamic groups are " +
+        "Info: their membership rule matches no one. For synced groups, members outside the sync scope aren't in " +
+        "Entra ID and aren't counted. Groups newer than the new group grace period are skipped.";
 
     public CheckCategory Category => CheckCategory.Groups;
 
-    public IReadOnlyList<string> RequiredPermissions => new[] { "GroupMember.Read.All" };
+    // Member.Read.Hidden: without it, groups with hidden membership look empty.
+    public IReadOnlyList<string> RequiredPermissions => new[] { "GroupMember.Read.All", "Member.Read.Hidden" };
 
     public FindingLabels Labels => GroupCheckRules.Labels;
 
@@ -43,10 +45,24 @@ public sealed class GroupNoMembersCheck : ICheck
                 continue;
             }
 
-            var kind = GroupCheckRules.KindName(group.Kind, group.IsDynamic);
-            findings.Add(group.IsDynamic
-                ? MakeFinding(group, Severity.Info, $"{kind} has no members; its rule matches no one.")
-                : MakeFinding(group, Severity.Warning, $"{kind} has no members."));
+            if (group.IsDynamic)
+            {
+                var kind = GroupCheckRules.KindName(group.Kind, "Dynamic");
+                findings.Add(MakeFinding(group, Severity.Info, $"{kind} has no members; its rule matches no one."));
+            }
+            else if (group.IsSyncedFromOnPremises)
+            {
+                var kind = GroupCheckRules.KindName(group.Kind, "Synced");
+                findings.Add(MakeFinding(
+                    group,
+                    Severity.Warning,
+                    $"{kind} has no members in Entra ID. Members outside the sync scope aren't synced, so cloud " +
+                    "policies and assignments that use it reach no one."));
+            }
+            else
+            {
+                findings.Add(MakeFinding(group, Severity.Warning, $"{GroupCheckRules.KindName(group.Kind)} has no members."));
+            }
         }
 
         return findings;

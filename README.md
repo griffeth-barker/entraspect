@@ -6,10 +6,10 @@ Status: early development. See `docs/specs/` for the roadmap.
 
 ## What it checks
 
-- **Groups with no members** (groups): groups with no direct members.
-  - **Warning:** an assigned group with no members.
+- **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
+  - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.
-- **Groups with no owners** (groups): Microsoft 365 and security groups with no owners. Synced, distribution and mail-enabled security groups are skipped because Microsoft Graph doesn't return their owners.
+- **Groups with no owners** (groups): Microsoft 365 and security groups with no owners. Microsoft Graph documents owners as unavailable for synced, distribution and mail-enabled security groups, so those are never reported as ownerless. Groups converted to cloud management are checked like cloud groups.
   - **Warning:** a Microsoft 365 group with no owners. No one can manage its membership, and it can't be renewed when group expiration is on.
   - **Info:** a security group with no owners.
 
@@ -22,13 +22,13 @@ Both group checks skip groups created in the last 7 days (the new group grace pe
 
 ## Read-only by design
 
-entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All` and `GroupMember.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All` and `Member.Read.Hidden`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
 
 ## Setup
 
 entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All` and `GroupMember.Read.All`, with admin consent.
+- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All` and `Member.Read.Hidden`, with admin consent.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.

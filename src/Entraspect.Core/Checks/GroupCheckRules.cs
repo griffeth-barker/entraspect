@@ -31,10 +31,10 @@ internal static class GroupCheckRules
     }
 
     /// <summary>
-    /// The group kind as it starts a message, for example "Security group", or "Dynamic security group" when
-    /// <paramref name="isDynamic"/> is true.
+    /// The group kind as it starts a message, for example "Security group", or "Dynamic security group" with the
+    /// qualifier "Dynamic".
     /// </summary>
-    public static string KindName(GroupKind kind, bool isDynamic = false)
+    public static string KindName(GroupKind kind, string? qualifier = null)
     {
         var name = kind switch
         {
@@ -45,6 +45,6 @@ internal static class GroupCheckRules
             _ => "group",
         };
 
-        return isDynamic ? $"Dynamic {name}" : char.ToUpperInvariant(name[0]) + name[1..];
+        return qualifier is null ? char.ToUpperInvariant(name[0]) + name[1..] : $"{qualifier} {name}";
     }
 }

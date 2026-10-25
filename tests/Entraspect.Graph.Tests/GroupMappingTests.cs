@@ -105,6 +105,36 @@ public sealed class GroupMappingTests
         Assert.Null(result.HasOwners);
     }
 
+    [Theory]
+    [InlineData(new string[0], true, false, true)]
+    [InlineData(new string[0], true, true, false)]
+    [InlineData(new string[0], false, true, false)]
+    public void MapGroup_owners_graph_returns_are_counted_even_where_documented_unavailable(
+        string[] groupTypes, bool securityEnabled, bool mailEnabled, bool synced)
+    {
+        var group = new Group
+        {
+            GroupTypes = [.. groupTypes],
+            SecurityEnabled = securityEnabled,
+            MailEnabled = mailEnabled,
+            OnPremisesSyncEnabled = synced,
+        };
+
+        Assert.True(GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: true).HasOwners);
+    }
+
+    [Fact]
+    public void MapGroup_source_of_authority_converted_group_is_checked_like_a_cloud_group()
+    {
+        // After conversion to cloud management, onPremisesSyncEnabled is null.
+        var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false, OnPremisesSyncEnabled = null };
+
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+
+        Assert.False(result.IsSyncedFromOnPremises);
+        Assert.False(result.HasOwners);
+    }
+
     [Fact]
     public void MapGroup_no_longer_synced_group_is_cloud_managed()
     {

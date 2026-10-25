@@ -32,7 +32,7 @@ public sealed class CheckCatalogTests
     {
         var permissions = CheckCatalog.All(new FakeTimeProvider()).SelectMany(c => c.RequiredPermissions).Distinct();
 
-        Assert.Equal(new[] { "GroupMember.Read.All", "Application.Read.All" }, permissions);
+        Assert.Equal(new[] { "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All" }, permissions);
     }
 
     [Fact]
@@ -59,9 +59,9 @@ public sealed class CheckCatalogTests
     }
 
     [Theory]
-    [InlineData("group-no-members")]
-    [InlineData("group-no-owners")]
-    public void Group_check_columns_are_named_like_the_group_list(string id)
+    [InlineData("group-no-members", new[] { "GroupMember.Read.All", "Member.Read.Hidden" })]
+    [InlineData("group-no-owners", new[] { "GroupMember.Read.All" })]
+    public void Group_check_columns_are_named_like_the_group_list(string id, string[] permissions)
     {
         var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
 
@@ -69,6 +69,6 @@ public sealed class CheckCatalogTests
         Assert.Null(check.Labels.SubObjectDisplayName);
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);
-        Assert.Equal(new[] { "GroupMember.Read.All" }, check.RequiredPermissions);
+        Assert.Equal(permissions, check.RequiredPermissions);
     }
 }

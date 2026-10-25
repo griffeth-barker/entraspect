@@ -161,7 +161,9 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             IsRoleAssignable = group.IsAssignableToRole == true,
             CreatedDateTime = group.CreatedDateTime,
             HasMembers = hasMembers,
-            HasOwners = OwnersAvailable(kind, isSynced) ? hasOwners : null,
+            // Owners Graph does return are still counted for kinds it documents as unavailable, so hybrid groups
+            // with cloud owners are recognised; an empty list there is unknown.
+            HasOwners = OwnersAvailable(kind, isSynced) || hasOwners ? hasOwners : null,
         };
     }
 
@@ -186,8 +188,9 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     }
 
     /// <summary>
-    /// Graph doesn't return owners for groups synced from on-premises, distribution groups or mail-enabled security
-    /// groups, so an empty owner list for them means unknown, not none.
+    /// Graph documents owners as unavailable for groups synced from on-premises, distribution groups and
+    /// mail-enabled security groups, so an empty owner list for them means unknown, not none. Groups converted to
+    /// cloud management (source of authority) have <c>onPremisesSyncEnabled</c> null and count as cloud groups.
     /// </summary>
     public static bool OwnersAvailable(GroupKind kind, bool isSyncedFromOnPremises) =>
         !isSyncedFromOnPremises && kind is GroupKind.Microsoft365 or GroupKind.Security;

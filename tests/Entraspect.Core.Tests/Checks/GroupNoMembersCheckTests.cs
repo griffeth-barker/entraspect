@@ -69,12 +69,26 @@ public sealed class GroupNoMembersCheckTests
         Assert.Empty(await RunAsync(Group("1", isDynamic: true, hasMembers: true)));
     }
 
-    [Fact]
-    public async Task Empty_synced_group_is_a_warning()
+    [Theory]
+    [InlineData(GroupKind.Security, "Synced security group")]
+    [InlineData(GroupKind.MailEnabledSecurity, "Synced mail-enabled security group")]
+    [InlineData(GroupKind.Distribution, "Synced distribution group")]
+    [InlineData(GroupKind.Microsoft365, "Synced Microsoft 365 group")]
+    public async Task Empty_synced_group_is_a_warning_that_mentions_the_sync_scope(GroupKind kind, string start)
     {
-        var f = Assert.Single(await RunAsync(Group("1", isSynced: true, hasMembers: false, hasOwners: null)));
+        var f = Assert.Single(await RunAsync(Group("1", kind, isSynced: true, hasMembers: false, hasOwners: null)));
 
         Assert.Equal(Severity.Warning, f.Severity);
+        Assert.Equal(
+            $"{start} has no members in Entra ID. Members outside the sync scope aren't synced, so cloud policies " +
+            "and assignments that use it reach no one.",
+            f.Message);
+    }
+
+    [Fact]
+    public async Task Synced_group_with_members_has_no_finding()
+    {
+        Assert.Empty(await RunAsync(Group("1", isSynced: true, hasMembers: true, hasOwners: null)));
     }
 
     [Fact]

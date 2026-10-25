@@ -12,13 +12,17 @@
                 <ColumnDefinition Width="*" MaxWidth="720" />
             </Grid.ColumnDefinitions>
         <StackPanel Spacing="8">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <!-- Same width as the profile list below, so Connect's right edge lines up with the cards'. -->
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
                 <TextBlock Text="Connection profiles" Classes="pageTitle" VerticalAlignment="Center" />
-                <Button Command="{Binding AddCommand}" Classes="iconButton" VerticalAlignment="Center"
+                <Button Grid.Column="1" Command="{Binding AddCommand}" Classes="iconButton" VerticalAlignment="Center"
                         ToolTip.Tip="Add profile" AutomationProperties.Name="Add profile">
                     <ui:FASymbolIcon Symbol="Add" FontSize="18" />
                 </Button>
-            </StackPanel>
+                <Button Grid.Column="3" Content="Connect" Command="{Binding ConnectCommand}" Classes="accent"
+                        VerticalAlignment="Center" IsVisible="{Binding ShowConnect}"
+                        ToolTip.Tip="Connect with the selected profile" />
+            </Grid>
 
             <!-- The current connection. Bound to the shell, which owns the connection. -->
             <Border DataContext="{Binding $parent[Window].DataContext}" x:DataType="vm:MainViewModel"
@@ -92,9 +96,6 @@
             </ListBox>
             <TextBlock Text="No profiles yet." Classes="muted"
                        IsVisible="{Binding HasNoProfiles}" />
-
-            <Button Content="Connect" Command="{Binding ConnectCommand}" Classes="accent"
-                    IsVisible="{Binding ShowConnect}" />
 
             <!-- Editing profiles.json by hand, set apart from the everyday actions above. -->
             <Border Height="1" Margin="0,8" Background="{DynamicResource DividerStrokeColorDefaultBrush}"

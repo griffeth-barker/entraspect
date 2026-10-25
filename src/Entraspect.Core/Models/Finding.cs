@@ -34,4 +34,10 @@ public sealed class Finding
 
     /// <summary>Display name of the item inside the object the finding is about, e.g. the credential's name.</summary>
     public string? SubObjectDisplayName { get; init; }
+
+    /// <summary>
+    /// The current value of the setting the finding is about, for example "Everyone", for checks that report tenant
+    /// settings rather than objects.
+    /// </summary>
+    public string? Value { get; init; }
 }

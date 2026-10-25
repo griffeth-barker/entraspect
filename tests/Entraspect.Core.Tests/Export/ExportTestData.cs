@@ -15,6 +15,9 @@ internal static class ExportTestData
 
     public static readonly ICheck CaCheck = new FakeCheck("ca-check", "Policy hygiene", CheckCategory.ConditionalAccess);
 
+    public static readonly ICheck SettingsCheck =
+        new FakeCheck("settings-check", "External collaboration", CheckCategory.ExternalIdentities);
+
     public static Finding ExpiringSecret() => new()
     {
         CheckId = AppCheck.Id,
@@ -38,6 +41,34 @@ internal static class ExportTestData
         UserPrincipalName = "user1@example.invalid",
         Message = "No MFA method registered.",
     };
+
+    public static Finding GuestInviteSetting() => new()
+    {
+        CheckId = SettingsCheck.Id,
+        Severity = Severity.Warning,
+        ObjectType = "AuthorizationPolicy",
+        ObjectId = "allowInvitesFrom",
+        ObjectDisplayName = "Guest invite restrictions",
+        Message = "Anyone in the organisation, guests included, can invite guests.",
+        Value = "Everyone",
+    };
+
+    /// <summary>A report with one check about tenant settings, whose finding has a current value.</summary>
+    public static ScanReport SettingsReport() => ScanReport.Create(
+        Time.GetUtcNow(),
+        "Contoso test",
+        TenantId,
+        "1.2.3",
+        [SettingsCheck],
+        [
+            new CheckResult
+            {
+                CheckId = SettingsCheck.Id,
+                Status = CheckResultStatus.Succeeded,
+                Findings = [GuestInviteSetting()],
+                CompletedAt = Time.GetUtcNow(),
+            },
+        ]);
 
     public static ScanReport Report() => ScanReport.Create(
         Time.GetUtcNow(),

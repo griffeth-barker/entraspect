@@ -41,6 +41,20 @@ public sealed class JsonScanExporterTests
     }
 
     [Fact]
+    public async Task Includes_the_current_value_of_a_setting()
+    {
+        var json = await WriteAsync(ExportTestData.SettingsReport());
+        using var doc = JsonDocument.Parse(json);
+
+        var finding = doc.RootElement.GetProperty("checks")[0].GetProperty("findings")[0];
+        Assert.Equal("Everyone", finding.GetProperty("value").GetString());
+        Assert.Equal("ExternalIdentities", doc.RootElement.GetProperty("checks")[0].GetProperty("category").GetString());
+
+        var read = JsonSerializer.Deserialize<ScanReport>(json, JsonScanExporter.SerializerOptions)!;
+        Assert.Equal("Everyone", Assert.Single(read.Checks[0].Findings).Value);
+    }
+
+    [Fact]
     public async Task Includes_a_failed_check_with_its_error()
     {
         using var doc = JsonDocument.Parse(await WriteAsync(ExportTestData.Report()));

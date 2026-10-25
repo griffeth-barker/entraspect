@@ -34,6 +34,8 @@ public sealed class FindingRow
 
     public string? SubObjectType => Finding.SubObjectType;
 
+    public string? Value => Finding.Value;
+
     public DateTimeOffset? DueDate => Finding.DueDate;
 
     /// <summary>The due date in the zone chosen in Settings > Preferences.</summary>
@@ -42,7 +44,8 @@ public sealed class FindingRow
     public string Message => Finding.Message;
 
     /// <summary>
-    /// True if <paramref name="text"/> appears in the display name, user principal name, object ID, item or message.
+    /// True if <paramref name="text"/> appears in the display name, user principal name, object ID, item, value or
+    /// message.
     /// </summary>
     public bool MatchesSearch(string text) =>
         string.IsNullOrWhiteSpace(text)
@@ -50,6 +53,7 @@ public sealed class FindingRow
         || Contains(UserPrincipalName, text)
         || Contains(ObjectId, text)
         || Contains(SubObjectDisplayName, text)
+        || Contains(Value, text)
         || Contains(Message, text);
 
     private static bool Contains(string? value, string text) =>

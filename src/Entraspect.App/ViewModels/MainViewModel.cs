@@ -580,6 +580,7 @@ public partial class MainViewModel : ViewModelBase
         CheckCategory.AppRegistrations => "App registrations",
         CheckCategory.EnterpriseApps => "Enterprise apps",
         CheckCategory.ConditionalAccess => "Conditional Access",
+        CheckCategory.ExternalIdentities => "External Identities",
         _ => category.ToString(),
     };
 
@@ -590,6 +591,7 @@ public partial class MainViewModel : ViewModelBase
         CheckCategory.AppRegistrations => "AllApps",
         CheckCategory.EnterpriseApps => "Globe",
         CheckCategory.ConditionalAccess => "Permissions",
+        CheckCategory.ExternalIdentities => "Share",
         _ => "AllApps",
     };
 }

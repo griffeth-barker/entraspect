@@ -24,6 +24,7 @@ public static class CsvFindingExporter
         "UserPrincipalName",
         "SubObjectType",
         "SubObjectDisplayName",
+        "Value",
         "DueDate",
         "Message",
     ];
@@ -56,6 +57,7 @@ public static class CsvFindingExporter
                         finding.UserPrincipalName,
                         finding.SubObjectType,
                         finding.SubObjectDisplayName,
+                        finding.Value,
                         finding.DueDate is { } due ? ExportTime.Format(due) : null,
                         finding.Message,
                     ],

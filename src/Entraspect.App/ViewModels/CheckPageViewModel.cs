@@ -352,6 +352,11 @@ public partial class CheckPageViewModel : ViewModelBase
             fields.Add(new FilterField(type, FilterKind.Choice, r => r.SubObjectType));
         }
 
+        if (labels.Value is { } value)
+        {
+            fields.Add(new FilterField(value, FilterKind.Text, r => r.Value));
+        }
+
         fields.Add(new FilterField("Message", FilterKind.Text, r => r.Message));
         return fields;
     }

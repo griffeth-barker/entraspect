@@ -164,6 +164,45 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
+    public void Value_is_its_own_column_filter_and_search_field_only_when_labelled()
+    {
+        Assert.Null(FindingLabels.Default.Value);
+        Assert.DoesNotContain(CreatePage().FilterFields, f => f.Name == "Current value");
+
+        var page = new CheckPageViewModel(
+            new FakeCheck(
+                ["Policy.Read.All"],
+                new FindingLabels
+                {
+                    ObjectDisplayName = "Setting",
+                    ObjectId = "Graph property",
+                    SubObjectDisplayName = null,
+                    SubObjectType = null,
+                    DueDate = null,
+                    Value = "Current value",
+                }),
+            new PermissionBannerViewModel(() => Task.CompletedTask, _ => Task.CompletedTask, new RelayCommand(() => { })),
+            new TimeDisplay(new SettingsState(new SettingsStore(TempDir()))));
+        page.SetResult(Succeeded(
+            SettingFinding("allowInvitesFrom", "Guest invite restrictions", "Everyone"),
+            SettingFinding("guestUserRoleId", "Guest user access", "Limited")));
+
+        Assert.Equal(
+            new[] { "Severity", "Setting", "Graph property", "Current value", "Message" },
+            page.FilterFields.Select(f => f.Name));
+
+        page.SearchText = "everyone";
+        Assert.Equal("allowInvitesFrom", Assert.Single(page.Findings).ObjectId);
+
+        page.SearchText = string.Empty;
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "Current value"));
+        page.EditorText = "limit";
+        page.ApplyFilterCommand.Execute(null);
+        Assert.Equal("Limited", Assert.Single(page.Findings).Value);
+    }
+
+    [Fact]
     public void Columns_and_filters_are_named_by_the_checks_labels()
     {
         var page = CreatePage();
@@ -340,6 +379,17 @@ public sealed class CheckPageViewModelTests
         ObjectDisplayName = displayName,
         UserPrincipalName = userPrincipalName,
         Message = "Not registered for MFA.",
+    };
+
+    private static Finding SettingFinding(string property, string setting, string value) => new()
+    {
+        CheckId = "fake",
+        Severity = Severity.Info,
+        ObjectType = "AuthorizationPolicy",
+        ObjectId = property,
+        ObjectDisplayName = setting,
+        Message = "fake message",
+        Value = value,
     };
 
     private sealed class FakeCheck(IReadOnlyList<string> permissions, FindingLabels? labels = null) : ICheck

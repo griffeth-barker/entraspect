@@ -76,6 +76,10 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access" },
             vm.MenuItems.Skip(1).Select(i => i.Title));
+
+        // A category without checks has no section.
+        Assert.Equal("External Identities", MainViewModel.CategoryTitle(CheckCategory.ExternalIdentities));
+        Assert.DoesNotContain(vm.MenuItems, i => i.Title == "External Identities");
         Assert.Equal(
             new[] { MfaCheckId, MfaRequiredCheckId },
             vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));

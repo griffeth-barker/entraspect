@@ -49,6 +49,7 @@ public partial class CheckPageView : UserControl
         SetColumn(nameof(FindingRow.ObjectId), labels.ObjectId);
         SetColumn(nameof(FindingRow.SubObjectDisplayName), labels.SubObjectDisplayName);
         SetColumn(nameof(FindingRow.SubObjectType), labels.SubObjectType);
+        SetColumn(nameof(FindingRow.Value), labels.Value);
         SetColumn(nameof(FindingRow.DueDate), labels.DueDate is null ? null : vm.DueHeader);
     }
 

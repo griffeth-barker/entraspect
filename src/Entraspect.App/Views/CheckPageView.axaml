@@ -150,6 +150,8 @@
                                     Binding="{Binding SubObjectDisplayName}" Width="2*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="SubObjectType"
                                     Binding="{Binding SubObjectType}" Width="112" MinWidth="112" />
+                <DataGridTextColumn SortMemberPath="Value"
+                                    Binding="{Binding Value}" Width="1.5*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="DueDate"
                                     Binding="{Binding DueText}" Width="140" MinWidth="140" />
                 <DataGridTextColumn Header="Message" SortMemberPath="Message"

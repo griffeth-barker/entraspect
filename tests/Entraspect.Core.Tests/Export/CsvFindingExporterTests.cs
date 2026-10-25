@@ -8,7 +8,7 @@ public sealed class CsvFindingExporterTests
 {
     private const string Header =
         "CheckId,CheckTitle,Category,Severity,ObjectType,ObjectId,ObjectDisplayName,UserPrincipalName,SubObjectType," +
-        "SubObjectDisplayName,DueDate,Message";
+        "SubObjectDisplayName,Value,DueDate,Message";
 
     [Theory]
     [InlineData("plain", "plain")]
@@ -56,9 +56,9 @@ public sealed class CsvFindingExporterTests
             [
                 Header,
                 "user-check,MFA not registered,Users,Warning,User,00000000-0000-0000-0000-0000000000u1," +
-                "\"'=HYPERLINK(\"\"http://example.invalid\"\")\",user1@example.invalid,,,,No MFA method registered.",
+                "\"'=HYPERLINK(\"\"http://example.invalid\"\")\",user1@example.invalid,,,,,No MFA method registered.",
                 "app-check,Expiring credentials,AppRegistrations,Critical,Application,00000000-0000-0000-0000-0000000000a1," +
-                "\"Zoë's app, \"\"prod\"\"\",,Secret,CI key,2026-01-18T07:00:00Z,Secret expires in 3 days.",
+                "\"Zoë's app, \"\"prod\"\"\",,Secret,CI key,,2026-01-18T07:00:00Z,Secret expires in 3 days.",
                 string.Empty,
             ],
             lines);
@@ -91,7 +91,19 @@ public sealed class CsvFindingExporterTests
         var text = Encoding.UTF8.GetString(await WriteAsync(report)).TrimStart('﻿');
 
         Assert.Equal(
-            $"{Header}\r\napp-check,Expiring credentials,AppRegistrations,Info,Application,id1,App,,,,,No owners.\r\n",
+            $"{Header}\r\napp-check,Expiring credentials,AppRegistrations,Info,Application,id1,App,,,,,,No owners.\r\n",
+            text);
+    }
+
+    [Fact]
+    public async Task Writes_the_current_value_of_a_setting()
+    {
+        var text = Encoding.UTF8.GetString(await WriteAsync(ExportTestData.SettingsReport())).TrimStart('\uFEFF');
+
+        Assert.Equal(
+            $"{Header}\r\nsettings-check,External collaboration,ExternalIdentities,Warning,AuthorizationPolicy," +
+            "allowInvitesFrom,Guest invite restrictions,,,,Everyone,," +
+            "\"Anyone in the organisation, guests included, can invite guests.\"\r\n",
             text);
     }
 

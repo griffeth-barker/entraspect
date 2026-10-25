@@ -42,4 +42,15 @@ internal sealed class FakeUserInteraction : IUserInteraction
         OpenedUrls.Add(url);
         return Task.CompletedTask;
     }
+
+    /// <summary>What the save dialog returns; null acts as Cancel.</summary>
+    public ExportFile? ExportFile { get; set; }
+
+    public List<string> SuggestedFileNames { get; } = [];
+
+    public Task<ExportFile?> PickExportFileAsync(string suggestedFileName)
+    {
+        SuggestedFileNames.Add(suggestedFileName);
+        return Task.FromResult(ExportFile);
+    }
 }

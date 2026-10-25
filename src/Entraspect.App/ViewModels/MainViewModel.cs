@@ -138,7 +138,8 @@ public partial class MainViewModel : ViewModelBase
     public partial NavItemViewModel? SelectedNavItem { get; set; }
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ScanCommand))]
+    [NotifyPropertyChangedFor(nameof(ExportToolTip))]
+    [NotifyCanExecuteChangedFor(nameof(ScanCommand), nameof(ExportCommand))]
     public partial ViewModelBase? CurrentPage { get; set; }
 
     [ObservableProperty]
@@ -151,13 +152,13 @@ public partial class MainViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(
         nameof(ConnectCommand), nameof(ReconnectCommand), nameof(DisconnectCommand), nameof(ScanCommand),
-        nameof(CancelCommand))]
+        nameof(CancelCommand), nameof(ExportCommand))]
     public partial bool IsConnecting { get; set; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(ReconnectCommand), nameof(ScanCommand),
-        nameof(CancelCommand))]
+        nameof(CancelCommand), nameof(ExportCommand))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
@@ -170,6 +171,15 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>An unexpected scan error, shown in the scan bar on Overview and the check pages.</summary>
     [ObservableProperty]
     public partial string ScanErrorText { get; set; } = string.Empty;
+
+    /// <summary>Why the last export couldn't be written, shown in the scan bar.</summary>
+    [ObservableProperty]
+    public partial string ExportErrorText { get; set; } = string.Empty;
+
+    /// <summary>What Export saves on the current page.</summary>
+    public string ExportToolTip => CurrentPage is CheckPageViewModel
+        ? "Export the findings shown as CSV or JSON"
+        : "Export every finding from the last scan as CSV or JSON";
 
     /// <summary>The connected profile as "name (tenant ID)", empty when not connected.</summary>
     [ObservableProperty]
@@ -285,6 +295,7 @@ public partial class MainViewModel : ViewModelBase
 
         IsScanning = true;
         ScanErrorText = string.Empty;
+        ExportErrorText = string.Empty;
         ProgressText = "Starting scan…";
 
         try
@@ -328,6 +339,65 @@ public partial class MainViewModel : ViewModelBase
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
     private void Cancel() => CancelRunningWork();
+
+    // Only once a scan has finished, and on a check page only if the check ran in it.
+    private bool CanExport() => !IsBusy && _lastResults is not null && CurrentPage switch
+    {
+        OverviewViewModel => true,
+        CheckPageViewModel page => page.Result is not null,
+        _ => false,
+    };
+
+    /// <summary>
+    /// Saves results to a CSV or JSON file the user picks: on Overview every finding from the last scan, on a check
+    /// page the findings it shows after search and filters. Only writes that local file.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanExport))]
+    private async Task ExportAsync()
+    {
+        if (ExportReport() is not { } report)
+        {
+            return;
+        }
+
+        ExportErrorText = string.Empty;
+        var file = await _ui.PickExportFileAsync(
+            ExportFileName.For(report.ProfileName, Time.FileStamp(report.ScannedAt), ExportFormat.Csv));
+        if (file is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var stream = await file.OpenWriteAsync();
+            await ScanExport.WriteAsync(stream, report, file.Format);
+            ProgressText = $"Exported to {file.Name}.";
+        }
+        catch (Exception ex)
+        {
+            ExportErrorText = $"Couldn't export to {file.Name}: {ex.Message}";
+        }
+    }
+
+    private ScanReport? ExportReport()
+    {
+        if (_lastResults is not { } results || _lastScanAt is not { } scannedAt || _connectedProfile is not { } profile)
+        {
+            return null;
+        }
+
+        var report = ScanReport.Create(scannedAt, profile.Name, profile.TenantId, About.Version, Checks, results);
+        return CurrentPage switch
+        {
+            OverviewViewModel => report,
+            CheckPageViewModel { Result: { } result } page => report with
+            {
+                Checks = [ScanReportCheck.From(page.Check, result, page.Findings.Select(r => r.Finding).ToList())],
+            },
+            _ => null,
+        };
+    }
 
     /// <summary>Called when the window closes, so a running scan or connect does not keep going.</summary>
     public void Shutdown() => CancelRunningWork();
@@ -472,6 +542,7 @@ public partial class MainViewModel : ViewModelBase
             MenuItems.Where(i => i.Kind == NavItemKind.Section),
             results,
             scannedAt is { } at ? Time.DateTime(at) : null);
+        ExportCommand.NotifyCanExecuteChanged();
     }
 
     /// <summary>Re-shows every date and time after the UTC or local time preference changes.</summary>

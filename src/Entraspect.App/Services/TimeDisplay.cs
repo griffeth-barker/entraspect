@@ -35,6 +35,11 @@ public sealed class TimeDisplay
         ? $"{ToLocal(value):yyyy-MM-dd}"
         : $"{value.ToUniversalTime():yyyy-MM-dd}";
 
+    /// <summary>For file names, in the chosen zone, for example "20261024-2113".</summary>
+    public string FileStamp(DateTimeOffset value) => UseLocalTime
+        ? $"{ToLocal(value):yyyyMMdd-HHmm}"
+        : $"{value.ToUniversalTime():yyyyMMdd-HHmm}";
+
     /// <summary>The computer's time zone, for example "(UTC-08:00) Pacific Time (Los Angeles)".</summary>
     public string LocalZoneName => _localZone.DisplayName;
 

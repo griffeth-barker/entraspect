@@ -18,4 +18,9 @@ public interface IUserInteraction
 
     /// <summary>Opens a URL in the default browser. Only used for Microsoft Entra admin center pages.</summary>
     Task OpenUrlAsync(string url);
+
+    /// <summary>
+    /// Asks where to save an export, as CSV or JSON, in the platform save dialog. Returns null if the user cancelled.
+    /// </summary>
+    Task<ExportFile?> PickExportFileAsync(string suggestedFileName);
 }

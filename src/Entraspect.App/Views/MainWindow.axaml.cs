@@ -1,10 +1,12 @@
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input.Platform;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Entraspect.App.Services;
 using Entraspect.App.ViewModels;
+using Entraspect.Core;
 using FluentAvalonia.UI.Controls;
 
 namespace Entraspect.App.Views;
@@ -120,6 +122,53 @@ public partial class MainWindow : Window, IUserInteraction
     public async Task OpenUrlAsync(string url)
     {
         await Launcher.LaunchUriAsync(new Uri(url));
+    }
+
+    public async Task<ExportFile?> PickExportFileAsync(string suggestedFileName)
+    {
+        var csv = new FilePickerFileType("CSV")
+        {
+            Patterns = ["*.csv"],
+            MimeTypes = ["text/csv"],
+            AppleUniformTypeIdentifiers = ["public.comma-separated-values-text"],
+        };
+        var json = new FilePickerFileType("JSON")
+        {
+            Patterns = ["*.json"],
+            MimeTypes = ["application/json"],
+            AppleUniformTypeIdentifiers = ["public.json"],
+        };
+
+        var result = await StorageProvider.SaveFilePickerWithResultAsync(new FilePickerSaveOptions
+        {
+            Title = "Export results",
+            SuggestedFileName = suggestedFileName,
+            DefaultExtension = "csv",
+            FileTypeChoices = [csv, json],
+            SuggestedFileType = csv,
+            ShowOverwritePrompt = true,
+        });
+
+        if (result.File is not { } file)
+        {
+            return null;
+        }
+
+        var format = ExportFileName.FormatFor(
+            file.Name,
+            ReferenceEquals(result.SelectedFileType, json) ? ExportFormat.Json : ExportFormat.Csv);
+        return new ExportFile(file.Name, format, async () =>
+        {
+            var stream = await file.OpenWriteAsync();
+
+            // Replacing a longer file must not leave its end behind.
+            if (stream.CanSeek)
+            {
+                stream.SetLength(0);
+            }
+
+            return stream;
+        });
     }
 
     protected override void OnClosing(WindowClosingEventArgs e)

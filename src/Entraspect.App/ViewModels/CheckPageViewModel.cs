@@ -27,6 +27,9 @@ public partial class CheckPageViewModel : ViewModelBase
     /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
     public bool IsLicensed => _isLicensed;
 
+    /// <summary>The check's result in the last scan, or null if it hasn't run.</summary>
+    public CheckResult? Result => _result;
+
     // The filter being edited, or null when adding a new one.
     private ActiveFilter? _editingFilter;
 

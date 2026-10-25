@@ -24,6 +24,7 @@ public sealed class TimeDisplayTests : IDisposable
         Assert.Equal("2026-10-24 23:30 UTC", time.DateTime(Value));
         Assert.Equal("23:30 UTC", time.Time(Value));
         Assert.Equal("2026-10-24", time.Date(Value));
+        Assert.Equal("20261024-2330", time.FileStamp(Value));
         Assert.Equal("UTC", time.ZoneLabel);
     }
 
@@ -38,6 +39,7 @@ public sealed class TimeDisplayTests : IDisposable
         Assert.Equal("2026-10-25 01:30", time.DateTime(Value));
         Assert.Equal("01:30", time.Time(Value));
         Assert.Equal("2026-10-25", time.Date(Value));
+        Assert.Equal("20261025-0130", time.FileStamp(Value));
         Assert.Equal("local", time.ZoneLabel);
         Assert.True(new SettingsStore(_dir).Load(out _).UseLocalTime);
     }

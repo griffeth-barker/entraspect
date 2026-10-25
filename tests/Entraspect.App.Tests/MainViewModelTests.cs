@@ -217,6 +217,137 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Export_is_disabled_until_a_scan_has_finished()
+    {
+        var vm = CreateConnectableViewModel();
+        Assert.False(vm.ExportCommand.CanExecute(null));
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+        Assert.Same(vm.Overview, vm.CurrentPage);
+        Assert.False(vm.ExportCommand.CanExecute(null));
+
+        await vm.ScanCommand.ExecuteAsync(null);
+        Assert.True(vm.ExportCommand.CanExecute(null));
+
+        vm.SelectedNavItem = vm.ChecksSettingsItem;
+        Assert.False(vm.ExportCommand.CanExecute(null));
+
+        vm.SelectedNavItem = CheckItem(vm);
+        Assert.True(vm.ExportCommand.CanExecute(null));
+
+        vm.DisconnectCommand.Execute(null);
+        Assert.False(vm.ExportCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Export_on_a_check_page_whose_check_did_not_run_is_disabled()
+    {
+        new SettingsStore(_dir).Save(new AppSettings { DisabledCheckIds = [CheckId], LastUsedProfileName = "p1" });
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        vm.SelectedNavItem = CheckItem(vm);
+
+        Assert.False(vm.ExportCommand.CanExecute(null));
+    }
+
+    [Fact]
+    public async Task Export_on_overview_writes_every_check_of_the_last_scan()
+    {
+        var output = new MemoryStream();
+        _prompt.ExportFile = new ExportFile("scan.json", ExportFormat.Json, () => Task.FromResult<Stream>(output));
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        await vm.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(["entraspect-p1-20260115-1200.csv"], _prompt.SuggestedFileNames);
+        var report = System.Text.Json.JsonSerializer.Deserialize<ScanReport>(
+            output.ToArray(), JsonScanExporter.SerializerOptions)!;
+        Assert.Equal("p1", report.ProfileName);
+        Assert.Equal("t1", report.TenantId);
+        Assert.Equal(Now, report.ScannedAt);
+        Assert.Equal(vm.About.Version, report.AppVersion);
+        Assert.Equal(vm.Checks.Select(c => c.Id), report.Checks.Select(c => c.CheckId));
+        Assert.Single(report.Checks.Single(c => c.CheckId == CheckId).Findings);
+        Assert.Equal("Exported to scan.json.", vm.ProgressText);
+        Assert.Equal(string.Empty, vm.ExportErrorText);
+    }
+
+    [Fact]
+    public async Task Export_on_a_check_page_writes_only_the_findings_shown()
+    {
+        var output = new MemoryStream();
+        _prompt.ExportFile = new ExportFile("app.csv", ExportFormat.Csv, () => Task.FromResult<Stream>(output));
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+        vm.SelectedNavItem = CheckItem(vm);
+
+        CheckPage(vm).SearchText = "no such app";
+        await vm.ExportCommand.ExecuteAsync(null);
+        var filtered = System.Text.Encoding.UTF8.GetString(output.ToArray()).TrimStart('\uFEFF').Split("\r\n");
+
+        output = new MemoryStream();
+        CheckPage(vm).SearchText = "Fake app";
+        await vm.ExportCommand.ExecuteAsync(null);
+        var shown = System.Text.Encoding.UTF8.GetString(output.ToArray()).TrimStart('\uFEFF').Split("\r\n");
+
+        Assert.Equal(2, filtered.Length);
+        Assert.StartsWith("CheckId,", filtered[0]);
+        Assert.Equal(3, shown.Length);
+        Assert.StartsWith($"{CheckId},", shown[1]);
+        Assert.Contains("Fake app", shown[1]);
+    }
+
+    [Fact]
+    public async Task Export_cancelled_in_the_dialog_writes_nothing()
+    {
+        _prompt.ExportFile = null;
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        await vm.ExportCommand.ExecuteAsync(null);
+
+        Assert.Single(_prompt.SuggestedFileNames);
+        Assert.StartsWith("Scan finished", vm.ProgressText);
+        Assert.Equal(string.Empty, vm.ExportErrorText);
+    }
+
+    [Fact]
+    public async Task Export_write_error_is_shown_plainly()
+    {
+        _prompt.ExportFile = new ExportFile(
+            "scan.csv", ExportFormat.Csv, () => throw new IOException("The disk is full."));
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        await vm.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal("Couldn't export to scan.csv: The disk is full.", vm.ExportErrorText);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+        Assert.Equal(string.Empty, vm.ExportErrorText);
+    }
+
+    [Fact]
+    public async Task Export_file_name_follows_the_time_preference()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+        vm.Preferences.UseLocalTime = true;
+
+        await vm.ExportCommand.ExecuteAsync(null);
+
+        Assert.Equal(["entraspect-p1-20260115-1400.csv"], _prompt.SuggestedFileNames);
+    }
+
+    [Fact]
     public async Task A_check_missing_permissions_shows_a_warning_marker()
     {
         _granted = [];

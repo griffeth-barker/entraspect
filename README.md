@@ -23,11 +23,18 @@ Both group checks skip groups created in the last 7 days (the new group grace pe
   - **Critical:** expires within 7 days, or already expired with no other valid credential of the same type.
   - **Warning:** expires within 30 days.
   - **Info:** already expired, but the app has another valid credential of the same type. Consider removing the expired one.
+- **Apps with no owners** (app registrations): app registrations with no owners, so no one is accountable for their credentials and permissions. Always **Warning**.
+- **Risky redirect URIs** (app registrations): one finding per risky redirect URI, with its platform. entraspect only reads the URI text; it never looks up or contacts the URI.
+  - **Warning:** a wildcard (`*`) on any platform, or `http://` to a host other than this computer on the Web or Single-page application platform.
+  - **Info:** `localhost`, `127.0.0.1` or `[::1]` on the Web or Single-page application platform, usually left over from development, or a URI that isn't valid. Localhost on the Mobile and desktop applications platform is normal for desktop and command-line apps and isn't reported.
 - **Expiring SAML certificates** (enterprise apps): the active token signing certificate of enterprise apps that use SAML single sign-on, the one shown as Active in the app's SAML Certificates section.
   - **Critical:** the active certificate expires within 7 days or has already expired. Once it expires, SAML sign-in to the app may fail.
   - **Warning:** the active certificate expires within 30 days, or the app has no active signing certificate.
   - **Info:** an inactive signing certificate has expired; consider removing it. Findings on disabled apps are also Info.
   - When a newer certificate exists but isn't active, the finding says so: make it active and give it to the service provider.
+- **High-privilege apps** (enterprise apps): enterprise apps holding high-privilege Microsoft Graph application permissions, one finding per permission, with the date it was granted. Microsoft's own apps are skipped. Delegated permissions and permissions on other APIs aren't checked. entraspect only reads these permission names; it never requests them.
+  - **Critical:** a permission that can be used to take over the tenant: `RoleManagement.ReadWrite.Directory`, `AppRoleAssignment.ReadWrite.All`, `Application.ReadWrite.All`, `Directory.ReadWrite.All`, `RoleAssignmentSchedule.ReadWrite.Directory`, `RoleEligibilitySchedule.ReadWrite.Directory`, `PrivilegedAccess.ReadWrite.AzureADGroup`, `UserAuthenticationMethod.ReadWrite.All` or `Policy.ReadWrite.ConditionalAccess`.
+  - **Warning:** a permission with tenant-wide data access: `Mail.ReadWrite`, `Mail.Send`, `Files.ReadWrite.All`, `Sites.ReadWrite.All`, `Sites.FullControl.All`, `User.ReadWrite.All`, `Group.ReadWrite.All` or `GroupMember.ReadWrite.All`.
 
 Both expiry checks use the same expiry windows, set in **Settings** > **Checks**.
 

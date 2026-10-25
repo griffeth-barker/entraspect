@@ -41,7 +41,7 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 
 | Permission | Used for |
 | --- | --- |
-| `Application.Read.All` | Expiring credentials (app registration secrets and certificates), Expiring SAML certificates (enterprise app SAML signing certificates) |
+| `Application.Read.All` | Expiring credentials (app registration secrets and certificates), Apps with no owners, Risky redirect URIs, Expiring SAML certificates (enterprise app SAML signing certificates), High-privilege apps (Microsoft Graph application permissions granted to enterprise apps) |
 | `GroupMember.Read.All` | Groups with no members, Groups with no owners |
 | `Member.Read.Hidden` | Groups with no members (members of groups with hidden membership) |
 | `AuditLog.Read.All` | MFA not registered (the Authentication methods user registration details report). Needs Entra ID P1 or P2 |

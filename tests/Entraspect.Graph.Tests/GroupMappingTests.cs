@@ -190,5 +190,124 @@ public sealed class GroupMappingTests
         Assert.False(result.IsDynamic);
         Assert.False(result.IsRoleAssignable);
         Assert.Null(result.CreatedDateTime);
+        Assert.Null(result.Visibility);
+        Assert.False(result.IsDynamicProcessingPaused);
+        Assert.Empty(result.SyncErrors);
+    }
+
+    [Theory]
+    [InlineData("Public", GroupVisibility.Public)]
+    [InlineData("public", GroupVisibility.Public)]
+    [InlineData("Private", GroupVisibility.Private)]
+    [InlineData("HiddenMembership", GroupVisibility.HiddenMembership)]
+    [InlineData("hiddenmembership", GroupVisibility.HiddenMembership)]
+    [InlineData("Restricted", null)]
+    [InlineData("", null)]
+    [InlineData(null, null)]
+    public void MapGroupVisibility_knows_three_values_and_ignores_case(string? visibility, GroupVisibility? expected)
+    {
+        Assert.Equal(expected, GraphDirectoryReader.MapGroupVisibility(visibility));
+    }
+
+    [Theory]
+    [InlineData(true, "Paused", true)]
+    [InlineData(true, "paused", true)]
+    [InlineData(true, "On", false)]
+    [InlineData(true, "Evaluating", false)]
+    [InlineData(true, null, false)]
+    [InlineData(false, "Paused", false)]
+    public void IsProcessingPaused_only_for_dynamic_groups_whose_state_is_paused(
+        bool isDynamic, string? state, bool expected)
+    {
+        Assert.Equal(expected, GraphDirectoryReader.IsProcessingPaused(isDynamic, state));
+    }
+
+    [Fact]
+    public void MapGroupSyncErrors_keeps_each_error()
+    {
+        var occurred = new DateTimeOffset(2026, 1, 10, 8, 15, 0, TimeSpan.Zero);
+
+        var result = GraphDirectoryReader.MapGroupSyncErrors(
+        [
+            new OnPremisesProvisioningError
+            {
+                Category = "PropertyConflict",
+                PropertyCausingError = "ProxyAddresses",
+                Value = "smtp:sales@contoso.com",
+                OccurredDateTime = occurred,
+            },
+            new OnPremisesProvisioningError(),
+            null,
+        ]);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(
+            new GroupSyncError
+            {
+                Category = "PropertyConflict",
+                PropertyCausingError = "ProxyAddresses",
+                Value = "smtp:sales@contoso.com",
+                OccurredDateTime = occurred,
+            },
+            result[0]);
+        Assert.Equal(new GroupSyncError(), result[1]);
+    }
+
+    [Fact]
+    public void MapGroupSyncErrors_without_errors_is_empty()
+    {
+        Assert.Empty(GraphDirectoryReader.MapGroupSyncErrors(null));
+        Assert.Empty(GraphDirectoryReader.MapGroupSyncErrors([]));
+    }
+
+    [Fact]
+    public void MapGroup_maps_visibility_paused_processing_and_sync_errors()
+    {
+        var group = new Group
+        {
+            GroupTypes = ["Unified", "DynamicMembership"],
+            SecurityEnabled = false,
+            MailEnabled = true,
+            Visibility = "Public",
+            MembershipRuleProcessingState = "Paused",
+            OnPremisesProvisioningErrors = [new OnPremisesProvisioningError { PropertyCausingError = "Mail" }],
+        };
+
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 1);
+
+        Assert.Equal(GroupVisibility.Public, result.Visibility);
+        Assert.True(result.IsDynamicProcessingPaused);
+        Assert.Equal("Mail", Assert.Single(result.SyncErrors).PropertyCausingError);
+    }
+
+    [Fact]
+    public void MapGroup_synced_security_group_keeps_its_sync_errors()
+    {
+        var group = new Group
+        {
+            GroupTypes = [],
+            SecurityEnabled = true,
+            MailEnabled = false,
+            OnPremisesSyncEnabled = true,
+            OnPremisesProvisioningErrors =
+            [
+                new OnPremisesProvisioningError { Category = "PropertyConflict", PropertyCausingError = "Mail" },
+                new OnPremisesProvisioningError { Category = "PropertyConflict", PropertyCausingError = "ProxyAddresses" },
+            ],
+        };
+
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 1);
+
+        Assert.True(result.IsSyncedFromOnPremises);
+        Assert.Equal(new[] { "Mail", "ProxyAddresses" }, result.SyncErrors.Select(e => e.PropertyCausingError));
+        Assert.Equal(1, result.OwnerCount);
+    }
+
+    [Fact]
+    public void MapGroup_paused_state_on_an_assigned_group_is_not_paused()
+    {
+        var group = new Group { GroupTypes = [], SecurityEnabled = true, MembershipRuleProcessingState = "Paused" };
+
+        Assert.False(GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 1).IsDynamicProcessingPaused);
     }
 }

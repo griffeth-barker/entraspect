@@ -32,9 +32,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupsAsync(cancellationToken));
 
-    // Implemented in spec 011 step 3.
     public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading groups with licence errors isn't available yet.");
+        ReadAsync(() => ReadGroupIdsWithLicenseErrorsAsync(cancellationToken));
 
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadEnterpriseAppsAsync(cancellationToken));
@@ -1087,7 +1086,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             config.QueryParameters.Select =
             [
                 "id", "displayName", "groupTypes", "securityEnabled", "mailEnabled", "onPremisesSyncEnabled",
-                "isAssignableToRole", "createdDateTime",
+                "isAssignableToRole", "createdDateTime", "membershipRuleProcessingState", "visibility",
+                "onPremisesProvisioningErrors",
             ];
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
@@ -1103,6 +1103,22 @@ public sealed class GraphDirectoryReader : IDirectoryReader
                 memberCounts.ContainsKey(g.Id ?? string.Empty),
                 ownerCounts.GetValueOrDefault(g.Id ?? string.Empty)))
             .ToList();
+    }
+
+    /// <summary>
+    /// <c>GET /groups?$filter=hasMembersWithLicenseErrors eq true&amp;$select=id</c>, following every page. The List
+    /// groups docs show this filter without <c>ConsistencyLevel</c> or <c>$count</c>; the property is never returned,
+    /// so it can only be filtered on.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> ReadGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken)
+    {
+        var groups = await ListGroupsAsync(config =>
+        {
+            config.QueryParameters.Filter = "hasMembersWithLicenseErrors eq true";
+            config.QueryParameters.Select = ["id"];
+        }, cancellationToken).ConfigureAwait(false);
+
+        return groups.Where(g => !string.IsNullOrEmpty(g.Id)).Select(g => g.Id!).ToList();
     }
 
     /// <summary>
@@ -1157,13 +1173,14 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     {
         var kind = MapGroupKind(group.GroupTypes, group.SecurityEnabled, group.MailEnabled);
         var isSynced = group.OnPremisesSyncEnabled == true;
+        var isDynamic = HasGroupType(group.GroupTypes, "DynamicMembership");
 
         return new DirectoryGroup
         {
             Id = group.Id ?? string.Empty,
             DisplayName = group.DisplayName ?? string.Empty,
             Kind = kind,
-            IsDynamic = HasGroupType(group.GroupTypes, "DynamicMembership"),
+            IsDynamic = isDynamic,
             IsSyncedFromOnPremises = isSynced,
             IsRoleAssignable = group.IsAssignableToRole == true,
             CreatedDateTime = group.CreatedDateTime,
@@ -1171,8 +1188,41 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             // Owners Graph does return are still counted for the other kinds, so groups with cloud owners are
             // recognised; an empty list there is unknown.
             OwnerCount = OwnersAvailable(kind, isSynced) || ownerCount > 0 ? ownerCount : null,
+            Visibility = MapGroupVisibility(group.Visibility),
+            IsDynamicProcessingPaused = IsProcessingPaused(isDynamic, group.MembershipRuleProcessingState),
+            SyncErrors = MapGroupSyncErrors(group.OnPremisesProvisioningErrors),
         };
     }
+
+    /// <summary><c>Public</c>, <c>Private</c> or <c>HiddenMembership</c>, ignoring case; null for anything else.</summary>
+    public static GroupVisibility? MapGroupVisibility(string? visibility) =>
+        visibility?.ToUpperInvariant() switch
+        {
+            "PUBLIC" => GroupVisibility.Public,
+            "PRIVATE" => GroupVisibility.Private,
+            "HIDDENMEMBERSHIP" => GroupVisibility.HiddenMembership,
+            _ => null,
+        };
+
+    /// <summary>
+    /// True when a dynamic group's <c>membershipRuleProcessingState</c> is <c>Paused</c>, ignoring case. Any other or
+    /// missing value, and any group that isn't dynamic, is not paused.
+    /// </summary>
+    public static bool IsProcessingPaused(bool isDynamic, string? membershipRuleProcessingState) =>
+        isDynamic && string.Equals(membershipRuleProcessingState, "Paused", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The group's <c>onPremisesProvisioningErrors</c>, with missing text as empty strings.</summary>
+    public static IReadOnlyList<GroupSyncError> MapGroupSyncErrors(IEnumerable<OnPremisesProvisioningError?>? errors) =>
+        errors?
+            .OfType<OnPremisesProvisioningError>()
+            .Select(e => new GroupSyncError
+            {
+                Category = e.Category ?? string.Empty,
+                PropertyCausingError = e.PropertyCausingError ?? string.Empty,
+                Value = e.Value ?? string.Empty,
+                OccurredDateTime = e.OccurredDateTime,
+            })
+            .ToList() ?? [];
 
     /// <summary>
     /// <c>Unified</c> in groupTypes is a Microsoft 365 group; otherwise security and mail enabled is a mail-enabled

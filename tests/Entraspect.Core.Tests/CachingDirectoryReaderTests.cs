@@ -13,6 +13,8 @@ public sealed class CachingDirectoryReaderTests
 
         public int GroupCalls { get; private set; }
 
+        public int EnterpriseAppCalls { get; private set; }
+
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -25,12 +27,19 @@ public sealed class CachingDirectoryReaderTests
             GroupCalls++;
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
         }
+
+        public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default)
+        {
+            EnterpriseAppCalls++;
+            return Task.FromResult<IReadOnlyList<EnterpriseApp>>(Array.Empty<EnterpriseApp>());
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
     {
         private bool _failed;
         private bool _groupsFailed;
+        private bool _enterpriseAppsFailed;
 
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
@@ -53,6 +62,17 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
+        }
+
+        public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_enterpriseAppsFailed)
+            {
+                _enterpriseAppsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<EnterpriseApp>>(Array.Empty<EnterpriseApp>());
         }
     }
 
@@ -101,6 +121,30 @@ public sealed class CachingDirectoryReaderTests
 
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupsAsync());
         var result = await caching.GetGroupsAsync();
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Fetches_enterprise_apps_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetEnterpriseAppsAsync();
+        await caching.GetEnterpriseAppsAsync();
+
+        Assert.Equal(1, inner.EnterpriseAppCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_enterprise_app_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetEnterpriseAppsAsync());
+        var result = await caching.GetEnterpriseAppsAsync();
 
         Assert.NotNull(result);
     }

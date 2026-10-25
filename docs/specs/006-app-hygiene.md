@@ -1,6 +1,6 @@
 # Spec 006: App registration and enterprise app hygiene
 
-**Status:** Ready (depends on specs 002 and 004)
+**Status:** Done
 **Goal:** Three checks: app registrations with no owners and app registrations with risky redirect URIs (App registrations section), and enterprise apps holding high-privilege Microsoft Graph application permissions (Enterprise apps section).
 
 **Out of scope for this spec:** unused credentials and service principal sign-in activity (these endpoints are beta only), delegated permission grants (`oauth2PermissionGrants`), permissions on APIs other than Microsoft Graph, DNS lookups or any request to a redirect URI.
@@ -79,4 +79,4 @@ Tests for each rule, including each URI case, Microsoft-owned service principals
 - **Ownerless apps that look like Microsoft's:** in the user's dev tenant, Apps with no owners lists "Microsoft Graph API" and "P2P Server". Their Graph data shows:
   - "Microsoft Graph API" isn't Microsoft Graph: its appId isn't `00000003-0000-0000-c000-000000000000`, its `publisherDomain` is the tenant's own domain, it was created in 2025 by another app (`createdByAppId` set), and it requests a delegated Graph permission. It is an ordinary app registration in the tenant with a misleading name, so reporting it is correct. A check for app registrations named like Microsoft apps could be its own spec.
   - "P2P Server" is created by Entra ID in the tenant for remote desktop to Entra-joined devices (identifier URI `urn:p2p_cert`, `createdByAppId` null). It is in the tenant, but admins aren't meant to manage it. Decided by the user: Apps with no owners skips an app registration with the identifier URI `urn:p2p_cert` (exact match, any case). `identifierUris` was added to the `GET /applications` `$select` and to `AppRegistration`.
-- **Loopback on Web and SPA:** currently Info. Entra allows `http://` only for localhost, and localhost is common in development. Keep it, drop it, or make it a setting? Undecided.
+- **Loopback on Web and SPA (decided by the user):** stays Info. Entra allows `http://` only for localhost, and localhost is common in development, but on a production app it usually means the registration is shared with development.

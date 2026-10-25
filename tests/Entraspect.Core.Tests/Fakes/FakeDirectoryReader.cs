@@ -90,4 +90,64 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
 
         return Task.FromResult<IReadOnlyList<string>>(missing);
     }
+
+    public IReadOnlyList<DirectoryUser> Users { get; init; } = [];
+
+    public IReadOnlyList<DirectoryRoleAssignment> RoleAssignments { get; init; } = [];
+
+    /// <summary>Transitive user members by group ID. Any other ID has no members.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> GroupMembers { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>();
+
+    public bool SecurityDefaultsEnabled { get; init; }
+
+    /// <summary>Per-user MFA state by user ID. Any other user is <see cref="PerUserMfaState.Disabled"/>.</summary>
+    public IReadOnlyDictionary<string, PerUserMfaState> PerUserMfaStates { get; init; } =
+        new Dictionary<string, PerUserMfaState>();
+
+    public IReadOnlyDictionary<string, SingleFactorSignIns> SignIns { get; init; } =
+        new Dictionary<string, SingleFactorSignIns>();
+
+    /// <summary>The group IDs passed to each <see cref="GetGroupTransitiveUserIdsAsync"/> call.</summary>
+    public List<string> GroupMemberReads { get; } = [];
+
+    /// <summary>The user IDs passed to each <see cref="GetPerUserMfaStateAsync"/> call.</summary>
+    public List<string> PerUserMfaReads { get; } = [];
+
+    /// <summary>The start passed to each <see cref="GetSingleFactorSignInsAsync"/> call.</summary>
+    public List<DateTimeOffset> SignInReads { get; } = [];
+
+    public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(Users);
+
+    public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(RoleAssignments);
+
+    public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
+        string groupId,
+        CancellationToken cancellationToken = default)
+    {
+        GroupMemberReads.Add(groupId);
+        return Task.FromResult(GroupMembers.TryGetValue(groupId, out var members) ? members : []);
+    }
+
+    public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(SecurityDefaultsEnabled);
+
+    public Task<PerUserMfaState> GetPerUserMfaStateAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        PerUserMfaReads.Add(userId);
+        return Task.FromResult(PerUserMfaStates.TryGetValue(userId, out var state) ? state : PerUserMfaState.Disabled);
+    }
+
+    public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        SignInReads.Add(since);
+        return Task.FromResult(SignIns);
+    }
 }

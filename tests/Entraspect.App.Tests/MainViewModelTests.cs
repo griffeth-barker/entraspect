@@ -739,6 +739,24 @@ public sealed class MainViewModelTests : IDisposable
             IProgress<int>? progress = null,
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DirectoryUser>>([]);
+
+        public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DirectoryRoleAssignment>>([]);
+
+        public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<string>>([]);
+
+        public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
+
+        public Task<PerUserMfaState> GetPerUserMfaStateAsync(string userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult(PerUserMfaState.Disabled);
+
+        public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(new Dictionary<string, SingleFactorSignIns>());
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -765,6 +783,24 @@ public sealed class MainViewModelTests : IDisposable
             IReadOnlyCollection<string> userIds,
             IProgress<int>? progress = null,
             CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<PerUserMfaState> GetPerUserMfaStateAsync(string userId, CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -825,6 +861,47 @@ public sealed class MainViewModelTests : IDisposable
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
             return [];
+        }
+        public async Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return false;
+        }
+
+        public async Task<PerUserMfaState> GetPerUserMfaStateAsync(string userId, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return PerUserMfaState.Disabled;
+        }
+
+        public async Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return new Dictionary<string, SingleFactorSignIns>();
         }
     }
 }

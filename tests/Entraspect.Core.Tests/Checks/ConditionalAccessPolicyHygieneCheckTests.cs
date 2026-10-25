@@ -55,7 +55,7 @@ public sealed class ConditionalAccessPolicyHygieneCheckTests
             IncludeGroups = includeGroups ?? [],
             ExcludeGroups = excludeGroups ?? [],
             IncludeRoles = includeRoles ?? [],
-            IncludeGuestsOrExternalUsers = guests,
+            IncludeGuestTypes = guests ? GuestOrExternalUserTypes.InternalGuest : GuestOrExternalUserTypes.None,
             IncludeApplications = includeApps ?? ["All"],
             IncludeApplicationsByFilter = appFilter,
             IncludeUserActions = userActions ?? [],

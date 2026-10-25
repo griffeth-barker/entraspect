@@ -80,6 +80,62 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<string>>(
                 userIds.Where(id => id.StartsWith("gone", StringComparison.Ordinal)).ToList());
         }
+
+        public int UserCalls { get; private set; }
+
+        public int RoleAssignmentCalls { get; private set; }
+
+        public int SecurityDefaultsCalls { get; private set; }
+
+        public List<string> GroupMemberReads { get; } = [];
+
+        public List<string> PerUserMfaReads { get; } = [];
+
+        public List<DateTimeOffset> SignInReads { get; } = [];
+
+        public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default)
+        {
+            UserCalls++;
+            return Task.FromResult<IReadOnlyList<DirectoryUser>>(Array.Empty<DirectoryUser>());
+        }
+
+        public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            RoleAssignmentCalls++;
+            return Task.FromResult<IReadOnlyList<DirectoryRoleAssignment>>(Array.Empty<DirectoryRoleAssignment>());
+        }
+
+        public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
+            string groupId,
+            CancellationToken cancellationToken = default)
+        {
+            GroupMemberReads.Add(groupId);
+            return Task.FromResult<IReadOnlyList<string>>([$"member-of-{groupId}"]);
+        }
+
+        public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
+        {
+            SecurityDefaultsCalls++;
+            return Task.FromResult(true);
+        }
+
+        public Task<PerUserMfaState> GetPerUserMfaStateAsync(
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            PerUserMfaReads.Add(userId);
+            return Task.FromResult(PerUserMfaState.Enforced);
+        }
+
+        public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
+            DateTimeOffset since,
+            CancellationToken cancellationToken = default)
+        {
+            SignInReads.Add(since);
+            return Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(
+                new Dictionary<string, SingleFactorSignIns> { ["u1"] = new(1, since) });
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -174,6 +230,72 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<string>>(userIds.ToList());
+        }
+
+        private int _newReadFailures;
+
+        // Each new read fails on its first call only.
+        private void FailOnce(string name)
+        {
+            if ((_newReadFailures & Flag(name)) == 0)
+            {
+                _newReadFailures |= Flag(name);
+                throw new DirectoryReadException("fail");
+            }
+        }
+
+        private static int Flag(string name) => name switch
+        {
+            "users" => 1,
+            "roles" => 2,
+            "group" => 4,
+            "defaults" => 8,
+            "mfa" => 16,
+            _ => 32,
+        };
+
+        public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default)
+        {
+            FailOnce("users");
+            return Task.FromResult<IReadOnlyList<DirectoryUser>>(Array.Empty<DirectoryUser>());
+        }
+
+        public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("roles");
+            return Task.FromResult<IReadOnlyList<DirectoryRoleAssignment>>(Array.Empty<DirectoryRoleAssignment>());
+        }
+
+        public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
+            string groupId,
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("group");
+            return Task.FromResult<IReadOnlyList<string>>(["u1"]);
+        }
+
+        public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
+        {
+            FailOnce("defaults");
+            return Task.FromResult(true);
+        }
+
+        public Task<PerUserMfaState> GetPerUserMfaStateAsync(
+            string userId,
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("mfa");
+            return Task.FromResult(PerUserMfaState.Enabled);
+        }
+
+        public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
+            DateTimeOffset since,
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("signins");
+            return Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(
+                new Dictionary<string, SingleFactorSignIns>());
         }
     }
 
@@ -361,5 +483,73 @@ public sealed class CachingDirectoryReaderTests
         var result = await caching.GetMissingUserIdsAsync(["a"]);
 
         Assert.Equal(new[] { "a" }, result);
+    }
+
+    [Fact]
+    public async Task Fetches_users_role_assignments_and_security_defaults_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetUsersAsync();
+        await caching.GetUsersAsync();
+        await caching.GetDirectoryRoleAssignmentsAsync();
+        await caching.GetDirectoryRoleAssignmentsAsync();
+        Assert.True(await caching.GetSecurityDefaultsEnabledAsync());
+        Assert.True(await caching.GetSecurityDefaultsEnabledAsync());
+
+        Assert.Equal((1, 1, 1), (inner.UserCalls, inner.RoleAssignmentCalls, inner.SecurityDefaultsCalls));
+    }
+
+    [Fact]
+    public async Task Reads_each_group_and_each_user_mfa_state_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        Assert.Equal(new[] { "member-of-g1" }, await caching.GetGroupTransitiveUserIdsAsync("g1"));
+        await caching.GetGroupTransitiveUserIdsAsync("G1");
+        await caching.GetGroupTransitiveUserIdsAsync("g2");
+        Assert.Equal(PerUserMfaState.Enforced, await caching.GetPerUserMfaStateAsync("u1"));
+        await caching.GetPerUserMfaStateAsync("U1");
+        await caching.GetPerUserMfaStateAsync("u2");
+
+        Assert.Equal(new[] { "g1", "g2" }, inner.GroupMemberReads);
+        Assert.Equal(new[] { "u1", "u2" }, inner.PerUserMfaReads);
+    }
+
+    [Fact]
+    public async Task Reads_sign_ins_once_for_the_same_start()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+        var since = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero);
+
+        await caching.GetSingleFactorSignInsAsync(since);
+        var again = await caching.GetSingleFactorSignInsAsync(since);
+        await caching.GetSingleFactorSignInsAsync(since.AddDays(-1));
+
+        Assert.Equal(1, again["u1"].Count);
+        Assert.Equal(new[] { since, since.AddDays(-1) }, inner.SignInReads);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_reads_of_the_mfa_requirement_data()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetUsersAsync());
+        Assert.NotNull(await caching.GetUsersAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetDirectoryRoleAssignmentsAsync());
+        Assert.NotNull(await caching.GetDirectoryRoleAssignmentsAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupTransitiveUserIdsAsync("g1"));
+        Assert.Equal(new[] { "u1" }, await caching.GetGroupTransitiveUserIdsAsync("g1"));
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetSecurityDefaultsEnabledAsync());
+        Assert.True(await caching.GetSecurityDefaultsEnabledAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetPerUserMfaStateAsync("u1"));
+        Assert.Equal(PerUserMfaState.Enabled, await caching.GetPerUserMfaStateAsync("u1"));
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetSingleFactorSignInsAsync(default));
+        Assert.Empty(await caching.GetSingleFactorSignInsAsync(default));
     }
 }

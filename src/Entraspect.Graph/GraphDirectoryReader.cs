@@ -45,6 +45,37 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadMissingUserIdsAsync(userIds, progress, cancellationToken));
 
+    // Implemented in spec 008 step 4.
+    public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading users isn't available yet.");
+
+    // Implemented in spec 008 step 4.
+    public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading directory role assignments isn't available yet.");
+
+    // Implemented in spec 008 step 4.
+    public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
+        string groupId,
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading group members isn't available yet.");
+
+    // Implemented in spec 008 step 4.
+    public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading security defaults isn't available yet.");
+
+    // Implemented in spec 008 step 4.
+    public Task<PerUserMfaState> GetPerUserMfaStateAsync(
+        string userId,
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading per-user MFA state isn't available yet.");
+
+    // Implemented in spec 008 step 4.
+    public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading sign-ins isn't available yet.");
+
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
 
@@ -263,7 +294,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             IncludeGroups = Values(users?.IncludeGroups),
             ExcludeGroups = Values(users?.ExcludeGroups),
             IncludeRoles = Values(users?.IncludeRoles),
-            IncludeGuestsOrExternalUsers = IncludesGuestsOrExternalUsers(users?.IncludeGuestsOrExternalUsers),
+            IncludeGuestTypes = GuestTypes(users?.IncludeGuestsOrExternalUsers),
             IncludeApplications = Values(applications?.IncludeApplications),
             IncludeApplicationsByFilter = IsIncludeFilter(applications?.ApplicationFilter),
             IncludeUserActions = Values(applications?.IncludeUserActions),
@@ -275,9 +306,35 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         };
     }
 
-    /// <summary>Whether the policy includes guests or external users by type; an empty type list includes no one.</summary>
-    private static bool IncludesGuestsOrExternalUsers(ConditionalAccessGuestsOrExternalUsers? guests) =>
-        guests?.GuestOrExternalUserTypes is { } types && types != ConditionalAccessGuestOrExternalUserTypes.None;
+    /// <summary>
+    /// The guest or external user types, mapped flag by flag; a missing object or type list, or an unknown future
+    /// value, adds nothing.
+    /// </summary>
+    public static GuestOrExternalUserTypes GuestTypes(ConditionalAccessGuestsOrExternalUsers? guests)
+    {
+        var types = guests?.GuestOrExternalUserTypes ?? ConditionalAccessGuestOrExternalUserTypes.None;
+        var result = GuestOrExternalUserTypes.None;
+
+        foreach (var (graph, core) in GuestTypeMap)
+        {
+            if (types.HasFlag(graph))
+            {
+                result |= core;
+            }
+        }
+
+        return result;
+    }
+
+    private static readonly (ConditionalAccessGuestOrExternalUserTypes Graph, GuestOrExternalUserTypes Core)[] GuestTypeMap =
+    [
+        (ConditionalAccessGuestOrExternalUserTypes.InternalGuest, GuestOrExternalUserTypes.InternalGuest),
+        (ConditionalAccessGuestOrExternalUserTypes.B2bCollaborationGuest, GuestOrExternalUserTypes.B2bCollaborationGuest),
+        (ConditionalAccessGuestOrExternalUserTypes.B2bCollaborationMember, GuestOrExternalUserTypes.B2bCollaborationMember),
+        (ConditionalAccessGuestOrExternalUserTypes.B2bDirectConnectUser, GuestOrExternalUserTypes.B2bDirectConnectUser),
+        (ConditionalAccessGuestOrExternalUserTypes.OtherExternalUser, GuestOrExternalUserTypes.OtherExternalUser),
+        (ConditionalAccessGuestOrExternalUserTypes.ServiceProvider, GuestOrExternalUserTypes.ServiceProvider),
+    ];
 
     private static bool IsIncludeFilter(ConditionalAccessFilter? filter) =>
         filter?.Mode == FilterMode.Include && !string.IsNullOrWhiteSpace(filter.Rule);

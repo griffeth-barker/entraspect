@@ -19,6 +19,13 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<UserRegistration>? _userRegistrations;
     private IReadOnlyList<AppPermissionGrant>? _graphApplicationPermissionGrants;
     private IReadOnlyList<ConditionalAccessPolicy>? _conditionalAccessPolicies;
+    private IReadOnlyList<DirectoryUser>? _users;
+    private IReadOnlyList<DirectoryRoleAssignment>? _directoryRoleAssignments;
+    private bool? _securityDefaultsEnabled;
+    private (DateTimeOffset Since, IReadOnlyDictionary<string, SingleFactorSignIns> SignIns)? _singleFactorSignIns;
+    private readonly Dictionary<string, IReadOnlyList<string>> _groupTransitiveUserIds =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PerUserMfaState> _perUserMfaStates = new(StringComparer.OrdinalIgnoreCase);
 
     // Each user ID looked up so far, and whether it was missing.
     private readonly Dictionary<string, bool> _userIdMissing = new(StringComparer.OrdinalIgnoreCase);
@@ -91,5 +98,66 @@ public sealed class CachingDirectoryReader : IDirectoryReader
         }
 
         return distinct.Where(id => _userIdMissing[id]).ToList();
+    }
+
+    public async Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default)
+    {
+        return _users ??= await _inner.GetUsersAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _directoryRoleAssignments ??=
+            await _inner.GetDirectoryRoleAssignmentsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads each group's members at most once per scan.</summary>
+    public async Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
+        string groupId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_groupTransitiveUserIds.TryGetValue(groupId, out var userIds))
+        {
+            userIds = await _inner.GetGroupTransitiveUserIdsAsync(groupId, cancellationToken).ConfigureAwait(false);
+            _groupTransitiveUserIds[groupId] = userIds;
+        }
+
+        return userIds;
+    }
+
+    public async Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
+    {
+        return _securityDefaultsEnabled ??=
+            await _inner.GetSecurityDefaultsEnabledAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Reads each user's state at most once per scan.</summary>
+    public async Task<PerUserMfaState> GetPerUserMfaStateAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_perUserMfaStates.TryGetValue(userId, out var state))
+        {
+            state = await _inner.GetPerUserMfaStateAsync(userId, cancellationToken).ConfigureAwait(false);
+            _perUserMfaStates[userId] = state;
+        }
+
+        return state;
+    }
+
+    /// <summary>Kept for the last <paramref name="since"/> asked for; a different start reads again.</summary>
+    public async Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
+        DateTimeOffset since,
+        CancellationToken cancellationToken = default)
+    {
+        if (_singleFactorSignIns is { } cached && cached.Since == since)
+        {
+            return cached.SignIns;
+        }
+
+        var signIns = await _inner.GetSingleFactorSignInsAsync(since, cancellationToken).ConfigureAwait(false);
+        _singleFactorSignIns = (since, signIns);
+        return signIns;
     }
 }

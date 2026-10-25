@@ -17,8 +17,13 @@ namespace Entraspect.Graph;
 public sealed class GraphDirectoryReader : IDirectoryReader
 {
     private readonly GraphServiceClient _client;
+    private readonly TimeProvider _timeProvider;
 
-    internal GraphDirectoryReader(GraphServiceClient client) => _client = client;
+    internal GraphDirectoryReader(GraphServiceClient client, TimeProvider? timeProvider = null)
+    {
+        _client = client;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
         CancellationToken cancellationToken = default) =>
@@ -73,12 +78,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadSingleFactorSignInsAsync(since, cancellationToken));
 
-    // Implemented in spec 009 step 3.
     public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
         DateTimeOffset since,
         IProgress<int>? signInsRead = null,
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading Conditional Access usage isn't available yet.");
+        ReadAsync(() => ReadConditionalAccessUsageAsync(since, signInsRead, cancellationToken));
 
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
@@ -724,6 +728,76 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
         return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
     }
+
+    /// <summary>
+    /// v1.0: <c>GET /auditLogs/signIns?$filter=createdDateTime ge {since}&amp;$top=1000</c>, following every page;
+    /// v1.0 returns interactive sign-ins only. The endpoint doesn't support <c>$select</c>, so only each sign-in's
+    /// <c>appliedConditionalAccessPolicies</c> (policy ID and result) is mapped and the rest dropped with the page.
+    /// Progress is reported after every page and cancellation checked between pages. One request at a time; the Graph
+    /// SDK's retry handler waits out throttling (429 with <c>Retry-After</c>).
+    /// </summary>
+    private async Task<ConditionalAccessUsage> ReadConditionalAccessUsageAsync(
+        DateTimeOffset since,
+        IProgress<int>? signInsRead,
+        CancellationToken cancellationToken)
+    {
+        var aggregator = new ConditionalAccessUsageAggregator(since, _timeProvider.GetUtcNow());
+        var requests = _client.AuditLogs.SignIns;
+
+        SignInCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Filter = SignInsSinceFilter(since);
+            config.QueryParameters.Top = 1000;
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            foreach (var signIn in response.Value ?? [])
+            {
+                aggregator.Add(MapAppliedPolicies(signIn));
+            }
+
+            signInsRead?.Report(aggregator.SignInsRead);
+
+            if (string.IsNullOrEmpty(response.OdataNextLink))
+            {
+                break;
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            response = await requests.WithUrl(response.OdataNextLink)
+                .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return aggregator.ToUsage();
+    }
+
+    public static string SignInsSinceFilter(DateTimeOffset since) =>
+        $"createdDateTime ge {since.UtcDateTime:yyyy-MM-ddTHH:mm:ssZ}";
+
+    /// <summary>
+    /// A sign-in's applied Conditional Access policies. A missing list is empty (Graph leaves it out without
+    /// Policy.Read.All), entries without an ID are dropped, and a missing or unrecognised result is unknown.
+    /// </summary>
+    public static IReadOnlyList<AppliedPolicyResult> MapAppliedPolicies(SignIn signIn) =>
+        signIn.AppliedConditionalAccessPolicies?
+            .Where(p => p is not null && !string.IsNullOrWhiteSpace(p.Id))
+            .Select(p => new AppliedPolicyResult(p.Id!, MapAppliedPolicyResult(p.Result)))
+            .ToList() ?? [];
+
+    public static ConditionalAccessResult MapAppliedPolicyResult(AppliedConditionalAccessPolicyResult? result) =>
+        result switch
+        {
+            AppliedConditionalAccessPolicyResult.Success => ConditionalAccessResult.Success,
+            AppliedConditionalAccessPolicyResult.Failure => ConditionalAccessResult.Failure,
+            AppliedConditionalAccessPolicyResult.NotApplied => ConditionalAccessResult.NotApplied,
+            AppliedConditionalAccessPolicyResult.NotEnabled => ConditionalAccessResult.NotEnabled,
+            AppliedConditionalAccessPolicyResult.ReportOnlySuccess => ConditionalAccessResult.ReportOnlySuccess,
+            AppliedConditionalAccessPolicyResult.ReportOnlyFailure => ConditionalAccessResult.ReportOnlyFailure,
+            AppliedConditionalAccessPolicyResult.ReportOnlyNotApplied => ConditionalAccessResult.ReportOnlyNotApplied,
+            AppliedConditionalAccessPolicyResult.ReportOnlyInterrupted => ConditionalAccessResult.ReportOnlyInterrupted,
+            _ => ConditionalAccessResult.Unknown,
+        };
 
     private static bool Succeeded(JsonElement signIn) =>
         signIn.TryGetProperty("status", out var status) &&

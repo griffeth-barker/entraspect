@@ -503,7 +503,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     }
 
     /// <summary>
-    /// <c>GET /users?$select=id,displayName,userPrincipalName,userType,accountEnabled,createdDateTime,externalUserState,externalUserStateChangeDateTime&amp;$top=999</c>,
+    /// <c>GET /users?$select=id,displayName,userPrincipalName,userType,accountEnabled,createdDateTime,externalUserState,externalUserStateChangeDateTime,onPremisesSyncEnabled,assignedLicenses&amp;$top=999</c>,
     /// following every page.
     /// </summary>
     private async Task<IReadOnlyList<DirectoryUser>> ReadUsersAsync(CancellationToken cancellationToken)
@@ -515,7 +515,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             config.QueryParameters.Select =
             [
                 "id", "displayName", "userPrincipalName", "userType", "accountEnabled", "createdDateTime",
-                "externalUserState", "externalUserStateChangeDateTime",
+                "externalUserState", "externalUserStateChangeDateTime", "onPremisesSyncEnabled", "assignedLicenses",
             ];
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
@@ -551,7 +551,16 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             CreatedDateTime = user.CreatedDateTime,
             ExternalUserState = MapExternalUserState(user.ExternalUserState),
             ExternalUserStateChangeDateTime = user.ExternalUserStateChangeDateTime,
+            OnPremisesSyncEnabled = user.OnPremisesSyncEnabled,
+            AssignedLicenceCount = MapAssignedLicenceCount(user.AssignedLicenses),
         };
+
+    /// <summary>
+    /// How many licences are assigned, directly or through groups: Graph's <c>assignedLicenses</c> includes both. 0 when
+    /// it is missing or empty; entries without a SKU aren't counted.
+    /// </summary>
+    public static int MapAssignedLicenceCount(IEnumerable<AssignedLicense>? licences) =>
+        licences?.Count(l => l?.SkuId is not null) ?? 0;
 
     /// <summary>
     /// Null when Graph has no invitation state; <see cref="ExternalUserState.Unknown"/> for a value entraspect doesn't

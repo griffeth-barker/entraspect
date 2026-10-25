@@ -85,7 +85,7 @@
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="Padding" Value="6,4" />
         </Style>
-        <!-- A small borderless button holding only an icon, such as Add, Edit or Delete. -->
+        <!-- A small borderless button holding only an icon, such as Edit or Delete. -->
         <Style Selector="Button.iconButton">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />

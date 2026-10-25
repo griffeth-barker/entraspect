@@ -104,7 +104,7 @@ rm key.pem cert.pem
 
 entraspect opens on **Settings** > **Connection profiles**. Overview and the check pages unlock once you're connected.
 
-1. Select **+** next to the **Connection profiles** heading.
+1. Select **Add** at the top right of **Connection profiles**.
 2. Enter a **Profile name**, the **Tenant ID** and the **Client ID** from step 1.
 3. Enter either the **Certificate (.pfx) path** or the **Certificate thumbprint**, not both. For a thumbprint, entraspect looks in the current user's personal store, then the local machine's personal store (current user only on Linux).
 4. Select **Save**. Profiles are saved without passwords.

@@ -13,12 +13,10 @@
             </Grid.ColumnDefinitions>
         <StackPanel Spacing="8">
             <!-- Same width as the profile list below, so Connect's right edge lines up with the cards'. -->
-            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
                 <TextBlock Text="Connection profiles" Classes="pageTitle" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Command="{Binding AddCommand}" Classes="iconButton" VerticalAlignment="Center"
-                        ToolTip.Tip="Add profile" AutomationProperties.Name="Add profile">
-                    <ui:FASymbolIcon Symbol="Add" FontSize="18" />
-                </Button>
+                <Button Grid.Column="2" Content="Add" Command="{Binding AddCommand}" VerticalAlignment="Center"
+                        ToolTip.Tip="Add a connection profile" />
                 <Button Grid.Column="3" Content="Connect" Command="{Binding ConnectCommand}" Classes="accent"
                         VerticalAlignment="Center" IsVisible="{Binding ShowConnect}"
                         ToolTip.Tip="Connect with the selected profile" />

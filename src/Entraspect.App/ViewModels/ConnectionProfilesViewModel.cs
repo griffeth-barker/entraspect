@@ -29,7 +29,7 @@ public sealed partial class ProfileListItem : ObservableObject
 }
 
 /// <summary>
-/// Settings > Connection profiles: the saved profiles, each with edit and delete, an add button by the heading, and
+/// Settings > Connection profiles: the saved profiles, each with edit and delete, Add and Connect in the heading row, and
 /// profiles.json to edit in a text editor and reload. Connect connects the selected profile and is hidden while
 /// connected; the connected profile's card has Reconnect and Disconnect. Profiles never contain passwords.
 /// </summary>

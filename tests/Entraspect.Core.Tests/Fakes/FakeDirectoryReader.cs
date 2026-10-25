@@ -50,6 +50,15 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_groups);
 
+    /// <summary>What <see cref="GetGroupIdsWithLicenseErrorsAsync"/> returns.</summary>
+    public IReadOnlyList<string> GroupIdsWithLicenseErrors { get; init; } = [];
+
+    /// <summary>When set, <see cref="GetGroupIdsWithLicenseErrorsAsync"/> throws it.</summary>
+    public DirectoryReadException? LicenseErrorsFailure { get; init; }
+
+    public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
+        LicenseErrorsFailure is { } failure ? throw failure : Task.FromResult(GroupIdsWithLicenseErrors);
+
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_enterpriseApps);
 

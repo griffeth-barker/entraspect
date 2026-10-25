@@ -8,8 +8,14 @@ public interface IDirectoryReader
 {
     Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Every group, with whether it has direct members and owners.</summary>
+    /// <summary>Every group, with whether it has direct members and how many owners.</summary>
     Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The IDs of the groups with members who have licence assignment errors from group-based licensing. Separate from
+    /// <see cref="GetGroupsAsync"/> so that a failure here fails only the check that reads it.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Every enterprise app (service principal), with its token signing certificates.</summary>
     Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default);

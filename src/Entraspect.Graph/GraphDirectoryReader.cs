@@ -32,6 +32,10 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupsAsync(cancellationToken));
 
+    // Implemented in spec 011 step 3.
+    public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading groups with licence errors isn't available yet.");
+
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadEnterpriseAppsAsync(cancellationToken));
 
@@ -1070,11 +1074,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         };
 
     /// <summary>
-    /// Reads every group, then which groups have at least one direct member and at least one owner. Presence comes
-    /// from two more group listings that expand <c>members</c> and <c>owners</c>: an expanded relationship of a
-    /// directory object returns at most 20 items and has no next link, which is enough to tell empty from not empty.
-    /// The relationships are expanded in separate listings because Graph doesn't promise more than one expand per
-    /// request. Never uses <c>POST /$batch</c>.
+    /// Reads every group, then which groups have at least one direct member and how many owners. Both come from two
+    /// more group listings that expand <c>members</c> and <c>owners</c>: an expanded relationship of a directory
+    /// object returns at most 20 items and has no next link, which is enough to tell empty from not empty and one
+    /// owner from several. The relationships are expanded in separate listings because Graph doesn't promise more
+    /// than one expand per request. Never uses <c>POST /$batch</c>.
     /// </summary>
     private async Task<IReadOnlyList<DirectoryGroup>> ReadGroupsAsync(CancellationToken cancellationToken)
     {
@@ -1088,17 +1092,24 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
 
-        var withMembers = await ListGroupIdsWithAnyAsync("members", g => g.Members, cancellationToken)
+        var memberCounts = await ListRelatedCountsAsync("members", g => g.Members, cancellationToken)
             .ConfigureAwait(false);
-        var withOwners = await ListGroupIdsWithAnyAsync("owners", g => g.Owners, cancellationToken)
+        var ownerCounts = await ListRelatedCountsAsync("owners", g => g.Owners, cancellationToken)
             .ConfigureAwait(false);
 
         return groups
-            .Select(g => MapGroup(g, withMembers.Contains(g.Id ?? string.Empty), withOwners.Contains(g.Id ?? string.Empty)))
+            .Select(g => MapGroup(
+                g,
+                memberCounts.ContainsKey(g.Id ?? string.Empty),
+                ownerCounts.GetValueOrDefault(g.Id ?? string.Empty)))
             .ToList();
     }
 
-    private async Task<HashSet<string>> ListGroupIdsWithAnyAsync(
+    /// <summary>
+    /// How many related objects each group has, by group ID, at most 20 (the expand limit). Groups with none aren't in
+    /// the result.
+    /// </summary>
+    private async Task<Dictionary<string, int>> ListRelatedCountsAsync(
         string relationship,
         Func<Group, List<DirectoryObject>?> related,
         CancellationToken cancellationToken)
@@ -1113,8 +1124,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
         return groups
             .Where(g => g.Id is not null && related(g) is { Count: > 0 })
-            .Select(g => g.Id!)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(g => g.Id!, g => related(g)!.Count, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<List<Group>> ListGroupsAsync(
@@ -1142,7 +1152,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         return result;
     }
 
-    public static DirectoryGroup MapGroup(Group group, bool hasMembers, bool hasOwners)
+    /// <param name="ownerCount">How many owners the owners listing returned for the group, at most 20.</param>
+    public static DirectoryGroup MapGroup(Group group, bool hasMembers, int ownerCount)
     {
         var kind = MapGroupKind(group.GroupTypes, group.SecurityEnabled, group.MailEnabled);
         var isSynced = group.OnPremisesSyncEnabled == true;
@@ -1159,7 +1170,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             HasMembers = hasMembers,
             // Owners Graph does return are still counted for the other kinds, so groups with cloud owners are
             // recognised; an empty list there is unknown.
-            HasOwners = OwnersAvailable(kind, isSynced) || hasOwners ? hasOwners : null,
+            OwnerCount = OwnersAvailable(kind, isSynced) || ownerCount > 0 ? ownerCount : null,
         };
     }
 

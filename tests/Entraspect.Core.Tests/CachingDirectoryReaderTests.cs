@@ -33,6 +33,15 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
         }
 
+        public int LicenseErrorCalls { get; private set; }
+
+        public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            LicenseErrorCalls++;
+            return Task.FromResult<IReadOnlyList<string>>(["g1"]);
+        }
+
         public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default)
         {
             EnterpriseAppCalls++;
@@ -158,6 +167,7 @@ public sealed class CachingDirectoryReaderTests
     {
         private bool _failed;
         private bool _groupsFailed;
+        private bool _licenseErrorsFailed;
         private bool _enterpriseAppsFailed;
         private bool _userRegistrationsFailed;
         private bool _grantsFailed;
@@ -185,6 +195,18 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
+        }
+
+        public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_licenseErrorsFailed)
+            {
+                _licenseErrorsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<string>>(["g1"]);
         }
 
         public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default)
@@ -347,6 +369,31 @@ public sealed class CachingDirectoryReaderTests
         await caching.GetGroupsAsync();
 
         Assert.Equal(1, inner.GroupCalls);
+    }
+
+    [Fact]
+    public async Task Fetches_groups_with_licence_errors_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetGroupIdsWithLicenseErrorsAsync();
+        var result = await caching.GetGroupIdsWithLicenseErrorsAsync();
+
+        Assert.Equal(new[] { "g1" }, result);
+        Assert.Equal(1, inner.LicenseErrorCalls);
+        Assert.Equal(0, inner.GroupCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_licence_error_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupIdsWithLicenseErrorsAsync());
+
+        Assert.Equal(new[] { "g1" }, await caching.GetGroupIdsWithLicenseErrorsAsync());
     }
 
     [Fact]

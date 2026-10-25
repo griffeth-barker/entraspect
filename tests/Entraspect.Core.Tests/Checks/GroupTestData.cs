@@ -4,7 +4,10 @@ internal static class GroupTestData
 {
     public static readonly DateTimeOffset Now = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
-    /// <summary>A group old enough to be checked, with members and owners unless overridden.</summary>
+    /// <summary>
+    /// A group old enough to be checked, with members and owners unless overridden. <paramref name="hasOwners"/> true
+    /// gives two owners; <paramref name="ownerCount"/>, when set, wins.
+    /// </summary>
     public static DirectoryGroup Group(
         string id,
         GroupKind kind = GroupKind.Security,
@@ -13,7 +16,11 @@ internal static class GroupTestData
         bool hasMembers = true,
         bool? hasOwners = true,
         DateTimeOffset? created = null,
-        bool noCreatedDate = false) =>
+        bool noCreatedDate = false,
+        int? ownerCount = null,
+        GroupVisibility? visibility = null,
+        bool isPaused = false,
+        IReadOnlyList<GroupSyncError>? syncErrors = null) =>
         new()
         {
             Id = id,
@@ -24,6 +31,14 @@ internal static class GroupTestData
             IsRoleAssignable = false,
             CreatedDateTime = noCreatedDate ? null : created ?? Now.AddYears(-1),
             HasMembers = hasMembers,
-            HasOwners = hasOwners,
+            OwnerCount = ownerCount ?? hasOwners switch
+            {
+                true => 2,
+                false => 0,
+                null => null,
+            },
+            Visibility = visibility,
+            IsDynamicProcessingPaused = isPaused,
+            SyncErrors = syncErrors ?? [],
         };
 }

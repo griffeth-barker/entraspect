@@ -43,7 +43,7 @@ public sealed class GroupMappingTests
             CreatedDateTime = Created,
         };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0);
 
         Assert.Equal("group-1", result.Id);
         Assert.Equal("Finance readers", result.DisplayName);
@@ -67,7 +67,7 @@ public sealed class GroupMappingTests
             MailEnabled = true,
         };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: false, hasOwners: true);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: false, ownerCount: 1);
 
         Assert.Equal(GroupKind.Microsoft365, result.Kind);
         Assert.True(result.IsDynamic);
@@ -83,7 +83,7 @@ public sealed class GroupMappingTests
     {
         var group = new Group { GroupTypes = [], SecurityEnabled = securityEnabled, MailEnabled = mailEnabled };
 
-        Assert.Null(GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false).HasOwners);
+        Assert.Null(GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0).HasOwners);
     }
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class GroupMappingTests
     {
         var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false, OnPremisesSyncEnabled = true };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0);
 
         Assert.True(result.IsSyncedFromOnPremises);
         Assert.False(result.HasOwners);
@@ -111,7 +111,7 @@ public sealed class GroupMappingTests
             OnPremisesSyncEnabled = true,
         };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0);
 
         Assert.True(result.IsSyncedFromOnPremises);
         Assert.Null(result.HasOwners);
@@ -132,7 +132,27 @@ public sealed class GroupMappingTests
             OnPremisesSyncEnabled = synced,
         };
 
-        Assert.True(GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: true).HasOwners);
+        Assert.True(GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 1).HasOwners);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(20, 20)]
+    public void MapGroup_keeps_the_owner_count_up_to_the_expand_limit(int owners, int expected)
+    {
+        var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false };
+
+        Assert.Equal(expected, GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: owners).OwnerCount);
+    }
+
+    [Fact]
+    public void MapGroup_counts_owners_graph_returns_where_documented_unavailable()
+    {
+        var group = new Group { GroupTypes = [], SecurityEnabled = false, MailEnabled = true };
+
+        Assert.Equal(3, GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 3).OwnerCount);
+        Assert.Null(GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0).OwnerCount);
     }
 
     [Fact]
@@ -141,7 +161,7 @@ public sealed class GroupMappingTests
         // After conversion to cloud management, onPremisesSyncEnabled is null.
         var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false, OnPremisesSyncEnabled = null };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0);
 
         Assert.False(result.IsSyncedFromOnPremises);
         Assert.False(result.HasOwners);
@@ -153,7 +173,7 @@ public sealed class GroupMappingTests
         // onPremisesSyncEnabled false: was synced once, now managed in the cloud.
         var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false, OnPremisesSyncEnabled = false };
 
-        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, ownerCount: 0);
 
         Assert.False(result.IsSyncedFromOnPremises);
         Assert.False(result.HasOwners);
@@ -162,7 +182,7 @@ public sealed class GroupMappingTests
     [Fact]
     public void MapGroup_with_null_fields_uses_empty_values()
     {
-        var result = GraphDirectoryReader.MapGroup(new Group(), hasMembers: false, hasOwners: false);
+        var result = GraphDirectoryReader.MapGroup(new Group(), hasMembers: false, ownerCount: 0);
 
         Assert.Equal(string.Empty, result.Id);
         Assert.Equal(string.Empty, result.DisplayName);

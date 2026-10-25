@@ -7,7 +7,8 @@ namespace Entraspect.App.Services;
 /// <summary>
 /// Saves application settings as settings.json next to profiles.json. CheckOptions values are validated on load with
 /// <see cref="CheckOptions.Normalize"/>: values that break their rule fall back to their defaults. A file written before
-/// the time zone choice (<c>"UseLocalTime": true</c> and no <c>TimeZone</c>) loads as local time.
+/// the time zone choice (<c>"UseLocalTime": true</c> and no <c>TimeZone</c>) loads as local time. A missing or unknown
+/// theme loads as <see cref="AppTheme.System"/>.
 /// </summary>
 public sealed class SettingsStore
 {
@@ -48,6 +49,7 @@ public sealed class SettingsStore
                 DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
                 LastUsedProfileName = raw.LastUsedProfileName,
                 TimeZone = TimeZoneFrom(raw),
+                Theme = ThemeFrom(raw.Theme) ?? AppTheme.System,
                 CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
             };
         }
@@ -91,6 +93,20 @@ public sealed class SettingsStore
             : zone;
     }
 
+    /// <summary>The theme named by <paramref name="value"/>, ignoring case, or null if it isn't one.</summary>
+    private static AppTheme? ThemeFrom(JsonElement? value)
+    {
+        if (value is not { ValueKind: JsonValueKind.String } element)
+        {
+            return null;
+        }
+
+        var name = element.GetString()?.Trim();
+        return Enum.GetValues<AppTheme>()
+            .Select(t => (AppTheme?)t)
+            .FirstOrDefault(t => string.Equals(t.ToString(), name, StringComparison.OrdinalIgnoreCase));
+    }
+
     private static string DefaultDirectory() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "entraspect");
 
@@ -104,6 +120,9 @@ public sealed class SettingsStore
         public string? LastUsedProfileName { get; init; }
 
         public string? TimeZone { get; init; }
+
+        /// <summary>Read as JSON so an unknown or mistyped value falls back to the default instead of failing.</summary>
+        public JsonElement? Theme { get; init; }
 
         /// <summary>Written before the time zone choice; read only to migrate to <see cref="TimeZone"/>.</summary>
         public bool? UseLocalTime { get; init; }

@@ -171,6 +171,8 @@ public partial class MainWindow : Window, IUserInteraction
         });
     }
 
+    public void SetTheme(AppTheme theme) => App.ApplyTheme(theme);
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         // Closing the window cancels a running scan or connect.

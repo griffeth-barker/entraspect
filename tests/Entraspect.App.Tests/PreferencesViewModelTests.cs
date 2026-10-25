@@ -7,6 +7,7 @@ namespace Entraspect.App.Tests;
 public sealed class PreferencesViewModelTests : IDisposable
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"entraspect-prefs-{Guid.NewGuid()}");
+    private readonly FakeUserInteraction _ui = new();
 
     public void Dispose()
     {
@@ -68,9 +69,53 @@ public sealed class PreferencesViewModelTests : IDisposable
         Assert.Equal(string.Empty, vm.TimeZoneNotice);
     }
 
+    [Fact]
+    public void The_saved_theme_is_applied_when_created()
+    {
+        new SettingsStore(_dir).Save(new AppSettings { Theme = AppTheme.Dark });
+
+        var vm = Create(out _);
+
+        Assert.Equal(AppTheme.Dark, vm.SelectedTheme?.Theme);
+        Assert.Equal([AppTheme.Dark], _ui.Themes);
+    }
+
+    [Fact]
+    public void Use_system_setting_is_the_default_theme()
+    {
+        var vm = Create(out _);
+
+        Assert.Equal(["Use system setting", "Light", "Dark"], vm.ThemeChoices.Select(c => c.Name));
+        Assert.Equal(AppTheme.System, vm.SelectedTheme?.Theme);
+        Assert.Equal([AppTheme.System], _ui.Themes);
+    }
+
+    [Fact]
+    public void Choosing_a_theme_saves_and_applies_it()
+    {
+        var vm = Create(out var settings);
+
+        vm.SelectedTheme = vm.ThemeChoices.Single(c => c.Theme == AppTheme.Light);
+
+        Assert.Equal(AppTheme.Light, settings.Current.Theme);
+        Assert.Equal(AppTheme.Light, new SettingsStore(_dir).Load(out _).Theme);
+        Assert.Equal([AppTheme.System, AppTheme.Light], _ui.Themes);
+    }
+
+    [Fact]
+    public void Other_settings_changes_do_not_reapply_the_theme()
+    {
+        var vm = Create(out var settings);
+
+        settings.SetTimeZone("Asia/Tokyo");
+
+        Assert.Equal([AppTheme.System], _ui.Themes);
+        Assert.Equal("Asia/Tokyo", vm.SelectedTimeZone?.Id);
+    }
+
     private PreferencesViewModel Create(out SettingsState settings)
     {
         settings = new SettingsState(new SettingsStore(_dir));
-        return new PreferencesViewModel(settings, new TimeDisplay(settings, TestTimeZones.Create()));
+        return new PreferencesViewModel(settings, new TimeDisplay(settings, TestTimeZones.Create()), _ui);
     }
 }

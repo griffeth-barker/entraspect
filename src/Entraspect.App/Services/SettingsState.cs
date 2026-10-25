@@ -57,6 +57,10 @@ public sealed class SettingsState
         ? null
         : Update(s => s with { TimeZone = timeZone });
 
+    public string? SetTheme(AppTheme theme) => theme == Current.Theme
+        ? null
+        : Update(s => s with { Theme = theme });
+
     public string? SetLastUsedProfile(string profileName) => profileName == Current.LastUsedProfileName
         ? null
         : Update(s => s with { LastUsedProfileName = profileName });

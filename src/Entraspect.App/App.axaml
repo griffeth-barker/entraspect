@@ -5,7 +5,8 @@
              xmlns:sty="using:FluentAvalonia.Styling"
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows the OS light or dark setting. -->
+             <!-- "Default" ThemeVariant follows the OS light or dark setting. App.ApplyTheme applies the theme
+                  chosen in Settings > Preferences at startup. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />

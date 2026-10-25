@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 using Entraspect.Core;
 
 namespace Entraspect.App.Services;
@@ -25,4 +26,8 @@ public sealed record AppSettings
     /// or a time zone ID (IANA where the platform has one, otherwise Windows).
     /// </summary>
     public string TimeZone { get; init; } = UtcTimeZone;
+
+    /// <summary>Light, dark or the operating system's setting (Settings > Preferences).</summary>
+    [JsonConverter(typeof(JsonStringEnumConverter<AppTheme>))]
+    public AppTheme Theme { get; init; } = AppTheme.System;
 }

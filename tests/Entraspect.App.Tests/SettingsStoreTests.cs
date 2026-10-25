@@ -230,4 +230,50 @@ public sealed class SettingsStoreTests
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
         }
     }
+
+    [Theory]
+    [InlineData("{}", AppTheme.System)]
+    [InlineData("{\"Theme\":\"Dark\"}", AppTheme.Dark)]
+    [InlineData("{\"theme\":\" light \"}", AppTheme.Light)]
+    [InlineData("{\"Theme\":\"Purple\"}", AppTheme.System)]
+    [InlineData("{\"Theme\":\"2\"}", AppTheme.System)]
+    [InlineData("{\"Theme\":2}", AppTheme.System)]
+    [InlineData("{\"Theme\":null}", AppTheme.System)]
+    public void Missing_or_unknown_themes_load_as_system(string json, AppTheme expected)
+    {
+        var dir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "settings.json"), json);
+
+            var loaded = new SettingsStore(dir).Load(out var error);
+
+            Assert.Null(error);
+            Assert.Equal(expected, loaded.Theme);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void Theme_is_saved_by_name()
+    {
+        var dir = TempDir();
+        try
+        {
+            var store = new SettingsStore(dir);
+
+            store.Save(new AppSettings { Theme = AppTheme.Dark });
+
+            Assert.Contains("\"Theme\": \"Dark\"", File.ReadAllText(Path.Combine(dir, "settings.json")));
+            Assert.Equal(AppTheme.Dark, store.Load(out _).Theme);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
 }

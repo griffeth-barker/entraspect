@@ -797,6 +797,16 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void The_saved_theme_is_applied_at_startup()
+    {
+        new SettingsStore(_dir).Save(new AppSettings { Theme = AppTheme.Light });
+
+        CreateViewModel();
+
+        Assert.Equal([AppTheme.Light], _prompt.Themes);
+    }
+
+    [Fact]
     public async Task Connection_status_is_shown_as_name_and_tenant()
     {
         var vm = CreateConnectableViewModel();

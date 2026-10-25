@@ -4,7 +4,9 @@ using Entraspect.App.Services;
 
 namespace Entraspect.App.Tests;
 
-/// <summary>Records what view models ask of the window. Never opens a browser or touches the real clipboard.</summary>
+/// <summary>
+/// Records what view models ask of the window. Never opens a browser, touches the real clipboard or changes the theme.
+/// </summary>
 internal sealed class FakeUserInteraction : IUserInteraction
 {
     public string? Password { get; set; }
@@ -53,4 +55,9 @@ internal sealed class FakeUserInteraction : IUserInteraction
         SuggestedFileNames.Add(suggestedFileName);
         return Task.FromResult(ExportFile);
     }
+
+    /// <summary>Every theme applied, in order.</summary>
+    public List<AppTheme> Themes { get; } = [];
+
+    public void SetTheme(AppTheme theme) => Themes.Add(theme);
 }

@@ -3,8 +3,8 @@ using System.Threading.Tasks;
 namespace Entraspect.App.Services;
 
 /// <summary>
-/// What view models need from the window: dialogs, the clipboard and the default browser. Implemented by the main
-/// window and faked in tests.
+/// What view models need from the window: dialogs, the clipboard, the default browser and the theme. Implemented by the
+/// main window and faked in tests.
 /// </summary>
 public interface IUserInteraction
 {
@@ -23,4 +23,7 @@ public interface IUserInteraction
     /// Asks where to save an export, as CSV or JSON, in the platform save dialog. Returns null if the user cancelled.
     /// </summary>
     Task<ExportFile?> PickExportFileAsync(string suggestedFileName);
+
+    /// <summary>Shows the app in light, dark or the operating system's theme, at once.</summary>
+    void SetTheme(AppTheme theme);
 }

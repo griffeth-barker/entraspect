@@ -1,6 +1,6 @@
 # Spec 015: External collaboration settings
 
-**Status:** Ready (depends on specs 002, 007 and 010)
+**Status:** Done
 **Goal:** A new **External Identities** section in the navigation, matching the Entra admin center, with three checks on the tenant's guest and cross-tenant settings: external collaboration settings (guest access, who can invite, self-service join), cross-tenant access defaults, and cross-tenant access partner settings.
 
 **Out of scope for this spec:** guest user accounts (spec 016), the invitation domain allow and block list (beta only, see Open questions), tenant restrictions, cross-tenant synchronization, B2C and External ID user flows, Teams and SharePoint external sharing, guest access reviews.

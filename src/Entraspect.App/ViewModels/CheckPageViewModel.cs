@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Entraspect.App.Services;
@@ -161,6 +162,12 @@ public partial class CheckPageViewModel : ViewModelBase
                 StatusText = result.DataUpdatedAt is { } updated
                     ? $"Last run {lastRun} · Report updated {_time.DateTime(updated)}"
                     : $"Last run {lastRun}";
+                if (result.DataPeriod is { } period)
+                {
+                    StatusText += $" · {period.ItemsRead.ToString("N0", CultureInfo.InvariantCulture)} " +
+                        $"{period.ItemName}(s) from {_time.DateTime(period.Start)} to {_time.DateTime(period.End)}";
+                }
+
                 break;
             case CheckResultStatus.Failed:
                 StatusText = $"Last run {lastRun} failed";

@@ -25,6 +25,7 @@ public sealed class MainViewModelTests : IDisposable
     private const string MfaCheckId = "users-mfa-not-registered";
     private const string MfaRequiredCheckId = "users-mfa-not-required";
     private const string CaPolicyCheckId = "ca-policy-hygiene";
+    private const string CaUnusedCheckId = "ca-unused-policies";
     private const string FakePassword = "fake-pfx-password-for-test";
     private const string ClientId = "00000000-0000-0000-0000-0000000000c1";
 
@@ -94,8 +95,8 @@ public sealed class MainViewModelTests : IDisposable
             new[] { SamlCheckId, HighPrivilegeCheckId },
             vm.MenuItems[4].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
-            CaPolicyCheckId,
-            Assert.IsType<CheckPageViewModel>(Assert.Single(vm.MenuItems[5].Children).Page).Check.Id);
+            new[] { CaPolicyCheckId, CaUnusedCheckId },
+            vm.MenuItems[5].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { "Connection profiles", "Checks", "Preferences", "About" },
             Assert.Single(vm.FooterItems).Children.Select(c => c.Title));
@@ -354,7 +355,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(["AuditLog.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
-            "AuditLog.Read.All: needed by MFA not registered, MFA not required",
+            "AuditLog.Read.All: needed by MFA not registered, MFA not required, Unused policies",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
@@ -391,7 +392,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(["Policy.Read.All", "User.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
             [
-                "Policy.Read.All: needed by MFA not required, Policy hygiene",
+                "Policy.Read.All: needed by MFA not required, Policy hygiene, Unused policies",
                 "User.Read.All: needed by MFA not required, Policy hygiene",
             ],
             vm.Overview.Banner.Details);

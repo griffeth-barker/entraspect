@@ -75,6 +75,20 @@ public sealed class ScanRunnerTests
     }
 
     [Fact]
+    public async Task Succeeded_check_reports_the_period_of_logs_it_read()
+    {
+        var period = new DataPeriod(_time.GetUtcNow().AddDays(-7), _time.GetUtcNow(), 3, "sign-in");
+        var checks = new ICheck[] { new PeriodCheck(period), new FakeCheck("c2") };
+        var runner = new ScanRunner(new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), checks, [], Options, _time);
+
+        var results = await runner.RunAsync();
+
+        Assert.Equal(period, results[0].DataPeriod);
+        Assert.Equal("found", Assert.Single(results[0].Findings).Message);
+        Assert.Null(results[1].DataPeriod);
+    }
+
+    [Fact]
     public async Task Unlicensed_check_is_skipped_without_reporting_missing_permissions()
     {
         var ran = new List<string>();
@@ -270,6 +284,35 @@ public sealed class ScanRunnerTests
                 "Running check 2 of 2: Detailed (step 1 of 2)", "Running check 2 of 2: Detailed (step 2 of 2)",
             },
             messages);
+    }
+
+    /// <summary>A check that reads a period of logs and finds one thing.</summary>
+    private sealed class PeriodCheck(DataPeriod period) : ICheck
+    {
+        public string Id => "period";
+
+        public string Title => "Period";
+
+        public string Description => "Reads logs.";
+
+        public CheckCategory Category => CheckCategory.ConditionalAccess;
+
+        public IReadOnlyList<string> RequiredPermissions => System.Array.Empty<string>();
+
+        public Task<IReadOnlyList<Finding>> RunAsync(
+            IDirectoryReader reader,
+            CheckOptions options,
+            CancellationToken cancellationToken = default) =>
+            throw new System.InvalidOperationException("The scan runs ScanAsync.");
+
+        public Task<CheckRun> ScanAsync(
+            IDirectoryReader reader,
+            CheckOptions options,
+            IProgress<string>? progress,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new CheckRun(
+                [new Finding { CheckId = Id, Severity = Severity.Info, ObjectType = "T", ObjectId = "1", ObjectDisplayName = "One", Message = "found" }],
+                period));
     }
 
     /// <summary>A check that reports two progress details while it runs.</summary>

@@ -205,6 +205,24 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
+    public void Status_shows_the_period_of_logs_read()
+    {
+        var page = CreatePage();
+
+        page.SetResult(new CheckResult
+        {
+            CheckId = "fake",
+            Status = CheckResultStatus.Succeeded,
+            CompletedAt = Now,
+            DataPeriod = new DataPeriod(Now.AddDays(-7), Now.AddMinutes(-5), 12345, "sign-in"),
+        });
+
+        Assert.Equal(
+            "Last run 2026-01-15 00:00 UTC · 12,345 sign-in(s) from 2026-01-08 00:00 UTC to 2026-01-14 23:55 UTC",
+            page.StatusText);
+    }
+
+    [Fact]
     public void Banner_shows_only_the_missing_permissions_while_connected()
     {
         var page = CreatePage("A.Read.All", "B.Read.All");

@@ -35,4 +35,7 @@ public sealed class CheckResult
 
     /// <summary>When the check's source report was last refreshed, if the check reads one (see <see cref="ICheck.GetDataUpdatedAsync"/>).</summary>
     public System.DateTimeOffset? DataUpdatedAt { get; init; }
+
+    /// <summary>The period of logs the check read, if it reads one (see <see cref="ICheck.ScanAsync"/>).</summary>
+    public DataPeriod? DataPeriod { get; init; }
 }

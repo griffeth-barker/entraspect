@@ -70,15 +70,16 @@ public sealed class ScanRunner
 
             try
             {
-                var findings = await check.RunAsync(_reader, _options, detail, cancellationToken).ConfigureAwait(false);
+                var run = await check.ScanAsync(_reader, _options, detail, cancellationToken).ConfigureAwait(false);
                 var dataUpdatedAt = await check.GetDataUpdatedAsync(_reader, cancellationToken).ConfigureAwait(false);
                 results.Add(new CheckResult
                 {
                     CheckId = check.Id,
                     Status = CheckResultStatus.Succeeded,
-                    Findings = findings,
+                    Findings = run.Findings,
                     CompletedAt = _timeProvider.GetUtcNow(),
                     DataUpdatedAt = dataUpdatedAt,
+                    DataPeriod = run.DataPeriod,
                 });
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

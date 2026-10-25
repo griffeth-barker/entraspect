@@ -16,7 +16,7 @@ public sealed class CheckCatalogTests
                 "users-mfa-not-registered", "users-mfa-not-required", "group-no-members", "group-no-owners",
                 "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
-                "sp-high-privilege-app-permissions", "ca-policy-hygiene",
+                "sp-high-privilege-app-permissions", "ca-policy-hygiene", "ca-unused-policies",
             },
             checks.Select(c => c.Id));
         Assert.Equal(
@@ -24,7 +24,7 @@ public sealed class CheckCatalogTests
             {
                 CheckCategory.Users, CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
-                CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess,
+                CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess, CheckCategory.ConditionalAccess,
             },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));

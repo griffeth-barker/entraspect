@@ -28,9 +28,9 @@ public interface ICheck
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs the check and reports how far it is as short text, for example "looking up user 4 of 20". The scan calls
-    /// this one; a check that makes many reads implements it, and the others run <see cref="RunAsync(IDirectoryReader,
-    /// CheckOptions, CancellationToken)"/> without progress.
+    /// Runs the check and reports how far it is as short text, for example "looking up user 4 of 20". A check that
+    /// makes many reads implements it, and the others run <see cref="RunAsync(IDirectoryReader, CheckOptions,
+    /// CancellationToken)"/> without progress.
     /// </summary>
     Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
@@ -38,6 +38,18 @@ public interface ICheck
         IProgress<string>? progress,
         CancellationToken cancellationToken) =>
         RunAsync(reader, options, cancellationToken);
+
+    /// <summary>
+    /// Runs the check for a scan: its findings and, for a check that reads a period of logs, which period and how many
+    /// entries it read. The scan calls this one; the default runs <see cref="RunAsync(IDirectoryReader, CheckOptions,
+    /// IProgress{string}?, CancellationToken)"/> and has no period.
+    /// </summary>
+    async Task<CheckRun> ScanAsync(
+        IDirectoryReader reader,
+        CheckOptions options,
+        IProgress<string>? progress,
+        CancellationToken cancellationToken) =>
+        new(await RunAsync(reader, options, progress, cancellationToken).ConfigureAwait(false));
 
     /// <summary>
     /// When the data this check reads was last refreshed, for checks that read a report Microsoft updates on its own

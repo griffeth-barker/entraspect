@@ -20,9 +20,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupsAsync(cancellationToken));
 
-    // Implemented in spec 004 step 4.
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading enterprise apps isn't available yet.");
+        ReadAsync(() => ReadEnterpriseAppsAsync(cancellationToken));
 
     // Turns Graph SDK and Azure.Identity failures into DirectoryReadException, so no SDK types leave this assembly.
     private static async Task<T> ReadAsync<T>(Func<Task<T>> read)
@@ -76,6 +75,80 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
         return result;
     }
+
+    /// <summary>
+    /// Reads every service principal. SAML apps are picked out by the check, not the query. The List
+    /// servicePrincipals docs give 100 as the maximum page size, so that is what is asked for; every page is followed.
+    /// </summary>
+    private async Task<IReadOnlyList<EnterpriseApp>> ReadEnterpriseAppsAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<EnterpriseApp>();
+
+        ServicePrincipalCollectionResponse? response = await _client.ServicePrincipals.GetAsync(config =>
+        {
+            config.QueryParameters.Select =
+            [
+                "id", "appId", "displayName", "accountEnabled", "preferredSingleSignOnMode",
+                "preferredTokenSigningKeyThumbprint", "keyCredentials",
+            ];
+            config.QueryParameters.Top = 100;
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                foreach (var servicePrincipal in response.Value)
+                {
+                    result.Add(MapServicePrincipal(servicePrincipal));
+                }
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await _client.ServicePrincipals.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    public static EnterpriseApp MapServicePrincipal(ServicePrincipal servicePrincipal) =>
+        new()
+        {
+            Id = servicePrincipal.Id ?? string.Empty,
+            AppId = Guid.TryParse(servicePrincipal.AppId, out var appId) ? appId : Guid.Empty,
+            DisplayName = servicePrincipal.DisplayName ?? string.Empty,
+            // Graph always returns accountEnabled; if it's missing, assume enabled so findings keep their severity.
+            AccountEnabled = servicePrincipal.AccountEnabled ?? true,
+            PreferredSingleSignOnMode = servicePrincipal.PreferredSingleSignOnMode,
+            PreferredTokenSigningKeyThumbprint = servicePrincipal.PreferredTokenSigningKeyThumbprint,
+            SigningCertificates = (servicePrincipal.KeyCredentials ?? [])
+                .Where(IsSigningCertificate)
+                .Select(MapSigningCertificate)
+                .ToList(),
+        };
+
+    /// <summary>
+    /// A token signing certificate is an <c>AsymmetricX509Cert</c> key credential with usage <c>Sign</c>. Entra
+    /// stores a matching <c>Verify</c> credential for each one, which is not a separate certificate.
+    /// </summary>
+    public static bool IsSigningCertificate(KeyCredential credential) =>
+        string.Equals(credential.Type, "AsymmetricX509Cert", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(credential.Usage, "Sign", StringComparison.OrdinalIgnoreCase);
+
+    public static SigningCertificate MapSigningCertificate(KeyCredential credential) =>
+        new()
+        {
+            KeyId = credential.KeyId ?? Guid.Empty,
+            // customKeyIdentifier defaults to the certificate thumbprint; preferredTokenSigningKeyThumbprint is its hex.
+            Thumbprint = credential.CustomKeyIdentifier is { Length: > 0 } identifier
+                ? Convert.ToHexString(identifier)
+                : string.Empty,
+            DisplayName = credential.DisplayName ?? string.Empty,
+            StartDateTime = credential.StartDateTime ?? default,
+            EndDateTime = credential.EndDateTime,
+        };
 
     /// <summary>
     /// Reads every group, then which groups have at least one direct member and at least one owner. Presence comes

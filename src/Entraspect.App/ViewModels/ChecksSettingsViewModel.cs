@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Entraspect.App.Services;
 using Entraspect.Core;
@@ -90,6 +91,14 @@ public partial class CheckSettingsRow : ObservableObject
     }
 }
 
+/// <summary>One navigation section on Settings > Checks: its title and its checks, in navigation order.</summary>
+public sealed class CheckSettingsSection(string title, IReadOnlyList<CheckSettingsRow> rows)
+{
+    public string Title { get; } = title;
+
+    public IReadOnlyList<CheckSettingsRow> Rows { get; } = rows;
+}
+
 /// <summary>
 /// Settings > Checks: turn checks on or off and edit <see cref="CheckOptions"/>. Available before connecting; changes
 /// are saved immediately. Invalid options are shown and not saved.
@@ -105,9 +114,25 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         SettingsState settings)
     {
         _settings = settings;
-        foreach (var check in checks)
+
+        // Grouped like the navigation: sections in category order, checks in catalog order within each.
+        foreach (var category in Enum.GetValues<CheckCategory>())
         {
-            Rows.Add(new CheckSettingsRow(check, categoryTitle(check.Category), settings, e => SaveErrorText = e ?? string.Empty));
+            var title = categoryTitle(category);
+            var rows = checks
+                .Where(c => c.Category == category)
+                .Select(c => new CheckSettingsRow(c, title, settings, e => SaveErrorText = e ?? string.Empty))
+                .ToList();
+            if (rows.Count == 0)
+            {
+                continue;
+            }
+
+            Sections.Add(new CheckSettingsSection(title, rows));
+            foreach (var row in rows)
+            {
+                Rows.Add(row);
+            }
         }
 
         _loading = true;
@@ -119,7 +144,11 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         _loading = false;
     }
 
+    /// <summary>Every check, in navigation order.</summary>
     public ObservableCollection<CheckSettingsRow> Rows { get; } = [];
+
+    /// <summary>The checks under the navigation's section headings.</summary>
+    public ObservableCollection<CheckSettingsSection> Sections { get; } = [];
 
     [ObservableProperty]
     public partial decimal? ExpiryWarningDays { get; set; }

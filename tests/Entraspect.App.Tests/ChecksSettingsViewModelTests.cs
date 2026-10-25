@@ -83,6 +83,34 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Checks_are_under_the_navigation_section_headings_in_navigation_order()
+    {
+        var vm = Create();
+        var catalog = CheckCatalog.All(TimeProvider.System);
+
+        Assert.Equal(
+            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access" },
+            vm.Sections.Select(s => s.Title));
+        Assert.All(vm.Sections, section => Assert.Equal(
+            catalog.Where(c => MainViewModel.CategoryTitle(c.Category) == section.Title).Select(c => c.Id),
+            section.Rows.Select(r => r.Check.Id)));
+        Assert.Equal(vm.Sections.SelectMany(s => s.Rows), vm.Rows);
+    }
+
+    [Fact]
+    public void Sections_follow_the_category_order_whatever_the_check_order()
+    {
+        var checks = CheckCatalog.All(TimeProvider.System).Reverse().ToList();
+
+        var vm = new ChecksSettingsViewModel(checks, MainViewModel.CategoryTitle, new SettingsState(new SettingsStore(_dir)));
+
+        Assert.Equal(
+            new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access" },
+            vm.Sections.Select(s => s.Title));
+        Assert.Equal(checks.Count, vm.Rows.Count);
+    }
+
+    [Fact]
     public void Group_checks_are_listed_with_their_permission()
     {
         var vm = Create();

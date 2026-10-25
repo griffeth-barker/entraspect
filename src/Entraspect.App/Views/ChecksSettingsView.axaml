@@ -16,47 +16,55 @@
                 <views:InfoTip Text="Scan only runs checks that are on. Changes are saved immediately. Each check lists the Microsoft Graph application permissions it needs: green when granted, red when missing. Colours show while connected." />
             </StackPanel>
 
-            <ItemsControl ItemsSource="{Binding Rows}" Margin="0,8,0,0">
+            <ItemsControl ItemsSource="{Binding Sections}">
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="vm:CheckSettingsRow">
-                        <Border Padding="12" Margin="0,0,0,8" CornerRadius="8" BorderThickness="1"
-                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
-                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding CategoryTitle}" Classes="muted" FontSize="12" />
-                                    <ItemsControl ItemsSource="{Binding Permissions}" Margin="0,6,0,0">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <WrapPanel Orientation="Horizontal" />
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate x:DataType="vm:PermissionStatusViewModel">
-                                                <views:PermissionStatusView />
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                    <StackPanel Orientation="Horizontal"
-                                                IsVisible="{Binding LicencePermission, Converter={x:Static ObjectConverters.IsNotNull}}">
-                                        <ContentControl Content="{Binding LicencePermission}">
-                                            <ContentControl.ContentTemplate>
-                                                <DataTemplate x:DataType="vm:PermissionStatusViewModel">
-                                                    <views:PermissionStatusView />
-                                                </DataTemplate>
-                                            </ContentControl.ContentTemplate>
-                                        </ContentControl>
-                                        <views:InfoTip Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding LicenceNote}" Classes="muted" FontSize="12"
-                                               IsVisible="{Binding !IsLicensed}" />
-                                </StackPanel>
-                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
-                                              IsEnabled="{Binding IsLicensed}"
-                                              OnContent="On" OffContent="Off" VerticalAlignment="Top" />
-                            </Grid>
-                        </Border>
+                    <DataTemplate x:DataType="vm:CheckSettingsSection">
+                        <StackPanel>
+                            <TextBlock Text="{Binding Title}" Classes="sectionTitle" Margin="0,8,0,8" />
+                            <ItemsControl ItemsSource="{Binding Rows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CheckSettingsRow">
+                                        <Border Padding="12" Margin="0,0,0,8" CornerRadius="8" BorderThickness="1"
+                                                BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+                                                Background="{DynamicResource CardBackgroundFillColorDefaultBrush}">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                    <ItemsControl ItemsSource="{Binding Permissions}" Margin="0,6,0,0">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel Orientation="Horizontal" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                                <views:PermissionStatusView />
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                    <StackPanel Orientation="Horizontal"
+                                                                IsVisible="{Binding LicencePermission, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                        <ContentControl Content="{Binding LicencePermission}">
+                                                            <ContentControl.ContentTemplate>
+                                                                <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                                    <views:PermissionStatusView />
+                                                                </DataTemplate>
+                                                            </ContentControl.ContentTemplate>
+                                                        </ContentControl>
+                                                        <views:InfoTip Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
+                                                    </StackPanel>
+                                                    <TextBlock Text="{Binding LicenceNote}" Classes="muted" FontSize="12"
+                                                               IsVisible="{Binding !IsLicensed}" />
+                                                </StackPanel>
+                                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsOn}"
+                                                              IsEnabled="{Binding IsLicensed}"
+                                                              OnContent="On" OffContent="Off" VerticalAlignment="Top" />
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

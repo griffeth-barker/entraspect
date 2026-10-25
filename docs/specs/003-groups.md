@@ -1,6 +1,6 @@
 # Spec 003: Groups with no members and groups with no owners
 
-**Status:** Ready (depends on spec 002)
+**Status:** Done
 **Goal:** Two checks in the Groups nav section: groups that have no members, and groups that have no owners.
 
 **Out of scope for this spec:** nested or transitive membership, owners who are disabled or deleted, dynamic distribution groups (not returned by `GET /groups`), group expiration policy.
@@ -67,6 +67,8 @@ Tests with a fake reader and `FakeTimeProvider`, covering each kind, dynamic and
 - Manual check: an empty test security group appears under Groups with no members (after the grace period, or with `NewGroupGraceDays` set to 0), a Microsoft 365 group with its owner removed appears under Groups with no owners, an empty synced group appears under Groups with no members with the sync scope message, a synced security group with no owners in Entra ID appears under Groups with no owners as Info with the managedBy message, and synced distribution or mail-enabled security groups never appear there.
 - Without `GroupMember.Read.All` granted, both checks show the permission banner and aren't run, and the credential check still succeeds. Without `Member.Read.Hidden`, only Groups with no members shows the banner.
 
+**Closing note:** the manual checks for cloud groups passed against a dev tenant. The criteria for synced groups weren't checked by hand, because the dev tenant isn't hybrid; their unit tests stand in until someone tests against a hybrid tenant.
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
@@ -80,3 +82,4 @@ Tests with a fake reader and `FakeTimeProvider`, covering each kind, dynamic and
 - **Owners of synced groups (decided):** Active Directory's `managedBy` isn't synced to Entra ID, so the no-owners check can't tell a synced group with no owner from one whose owner is set only in AD. The project owner chose an Info finding for synced security groups with no owners in Entra ID, saying the owner may be set only in AD. Still open: this may be noisy in large hybrid tenants, and a tenant that syncs `managedBy` into a directory extension attribute could be read instead. Check in the dev tenant whether Graph returns cloud-assigned owners for synced groups.
 - **Service principal members:** `GET /groups/{id}/members` in v1.0 doesn't return service principals (known issue); `$expand=members` does. The `$expand` approach avoids reporting a group whose only members are service principals as empty; the per-group fallback would not.
 - **Permission choice:** `GroupMember.Read.All` is listed as a higher-privileged permission for List groups (least privileged there is `Group-NestingSupport.ReadWrite.All`, a write permission) and as least privileged for List group owners. List group members lists `GroupMember.ReadBasic.All` as least privileged, but that doesn't cover listing owners or groups, so `GroupMember.Read.All` is the narrowest single read permission for this spec.
+- **More group checks:** single owner, public Microsoft 365 groups, paused dynamic processing, licence errors and sync errors are specified in spec 011.

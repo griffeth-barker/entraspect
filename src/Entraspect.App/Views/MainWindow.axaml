@@ -3,6 +3,7 @@
         xmlns:vm="using:Entraspect.App.ViewModels"
         xmlns:views="using:Entraspect.App.Views"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
+        xmlns:uip="using:FluentAvalonia.UI.Controls.Primitives"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1240" d:DesignHeight="660"
@@ -24,6 +25,13 @@
         <Style Selector="ui|FAInfoBadge /template/ TextBlock#ValueTextBlock">
             <Setter Property="RenderTransform" Value="translateY(2px)" />
             <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+
+        <!-- Child items (check pages, settings pages) have no icon. Line their text up with their section's text, like
+             the Entra admin center: FluentAvalonia indents a child 31px and gives an item without an icon a 16px icon
+             column, while a section's icon column is 40px (compact pane length 48 - 8), so the column becomes 9px. -->
+        <Style Selector="uip|FANavigationViewItemPresenter:iconcollapsed /template/ Border#IconColumn">
+            <Setter Property="Width" Value="9" />
         </Style>
 
         <!-- A check that failed or is missing permissions shows a warning marker instead of a count. -->

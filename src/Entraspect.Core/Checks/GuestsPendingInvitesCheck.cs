@@ -30,7 +30,7 @@ public sealed class GuestsPendingInvitesCheck : ICheck
     // User.Read.All: every guest and their invitation state.
     public IReadOnlyList<string> RequiredPermissions => new[] { "User.Read.All" };
 
-    public FindingLabels Labels { get; } = GuestCheckRules.Labels(dueDate: "Invited");
+    public FindingLabels Labels { get; } = UserCheckRules.Labels(dueDate: "Invited");
 
     public async Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
@@ -38,7 +38,7 @@ public sealed class GuestsPendingInvitesCheck : ICheck
         CancellationToken cancellationToken = default)
     {
         var pending = (await reader.GetUsersAsync(cancellationToken).ConfigureAwait(false))
-            .Where(u => GuestCheckRules.IsGuest(u) && u.ExternalUserState == ExternalUserState.PendingAcceptance);
+            .Where(u => UserCheckRules.IsGuest(u) && u.ExternalUserState == ExternalUserState.PendingAcceptance);
         var now = _timeProvider.GetUtcNow();
         var findings = new List<Finding>();
 
@@ -48,18 +48,18 @@ public sealed class GuestsPendingInvitesCheck : ICheck
             if (invited is null)
             {
                 // With no date, how long it has been pending is unknown, so it is reported.
-                findings.Add(GuestCheckRules.MakeFinding(Id, guest, Severity.Info, "Invitation not accepted." + Advice));
+                findings.Add(UserCheckRules.MakeFinding(Id, guest, Severity.Info, "Invitation not accepted." + Advice));
                 continue;
             }
 
-            var days = GuestCheckRules.DaysSince(invited.Value, now);
+            var days = UserCheckRules.DaysSince(invited.Value, now);
             if (days >= options.GuestPendingInviteDays)
             {
-                findings.Add(GuestCheckRules.MakeFinding(
+                findings.Add(UserCheckRules.MakeFinding(
                     Id,
                     guest,
                     Severity.Info,
-                    $"Invitation not accepted after {GuestCheckRules.FormatDays(days)}." + Advice,
+                    $"Invitation not accepted after {UserCheckRules.FormatDays(days)}." + Advice,
                     dueDate: invited));
             }
         }

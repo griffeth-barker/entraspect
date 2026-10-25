@@ -1,7 +1,7 @@
 namespace Entraspect.Core;
 
-/// <summary>A guest's most recent sign-ins. Each is null when the guest never signed in that way, as far as Graph knows.</summary>
-public sealed class GuestSignInActivity
+/// <summary>A user's most recent sign-ins. Each is null when the user never signed in that way, as far as Graph knows.</summary>
+public sealed class UserSignInActivity
 {
     public required string UserId { get; init; }
 

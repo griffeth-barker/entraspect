@@ -1,7 +1,7 @@
 namespace Entraspect.Core.Checks;
 
-/// <summary>Rules shared by the guest account checks.</summary>
-internal static class GuestCheckRules
+/// <summary>Rules shared by the checks about users, members and guests.</summary>
+internal static class UserCheckRules
 {
     public const string ObjectType = "User";
 
@@ -28,6 +28,25 @@ internal static class GuestCheckRules
         (now.UtcDateTime.Date - then.UtcDateTime.Date).Days;
 
     public static string FormatDays(int days) => days == 1 ? "1 day" : $"{days} days";
+
+    /// <summary>
+    /// The user's last activity: the last successful sign-in, or without one on record, the later of the last
+    /// interactive and non-interactive attempts, which may have failed. Null when Graph knows of neither.
+    /// </summary>
+    public static (DateTimeOffset Date, bool Successful)? LastActivity(UserSignInActivity? activity)
+    {
+        if (activity?.LastSuccessfulSignIn is { } success)
+        {
+            return (success, true);
+        }
+
+        var a = activity?.LastSignIn;
+        var b = activity?.LastNonInteractiveSignIn;
+        return (a is null ? b : b is null ? a : a > b ? a : b) is { } attempt ? (attempt, false) : null;
+    }
+
+    /// <summary>"Synced" for a user synced from on-premises Active Directory, otherwise "Cloud", for a Source column.</summary>
+    public static string SourceText(DirectoryUser user) => user.OnPremisesSyncEnabled == true ? "Synced" : "Cloud";
 
     /// <summary>The invitation state as the Invitation column shows it; null when Graph has none or one unknown here.</summary>
     public static string? InvitationText(ExternalUserState? state) =>

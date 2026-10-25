@@ -23,7 +23,7 @@ public sealed class GuestsAdminRolesCheck : ICheck
     public IReadOnlyList<string> RequiredPermissions =>
         new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" };
 
-    public FindingLabels Labels { get; } = GuestCheckRules.Labels(dueDate: null, subObjectDisplayName: "Role");
+    public FindingLabels Labels { get; } = UserCheckRules.Labels(dueDate: null, subObjectDisplayName: "Role");
 
     public async Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
@@ -34,7 +34,7 @@ public sealed class GuestsAdminRolesCheck : ICheck
         var assignments = await reader.GetDirectoryRoleAssignmentsAsync(cancellationToken).ConfigureAwait(false);
         var definitions = await reader.GetDirectoryRoleDefinitionsAsync(cancellationToken).ConfigureAwait(false);
 
-        var guests = users.Where(GuestCheckRules.IsGuest)
+        var guests = users.Where(UserCheckRules.IsGuest)
             .GroupBy(u => u.Id, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         if (guests.Count == 0)
@@ -42,63 +42,28 @@ public sealed class GuestsAdminRolesCheck : ICheck
             return [];
         }
 
-        var userIds = users.Select(u => u.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var roleNames = RoleNames(definitions);
-        var seen = new HashSet<(string UserId, string RoleId)>();
+        var held = await RoleHolders.GetAsync(users, assignments, definitions, reader, cancellationToken)
+            .ConfigureAwait(false);
         var findings = new List<Finding>();
 
-        foreach (var assignment in assignments)
+        foreach (var (userId, roles) in held)
         {
-            // Principals that aren't users are read as groups: role-assignable groups have members, other principals
-            // (service principals) have none.
-            IEnumerable<string> holders = userIds.Contains(assignment.PrincipalId)
-                ? [assignment.PrincipalId]
-                : ConditionalAccessPolicyHygieneCheck.IsObjectId(assignment.PrincipalId)
-                    ? await reader.GetGroupTransitiveUserIdsAsync(assignment.PrincipalId, cancellationToken)
-                        .ConfigureAwait(false)
-                    : [];
-
-            foreach (var holder in holders)
-            {
-                if (!guests.TryGetValue(holder, out var guest) ||
-                    !seen.Add((guest.Id.ToUpperInvariant(), assignment.RoleDefinitionId.ToUpperInvariant())))
-                {
-                    continue;
-                }
-
-                var role = roleNames.GetValueOrDefault(assignment.RoleDefinitionId) ?? assignment.RoleDefinitionId;
-                findings.Add(GuestCheckRules.MakeFinding(
-                    Id,
-                    guest,
-                    Severity.Critical,
-                    $"Guest holds the {role} role. Their identity is managed by another organisation.",
-                    subObjectDisplayName: role));
-            }
-        }
-
-        return findings;
-    }
-
-    /// <summary>
-    /// Role names by role definition ID and by template ID, since assignments name built-in roles by template ID.
-    /// </summary>
-    private static Dictionary<string, string> RoleNames(IEnumerable<DirectoryRoleDefinition> definitions)
-    {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var definition in definitions)
-        {
-            if (definition.DisplayName is not { Length: > 0 } name)
+            if (!guests.TryGetValue(userId, out var guest))
             {
                 continue;
             }
 
-            result.TryAdd(definition.Id, name);
-            if (definition.TemplateId is { Length: > 0 } templateId)
+            foreach (var role in roles)
             {
-                result.TryAdd(templateId, name);
+                findings.Add(UserCheckRules.MakeFinding(
+                    Id,
+                    guest,
+                    Severity.Critical,
+                    $"Guest holds the {role.Name} role. Their identity is managed by another organisation.",
+                    subObjectDisplayName: role.Name));
             }
         }
 
-        return result;
+        return findings;
     }
 }

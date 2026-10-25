@@ -87,7 +87,7 @@ public sealed class GuestMappingTests
     [Fact]
     public void Maps_a_page_of_sign_in_activity()
     {
-        var result = new List<GuestSignInActivity>();
+        var result = new List<UserSignInActivity>();
 
         var next = AddPage(
             """
@@ -105,8 +105,7 @@ public sealed class GuestMappingTests
               ]
             }
             """,
-            result,
-            guestsOnly: false);
+            result);
 
         Assert.Equal("https://graph.microsoft.com/v1.0/users?$skiptoken=abc", next);
         var activity = Assert.Single(result);
@@ -119,7 +118,7 @@ public sealed class GuestMappingTests
     [Fact]
     public void Never_values_and_missing_activity_map_to_null()
     {
-        var result = new List<GuestSignInActivity>();
+        var result = new List<UserSignInActivity>();
 
         var next = AddPage(
             """
@@ -140,8 +139,7 @@ public sealed class GuestMappingTests
               ]
             }
             """,
-            result,
-            guestsOnly: false);
+            result);
 
         Assert.Null(next);
         Assert.Equal(3, result.Count);
@@ -151,9 +149,9 @@ public sealed class GuestMappingTests
     }
 
     [Fact]
-    public void Fallback_page_keeps_only_guests()
+    public void Page_keeps_members_and_guests()
     {
-        var result = new List<GuestSignInActivity>();
+        var result = new List<UserSignInActivity>();
 
         AddPage(
             $$"""
@@ -165,10 +163,11 @@ public sealed class GuestMappingTests
               ]
             }
             """,
-            result,
-            guestsOnly: true);
+            result);
 
-        Assert.Equal(GuestId, Assert.Single(result).UserId);
+        Assert.Equal(
+            [GuestId, MemberId, "aaaaaaaa-0000-0000-0000-000000000003"],
+            result.Select(a => a.UserId));
     }
 
     [Theory]
@@ -177,9 +176,9 @@ public sealed class GuestMappingTests
     [InlineData("{\"value\": null}")]
     public void Unexpected_pages_do_not_throw(string json)
     {
-        var result = new List<GuestSignInActivity>();
+        var result = new List<UserSignInActivity>();
 
-        Assert.Null(AddPage(json, result, guestsOnly: false));
+        Assert.Null(AddPage(json, result));
         Assert.Empty(result);
     }
 
@@ -195,14 +194,11 @@ public sealed class GuestMappingTests
     }
 
     [Fact]
-    public void Sign_in_activity_urls_filter_guests_or_select_the_user_type()
+    public void Sign_in_activity_url_reads_every_user()
     {
         Assert.Equal(
-            "https://graph.microsoft.com/v1.0/users?$filter=userType%20eq%20%27Guest%27&$select=id,signInActivity&$top=500",
-            GraphDirectoryReader.GuestSignInActivityUrl());
-        Assert.Equal(
             "https://graph.microsoft.com/v1.0/users?$select=id,userType,signInActivity&$top=500",
-            GraphDirectoryReader.AllUsersSignInActivityUrl());
+            GraphDirectoryReader.UserSignInActivityUrl());
     }
 
     [Fact]
@@ -228,9 +224,9 @@ public sealed class GuestMappingTests
         Assert.Null(GraphDirectoryReader.MapRoleDefinition(new UnifiedRoleDefinition { DisplayName = "No ID" }));
     }
 
-    private static string? AddPage(string json, List<GuestSignInActivity> result, bool guestsOnly)
+    private static string? AddPage(string json, List<UserSignInActivity> result)
     {
         using var document = JsonDocument.Parse(json);
-        return GraphDirectoryReader.AddGuestSignInActivity(document.RootElement, result, guestsOnly);
+        return GraphDirectoryReader.AddUserSignInActivity(document.RootElement, result);
     }
 }

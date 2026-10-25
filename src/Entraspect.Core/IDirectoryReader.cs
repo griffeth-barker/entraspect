@@ -84,10 +84,10 @@ public interface IDirectoryReader
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// The sign-in activity of every guest. Separate from <see cref="GetUsersAsync"/> because it needs an Entra ID P1 or
-    /// P2 licence, so that a failure here fails only the check that reads it.
+    /// The sign-in activity of every user, members and guests. Separate from <see cref="GetUsersAsync"/> because it
+    /// needs an Entra ID P1 or P2 licence, so that a failure here fails only the checks that read it.
     /// </summary>
-    Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(CancellationToken cancellationToken = default);
 
     /// <summary>Every directory role definition, built-in and custom.</summary>
     Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
@@ -105,4 +105,10 @@ public interface IDirectoryReader
     /// <summary>The cross-tenant access settings of every partner organisation.</summary>
     Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The users Microsoft Entra ID Protection rates at risk or an admin confirmed compromised. An implementation may
+    /// also return users in other risk states; callers must still test <see cref="RiskyUser.RiskState"/>.
+    /// </summary>
+    Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default);
 }

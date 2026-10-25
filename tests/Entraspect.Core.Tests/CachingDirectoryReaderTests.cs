@@ -189,15 +189,15 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([new CrossTenantAccessSettings { TenantId = "t1" }]);
         }
 
-        public int GuestSignInActivityCalls { get; private set; }
+        public int UserSignInActivityCalls { get; private set; }
 
         public int RoleDefinitionCalls { get; private set; }
 
-        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+        public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(
             CancellationToken cancellationToken = default)
         {
-            GuestSignInActivityCalls++;
-            return Task.FromResult<IReadOnlyList<GuestSignInActivity>>([new GuestSignInActivity { UserId = "u1" }]);
+            UserSignInActivityCalls++;
+            return Task.FromResult<IReadOnlyList<UserSignInActivity>>([new UserSignInActivity { UserId = "u1" }]);
         }
 
         public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
@@ -205,6 +205,24 @@ public sealed class CachingDirectoryReaderTests
         {
             RoleDefinitionCalls++;
             return Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([new DirectoryRoleDefinition { Id = "r1" }]);
+        }
+
+        public int RiskyUserCalls { get; private set; }
+
+        public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default)
+        {
+            RiskyUserCalls++;
+            return Task.FromResult<IReadOnlyList<RiskyUser>>(
+            [
+                new RiskyUser
+                {
+                    Id = "u1",
+                    UserPrincipalName = "u1@contoso.com",
+                    DisplayName = "User 1",
+                    RiskLevel = RiskLevel.High,
+                    RiskState = RiskState.AtRisk,
+                },
+            ]);
         }
     }
 
@@ -430,19 +448,19 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
         }
 
-        private bool _guestSignInActivityFailed;
+        private bool _userSignInActivityFailed;
         private bool _roleDefinitionsFailed;
 
-        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+        public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(
             CancellationToken cancellationToken = default)
         {
-            if (!_guestSignInActivityFailed)
+            if (!_userSignInActivityFailed)
             {
-                _guestSignInActivityFailed = true;
+                _userSignInActivityFailed = true;
                 throw new DirectoryReadException("fail");
             }
 
-            return Task.FromResult<IReadOnlyList<GuestSignInActivity>>([]);
+            return Task.FromResult<IReadOnlyList<UserSignInActivity>>([]);
         }
 
         public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
@@ -455,6 +473,19 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([]);
+        }
+
+        private bool _riskyUsersFailed;
+
+        public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_riskyUsersFailed)
+            {
+                _riskyUsersFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<RiskyUser>>([]);
         }
     }
 
@@ -663,33 +694,56 @@ public sealed class CachingDirectoryReaderTests
     }
 
     [Fact]
-    public async Task Fetches_guest_sign_in_activity_and_role_definitions_only_once()
+    public async Task Fetches_user_sign_in_activity_and_role_definitions_only_once()
     {
         var inner = new CountingReader();
         var caching = new CachingDirectoryReader(inner);
 
-        await caching.GetGuestSignInActivityAsync();
-        var activity = await caching.GetGuestSignInActivityAsync();
+        await caching.GetUserSignInActivityAsync();
+        var activity = await caching.GetUserSignInActivityAsync();
         await caching.GetDirectoryRoleDefinitionsAsync();
         var definitions = await caching.GetDirectoryRoleDefinitionsAsync();
 
         Assert.Equal("u1", Assert.Single(activity).UserId);
         Assert.Equal("r1", Assert.Single(definitions).Id);
-        Assert.Equal(1, inner.GuestSignInActivityCalls);
+        Assert.Equal(1, inner.UserSignInActivityCalls);
         Assert.Equal(1, inner.RoleDefinitionCalls);
     }
 
     [Fact]
-    public async Task Does_not_cache_failed_guest_sign_in_activity_or_role_definition_reads()
+    public async Task Does_not_cache_failed_user_sign_in_activity_or_role_definition_reads()
     {
         var inner = new FailingThenOkReader();
         var caching = new CachingDirectoryReader(inner);
 
-        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGuestSignInActivityAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetUserSignInActivityAsync());
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetDirectoryRoleDefinitionsAsync());
 
-        Assert.NotNull(await caching.GetGuestSignInActivityAsync());
+        Assert.NotNull(await caching.GetUserSignInActivityAsync());
         Assert.NotNull(await caching.GetDirectoryRoleDefinitionsAsync());
+    }
+
+    [Fact]
+    public async Task Fetches_risky_users_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetRiskyUsersAsync();
+        var risky = await caching.GetRiskyUsersAsync();
+
+        Assert.Equal("u1", Assert.Single(risky).Id);
+        Assert.Equal(1, inner.RiskyUserCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_a_failed_risky_users_read()
+    {
+        var caching = new CachingDirectoryReader(new FailingThenOkReader());
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetRiskyUsersAsync());
+
+        Assert.NotNull(await caching.GetRiskyUsersAsync());
     }
 
     [Fact]

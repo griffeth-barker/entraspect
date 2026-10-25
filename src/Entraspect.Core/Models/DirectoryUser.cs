@@ -31,4 +31,13 @@ public sealed class DirectoryUser
 
     /// <summary>When <see cref="ExternalUserState"/> last changed, for example when the guest was invited.</summary>
     public DateTimeOffset? ExternalUserStateChangeDateTime { get; init; }
+
+    /// <summary>
+    /// True when the user is synced from on-premises Active Directory, where it is enabled, disabled and deleted. Null
+    /// when Graph has no value, which means a cloud-only user.
+    /// </summary>
+    public bool? OnPremisesSyncEnabled { get; init; }
+
+    /// <summary>How many licences the user has, assigned directly or through groups; 0 when none.</summary>
+    public int AssignedLicenceCount { get; init; }
 }

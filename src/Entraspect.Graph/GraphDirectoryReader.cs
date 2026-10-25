@@ -11,6 +11,9 @@ using Microsoft.Kiota.Abstractions.Serialization;
 using AllowInvitesFrom = Entraspect.Core.AllowInvitesFrom;
 using ConditionalAccessPolicy = Entraspect.Core.ConditionalAccessPolicy;
 using ConditionalAccessPolicyState = Entraspect.Core.ConditionalAccessPolicyState;
+using RiskLevel = Entraspect.Core.RiskLevel;
+using RiskState = Entraspect.Core.RiskState;
+using RiskyUser = Entraspect.Core.RiskyUser;
 using UserType = Entraspect.Core.UserType;
 
 namespace Entraspect.Graph;
@@ -99,13 +102,16 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadCrossTenantAccessPartnersAsync(cancellationToken));
 
-    public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+    public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(
         CancellationToken cancellationToken = default) =>
-        ReadAsync(() => ReadGuestSignInActivityAsync(cancellationToken));
+        ReadAsync(() => ReadUserSignInActivityAsync(cancellationToken));
 
     public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadDirectoryRoleDefinitionsAsync(cancellationToken));
+
+    public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadRiskyUsersAsync(cancellationToken));
 
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
@@ -127,8 +133,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
         catch (JsonException ex)
         {
-            // Only raw JSON responses (beta, and the authorization policy) are parsed here; a response that isn't JSON
-            // fails just the check that read it.
+            // Only raw JSON responses (beta, and some v1.0 reads) are parsed here; a response that isn't JSON fails just
+            // the check that read it.
             throw new DirectoryReadException(
                 $"Microsoft Graph returned a response that couldn't be read: {ex.Message}",
                 innerException: ex);
@@ -653,52 +659,27 @@ public sealed class GraphDirectoryReader : IDirectoryReader
                 DisplayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? null : definition.DisplayName,
             };
 
-    /// <summary>The first page of guests' sign-in activity.</summary>
-    public static string GuestSignInActivityUrl() =>
-        $"{V1BaseUrl}/users?$filter={Uri.EscapeDataString("userType eq 'Guest'")}&$select=id,signInActivity&$top=500";
-
-    /// <summary>
-    /// <c>GET /users?$filter=userType eq 'Guest'&amp;$select=id,signInActivity&amp;$top=500</c>, following every page;
-    /// 500 is the largest page Graph allows when <c>signInActivity</c> is selected. If Graph rejects the filter with
-    /// HTTP 400, it falls back to <c>GET /users?$select=id,userType,signInActivity&amp;$top=500</c> and keeps the
-    /// guests. Read as JSON so that Graph's "never" values (an empty string or <c>0001-01-01T00:00:00Z</c>) can't fail
-    /// the read. <c>signInActivity</c> needs an Entra ID P1 or P2 licence; without one Graph returns 403, which fails
-    /// only the check that reads it.
-    /// </summary>
-    private async Task<IReadOnlyList<GuestSignInActivity>> ReadGuestSignInActivityAsync(
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await ReadSignInActivityPagesAsync(GuestSignInActivityUrl(), guestsOnly: false, cancellationToken)
-                .ConfigureAwait(false);
-        }
-        catch (ApiException ex) when (ex.ResponseStatusCode == 400)
-        {
-            // The docs don't say the userType filter may be combined with selecting signInActivity. If Graph rejects
-            // the request, read every user's activity and keep the guests here.
-            return await ReadSignInActivityPagesAsync(
-                AllUsersSignInActivityUrl(), guestsOnly: true, cancellationToken).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>The first page of every user's sign-in activity, with the user type, for the fallback read.</summary>
-    public static string AllUsersSignInActivityUrl() =>
+    /// <summary>The first page of every user's sign-in activity.</summary>
+    public static string UserSignInActivityUrl() =>
         $"{V1BaseUrl}/users?$select=id,userType,signInActivity&$top=500";
 
-    private async Task<IReadOnlyList<GuestSignInActivity>> ReadSignInActivityPagesAsync(
-        string firstPage,
-        bool guestsOnly,
+    /// <summary>
+    /// <c>GET /users?$select=id,userType,signInActivity&amp;$top=500</c>, following every page; 500 is the largest page
+    /// Graph allows when <c>signInActivity</c> is selected. Read as JSON so that Graph's "never" values (an empty string
+    /// or <c>0001-01-01T00:00:00Z</c>) can't fail the read. <c>signInActivity</c> needs an Entra ID P1 or P2 licence;
+    /// without one Graph returns 403, which fails only the checks that read it.
+    /// </summary>
+    private async Task<IReadOnlyList<UserSignInActivity>> ReadUserSignInActivityAsync(
         CancellationToken cancellationToken)
     {
-        var result = new List<GuestSignInActivity>();
-        string? url = firstPage;
+        var result = new List<UserSignInActivity>();
+        string? url = UserSignInActivityUrl();
 
         while (url is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
-            url = AddGuestSignInActivity(page.RootElement, result, guestsOnly);
+            url = AddUserSignInActivity(page.RootElement, result);
         }
 
         return result;
@@ -706,10 +687,9 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
     /// <summary>
     /// Adds one page of users' sign-in activity to <paramref name="result"/> and returns the next page's link, or null on
-    /// the last page. With <paramref name="guestsOnly"/>, users whose <c>userType</c> isn't <c>Guest</c> are skipped.
-    /// A user without an ID is skipped; missing or unexpected values never throw.
+    /// the last page. A user without an ID is skipped; missing or unexpected values never throw.
     /// </summary>
-    public static string? AddGuestSignInActivity(JsonElement page, ICollection<GuestSignInActivity> result, bool guestsOnly)
+    public static string? AddUserSignInActivity(JsonElement page, ICollection<UserSignInActivity> result)
     {
         if (page.ValueKind != JsonValueKind.Object)
         {
@@ -720,14 +700,13 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         {
             foreach (var user in value.EnumerateArray())
             {
-                if (String(user, "id") is not { Length: > 0 } id ||
-                    (guestsOnly && !string.Equals(String(user, "userType"), "Guest", StringComparison.OrdinalIgnoreCase)))
+                if (String(user, "id") is not { Length: > 0 } id)
                 {
                     continue;
                 }
 
                 user.TryGetProperty("signInActivity", out var activity);
-                result.Add(new GuestSignInActivity
+                result.Add(new UserSignInActivity
                 {
                     UserId = id,
                     LastSuccessfulSignIn = MapSignInDate(String(activity, "lastSuccessfulSignInDateTime")),
@@ -739,6 +718,129 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
         return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
     }
+
+    /// <summary>The first page of users at risk or confirmed compromised.</summary>
+    public static string RiskyUsersUrl() =>
+        $"{V1BaseUrl}/identityProtection/riskyUsers?$filter=" +
+        Uri.EscapeDataString("riskState eq 'atRisk' or riskState eq 'confirmedCompromised'") + "&$top=500";
+
+    /// <summary>The first page of every risky user, whatever the state, for the fallback read.</summary>
+    public static string AllRiskyUsersUrl() => $"{V1BaseUrl}/identityProtection/riskyUsers?$top=500";
+
+    /// <summary>
+    /// <c>GET /identityProtection/riskyUsers?$filter=riskState eq 'atRisk' or riskState eq 'confirmedCompromised'&amp;$top=500</c>,
+    /// following every page; 500 is the largest page Graph allows. If Graph rejects the filter with HTTP 400, it falls
+    /// back to <c>GET /identityProtection/riskyUsers?$top=500</c> and keeps those two states. Read as JSON so that a
+    /// risk value the SDK doesn't know isn't dropped. Never calls the riskyUser actions (<c>confirmCompromised</c>,
+    /// <c>confirmSafe</c>, <c>dismiss</c>), which change the tenant.
+    /// </summary>
+    private async Task<IReadOnlyList<RiskyUser>> ReadRiskyUsersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await ReadRiskyUserPagesAsync(RiskyUsersUrl(), filterStates: false, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 400)
+        {
+            // The docs don't say the filter may combine two states with "or". If Graph rejects it, read every risky
+            // user and keep the two states here.
+            return await ReadRiskyUserPagesAsync(AllRiskyUsersUrl(), filterStates: true, cancellationToken)
+                .ConfigureAwait(false);
+        }
+    }
+
+    private async Task<IReadOnlyList<RiskyUser>> ReadRiskyUserPagesAsync(
+        string firstPage,
+        bool filterStates,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<RiskyUser>();
+        string? url = firstPage;
+
+        while (url is not null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
+            url = AddRiskyUsers(page.RootElement, result, filterStates);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Adds one page of risky users to <paramref name="result"/> and returns the next page's link, or null on the last
+    /// page. With <paramref name="filterStates"/>, only users at risk or confirmed compromised are kept. A user without
+    /// an ID is skipped; missing or unexpected values never throw.
+    /// </summary>
+    public static string? AddRiskyUsers(JsonElement page, ICollection<RiskyUser> result, bool filterStates)
+    {
+        if (page.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (page.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in value.EnumerateArray())
+            {
+                if (MapRiskyUser(element) is not { } user ||
+                    (filterStates && user.RiskState is not (RiskState.AtRisk or RiskState.ConfirmedCompromised)))
+                {
+                    continue;
+                }
+
+                result.Add(user);
+            }
+        }
+
+        return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
+    }
+
+    /// <summary>A risky user, or null without an ID. Missing or unknown values never throw.</summary>
+    public static RiskyUser? MapRiskyUser(JsonElement user) =>
+        String(user, "id") is { Length: > 0 } id
+            ? new RiskyUser
+            {
+                Id = id,
+                UserPrincipalName = String(user, "userPrincipalName") ?? string.Empty,
+                DisplayName = String(user, "userDisplayName") ?? string.Empty,
+                RiskLevel = MapRiskLevel(String(user, "riskLevel")),
+                RiskState = MapRiskState(String(user, "riskState")),
+                RiskDetail = String(user, "riskDetail") ?? string.Empty,
+                RiskLastUpdated = MapDate(String(user, "riskLastUpdatedDateTime")),
+                IsDeleted = Boolean(user, "isDeleted") == true,
+            }
+            : null;
+
+    /// <summary>Case is ignored; a missing value, <c>unknownFutureValue</c> or anything new is Unknown.</summary>
+    public static RiskLevel MapRiskLevel(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "LOW" => RiskLevel.Low,
+        "MEDIUM" => RiskLevel.Medium,
+        "HIGH" => RiskLevel.High,
+        "HIDDEN" => RiskLevel.Hidden,
+        "NONE" => RiskLevel.None,
+        _ => RiskLevel.Unknown,
+    };
+
+    /// <summary>Case is ignored; a missing value, <c>unknownFutureValue</c> or anything new is Unknown.</summary>
+    public static RiskState MapRiskState(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "ATRISK" => RiskState.AtRisk,
+        "CONFIRMEDCOMPROMISED" => RiskState.ConfirmedCompromised,
+        "REMEDIATED" => RiskState.Remediated,
+        "DISMISSED" => RiskState.Dismissed,
+        "CONFIRMEDSAFE" => RiskState.ConfirmedSafe,
+        "NONE" => RiskState.None,
+        _ => RiskState.Unknown,
+    };
+
+    /// <summary>A date, or null when it is missing or isn't a date.</summary>
+    public static DateTimeOffset? MapDate(string? value) =>
+        DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date)
+            ? date
+            : null;
 
     /// <summary>
     /// A sign-in date, or null for "never": Graph returns an empty string or <c>0001-01-01T00:00:00Z</c>. A value that

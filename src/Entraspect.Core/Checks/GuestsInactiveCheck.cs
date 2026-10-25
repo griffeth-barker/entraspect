@@ -34,7 +34,7 @@ public sealed class GuestsInactiveCheck : ICheck
     // Sign-in activity needs Entra ID P1 or P2.
     public LicenceRequirement RequiredLicence => LicenceRequirement.EntraIdP1;
 
-    public FindingLabels Labels { get; } = GuestCheckRules.Labels(dueDate: "Last sign-in", value: "Invitation");
+    public FindingLabels Labels { get; } = UserCheckRules.Labels(dueDate: "Last sign-in", value: "Invitation");
 
     public async Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,
@@ -42,10 +42,10 @@ public sealed class GuestsInactiveCheck : ICheck
         CancellationToken cancellationToken = default)
     {
         var guests = (await reader.GetUsersAsync(cancellationToken).ConfigureAwait(false))
-            .Where(GuestCheckRules.IsGuest)
+            .Where(UserCheckRules.IsGuest)
             .ToList();
-        var activity = new Dictionary<string, GuestSignInActivity>(StringComparer.OrdinalIgnoreCase);
-        foreach (var entry in await reader.GetGuestSignInActivityAsync(cancellationToken).ConfigureAwait(false))
+        var activity = new Dictionary<string, UserSignInActivity>(StringComparer.OrdinalIgnoreCase);
+        foreach (var entry in await reader.GetUserSignInActivityAsync(cancellationToken).ConfigureAwait(false))
         {
             activity[entry.UserId] = entry;
         }
@@ -68,13 +68,13 @@ public sealed class GuestsInactiveCheck : ICheck
                 message += DisabledNote;
             }
 
-            findings.Add(GuestCheckRules.MakeFinding(
+            findings.Add(UserCheckRules.MakeFinding(
                 Id,
                 guest,
                 severity,
                 message,
                 dueDate: last,
-                value: GuestCheckRules.InvitationText(guest.ExternalUserState)));
+                value: UserCheckRules.InvitationText(guest.ExternalUserState)));
         }
 
         return findings;
@@ -83,25 +83,22 @@ public sealed class GuestsInactiveCheck : ICheck
     /// <summary>The finding for an enabled guest, or null when the guest isn't reported.</summary>
     private static (Severity Severity, string Message, DateTimeOffset? LastActivity)? Evaluate(
         DirectoryUser guest,
-        GuestSignInActivity? activity,
+        UserSignInActivity? activity,
         CheckOptions options,
         DateTimeOffset now)
     {
-        if (activity?.LastSuccessfulSignIn is { } success)
+        if (UserCheckRules.LastActivity(activity) is (var last, var successful))
         {
-            var days = GuestCheckRules.DaysSince(success, now);
-            return days >= options.GuestInactiveDays
-                ? (Severity.Warning, $"No successful sign-in for {GuestCheckRules.FormatDays(days)}.", success)
-                : null;
-        }
+            var days = UserCheckRules.DaysSince(last, now);
+            if (days < options.GuestInactiveDays)
+            {
+                return null;
+            }
 
-        // Without a successful sign-in on record, fall back to the latest attempt, which may have failed.
-        if (Latest(activity?.LastSignIn, activity?.LastNonInteractiveSignIn) is { } attempt)
-        {
-            var days = GuestCheckRules.DaysSince(attempt, now);
-            return days >= options.GuestInactiveDays
-                ? (Severity.Warning, $"No sign-in attempt for {GuestCheckRules.FormatDays(days)}.", attempt)
-                : null;
+            // Without a successful sign-in on record, the latest attempt counts, which may have failed.
+            return successful
+                ? (Severity.Warning, $"No successful sign-in for {UserCheckRules.FormatDays(days)}.", last)
+                : (Severity.Warning, $"No sign-in attempt for {UserCheckRules.FormatDays(days)}.", last);
         }
 
         if (guest.CreatedDateTime is not { } created)
@@ -109,12 +106,9 @@ public sealed class GuestsInactiveCheck : ICheck
             return (Severity.Info, "Never signed in.", null);
         }
 
-        var age = GuestCheckRules.DaysSince(created, now);
+        var age = UserCheckRules.DaysSince(created, now);
         return age >= options.GuestInactiveDays
-            ? (Severity.Warning, $"Never signed in since being added {GuestCheckRules.FormatDays(age)} ago.", null)
+            ? (Severity.Warning, $"Never signed in since being added {UserCheckRules.FormatDays(age)} ago.", null)
             : null;
     }
-
-    private static DateTimeOffset? Latest(DateTimeOffset? a, DateTimeOffset? b) =>
-        a is null ? b : b is null ? a : a > b ? a : b;
 }

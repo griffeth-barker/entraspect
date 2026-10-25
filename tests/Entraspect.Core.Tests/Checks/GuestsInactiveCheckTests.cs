@@ -29,7 +29,7 @@ public sealed class GuestsInactiveCheckTests
             ExternalUserState = state,
         };
 
-    private static GuestSignInActivity Activity(
+    private static UserSignInActivity Activity(
         DateTimeOffset? success = null,
         DateTimeOffset? interactive = null,
         DateTimeOffset? nonInteractive = null,
@@ -44,10 +44,10 @@ public sealed class GuestsInactiveCheckTests
 
     private Task<IReadOnlyList<Finding>> RunAsync(
         DirectoryUser[] users,
-        GuestSignInActivity[]? activity = null,
+        UserSignInActivity[]? activity = null,
         CheckOptions? options = null) =>
         new GuestsInactiveCheck(_time).RunAsync(
-            new FakeDirectoryReader(apps: []) { Users = users, GuestSignInActivity = activity ?? [] },
+            new FakeDirectoryReader(apps: []) { Users = users, UserSignInActivity = activity ?? [] },
             options ?? new CheckOptions());
 
     [Fact]
@@ -219,7 +219,7 @@ public sealed class GuestsInactiveCheckTests
         var reader = new FakeDirectoryReader(apps: [])
         {
             Users = [Guest()],
-            GuestSignInActivityFailure = new DirectoryReadException("licence", 403),
+            UserSignInActivityFailure = new DirectoryReadException("licence", 403),
         };
 
         await Assert.ThrowsAsync<DirectoryReadException>(
@@ -232,7 +232,7 @@ public sealed class GuestsInactiveCheckTests
         var reader = new FakeDirectoryReader(apps: [])
         {
             Users = [Guest(state: ExternalUserState.PendingAcceptance)],
-            GuestSignInActivityFailure = new DirectoryReadException("licence", 403),
+            UserSignInActivityFailure = new DirectoryReadException("licence", 403),
         };
         var checks = new ICheck[] { new GuestsInactiveCheck(_time), new GuestsPendingInvitesCheck(_time) };
         var granted = new[] { "User.Read.All", "AuditLog.Read.All" };

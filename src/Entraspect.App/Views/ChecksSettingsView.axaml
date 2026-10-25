@@ -87,7 +87,7 @@
                 <TextBlock Text="Check options" Classes="sectionTitle" Margin="0" />
                 <views:InfoTip Text="Expiry windows used by the expiry checks: an item expiring within the warning window is a Warning, within the critical window a Critical. Critical must be between 0 and the warning value." />
             </StackPanel>
-            <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
+            <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto" Margin="0,4,0,0">
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Warning (days)" VerticalAlignment="Center" Margin="0,0,12,6" />
                 <NumericUpDown Grid.Row="0" Grid.Column="1" Value="{Binding ExpiryWarningDays}"
                                Minimum="0" Maximum="3650" Increment="1" FormatString="0" Width="140" Margin="0,0,0,6" />
@@ -114,10 +114,15 @@
                                Minimum="30" Maximum="365" Increment="1" FormatString="0" Width="140" Margin="0,0,0,6" />
                 <views:InfoTip Grid.Row="5" Grid.Column="2"
                                Text="Inactive guests reports guests with no successful sign-in for at least this many days, from 30 to 365." />
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="Pending invitations (days)" VerticalAlignment="Center" Margin="0,0,12,0" />
-                <NumericUpDown Grid.Row="6" Grid.Column="1" Value="{Binding GuestPendingInviteDays}"
-                               Minimum="1" Maximum="3650" Increment="1" FormatString="0" Width="140" />
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Inactive users (days)" VerticalAlignment="Center" Margin="0,0,12,6" />
+                <NumericUpDown Grid.Row="6" Grid.Column="1" Value="{Binding UserInactiveDays}"
+                               Minimum="30" Maximum="365" Increment="1" FormatString="0" Width="140" Margin="0,0,0,6" />
                 <views:InfoTip Grid.Row="6" Grid.Column="2"
+                               Text="Inactive users reports member accounts with no successful sign-in for at least this many days, from 30 to 365." />
+                <TextBlock Grid.Row="7" Grid.Column="0" Text="Pending invitations (days)" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <NumericUpDown Grid.Row="7" Grid.Column="1" Value="{Binding GuestPendingInviteDays}"
+                               Minimum="1" Maximum="3650" Increment="1" FormatString="0" Width="140" />
+                <views:InfoTip Grid.Row="7" Grid.Column="2"
                                Text="Pending guest invitations reports invitations not accepted after this many days." />
             </Grid>
             <TextBlock Text="{Binding OptionsErrorText}" Classes="error"

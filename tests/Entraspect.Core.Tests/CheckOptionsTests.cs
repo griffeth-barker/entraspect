@@ -14,6 +14,7 @@ public sealed class CheckOptionsTests
         Assert.Equal(7, options.SignInLookbackDays);
         Assert.Equal(90, options.GuestInactiveDays);
         Assert.Equal(30, options.GuestPendingInviteDays);
+        Assert.Equal(90, options.UserInactiveDays);
     }
 
     [Theory]
@@ -192,5 +193,30 @@ public sealed class CheckOptionsTests
         Assert.Equal(30, normalized.GuestPendingInviteDays);
         Assert.Equal(60, normalized.GuestInactiveDays);
         Assert.Equal("Pending invitation days must be at least 1.", CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(365)]
+    public void Valid_user_inactive_days_are_kept_and_accepted(int days)
+    {
+        var options = new CheckOptions { UserInactiveDays = days };
+
+        Assert.Equal(days, CheckOptions.Normalize(options).UserInactiveDays);
+        Assert.Null(CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(29)]
+    [InlineData(366)]
+    public void Out_of_range_user_inactive_days_fall_back_to_default_and_are_rejected(int days)
+    {
+        var options = new CheckOptions { GuestInactiveDays = 60, UserInactiveDays = days };
+
+        var normalized = CheckOptions.Normalize(options);
+
+        Assert.Equal(90, normalized.UserInactiveDays);
+        Assert.Equal(60, normalized.GuestInactiveDays);
+        Assert.Equal("Inactive user days must be between 30 and 365.", CheckOptions.Validate(options));
     }
 }

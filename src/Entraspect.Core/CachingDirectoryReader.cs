@@ -22,7 +22,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<ConditionalAccessPolicy>? _conditionalAccessPolicies;
     private IReadOnlyList<DirectoryUser>? _users;
     private IReadOnlyList<DirectoryRoleAssignment>? _directoryRoleAssignments;
-    private IReadOnlyList<GuestSignInActivity>? _guestSignInActivity;
+    private IReadOnlyList<UserSignInActivity>? _userSignInActivity;
     private IReadOnlyList<DirectoryRoleDefinition>? _directoryRoleDefinitions;
     private bool? _securityDefaultsEnabled;
     private (DateTimeOffset Since, IReadOnlyDictionary<string, SingleFactorSignIns> SignIns)? _singleFactorSignIns;
@@ -30,6 +30,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private AuthorizationPolicySettings? _authorizationPolicy;
     private CrossTenantAccessSettings? _crossTenantAccessDefaults;
     private IReadOnlyList<CrossTenantAccessSettings>? _crossTenantAccessPartners;
+    private IReadOnlyList<RiskyUser>? _riskyUsers;
     private readonly Dictionary<string, IReadOnlyList<string>> _groupTransitiveUserIds =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PerUserMfaState> _perUserMfaStates = new(StringComparer.OrdinalIgnoreCase);
@@ -126,11 +127,11 @@ public sealed class CachingDirectoryReader : IDirectoryReader
             await _inner.GetDirectoryRoleAssignmentsAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public async Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+    public async Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(
         CancellationToken cancellationToken = default)
     {
-        return _guestSignInActivity ??=
-            await _inner.GetGuestSignInActivityAsync(cancellationToken).ConfigureAwait(false);
+        return _userSignInActivity ??=
+            await _inner.GetUserSignInActivityAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
@@ -229,5 +230,10 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     {
         return _crossTenantAccessPartners ??=
             await _inner.GetCrossTenantAccessPartnersAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default)
+    {
+        return _riskyUsers ??= await _inner.GetRiskyUsersAsync(cancellationToken).ConfigureAwait(false);
     }
 }

@@ -129,9 +129,12 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
         UsersFailure is { } failure ? throw failure : Task.FromResult(Users);
 
+    /// <summary>When set, <see cref="GetDirectoryRoleAssignmentsAsync"/> throws it.</summary>
+    public DirectoryReadException? RoleAssignmentsFailure { get; init; }
+
     public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
         CancellationToken cancellationToken = default) =>
-        Task.FromResult(RoleAssignments);
+        RoleAssignmentsFailure is { } failure ? throw failure : Task.FromResult(RoleAssignments);
 
     public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(
         string groupId,
@@ -206,10 +209,10 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         CrossTenantPartnersFailure is { } failure ? throw failure : Task.FromResult(CrossTenantPartners);
 
-    public IReadOnlyList<GuestSignInActivity> GuestSignInActivity { get; init; } = [];
+    public IReadOnlyList<UserSignInActivity> UserSignInActivity { get; init; } = [];
 
-    /// <summary>When set, <see cref="GetGuestSignInActivityAsync"/> throws it.</summary>
-    public DirectoryReadException? GuestSignInActivityFailure { get; init; }
+    /// <summary>When set, <see cref="GetUserSignInActivityAsync"/> throws it.</summary>
+    public DirectoryReadException? UserSignInActivityFailure { get; init; }
 
     public IReadOnlyList<DirectoryRoleDefinition> RoleDefinitions { get; init; } = [];
 
@@ -219,11 +222,19 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     /// <summary>When set, <see cref="GetUsersAsync"/> throws it.</summary>
     public DirectoryReadException? UsersFailure { get; init; }
 
-    public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+    public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(
         CancellationToken cancellationToken = default) =>
-        GuestSignInActivityFailure is { } failure ? throw failure : Task.FromResult(GuestSignInActivity);
+        UserSignInActivityFailure is { } failure ? throw failure : Task.FromResult(UserSignInActivity);
 
     public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
         CancellationToken cancellationToken = default) =>
         RoleDefinitionsFailure is { } failure ? throw failure : Task.FromResult(RoleDefinitions);
+
+    public IReadOnlyList<RiskyUser> RiskyUsers { get; init; } = [];
+
+    /// <summary>When set, <see cref="GetRiskyUsersAsync"/> throws it.</summary>
+    public DirectoryReadException? RiskyUsersFailure { get; init; }
+
+    public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default) =>
+        RiskyUsersFailure is { } failure ? throw failure : Task.FromResult(RiskyUsers);
 }

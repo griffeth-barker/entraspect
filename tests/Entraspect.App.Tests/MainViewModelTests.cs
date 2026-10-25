@@ -1173,11 +1173,14 @@ public sealed class MainViewModelTests : IDisposable
         public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
 
-        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default) =>
-            Task.FromResult<IReadOnlyList<GuestSignInActivity>>([]);
+        public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<UserSignInActivity>>([]);
 
         public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([]);
+
+        public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<RiskyUser>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -1239,10 +1242,13 @@ public sealed class MainViewModelTests : IDisposable
         public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
-        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default) =>
+        public Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -1381,7 +1387,7 @@ public sealed class MainViewModelTests : IDisposable
             return [];
         }
 
-        public async Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<UserSignInActivity>> GetUserSignInActivityAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
@@ -1389,6 +1395,13 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<RiskyUser>> GetRiskyUsersAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

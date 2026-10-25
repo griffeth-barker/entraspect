@@ -216,6 +216,9 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     public partial decimal? GuestPendingInviteDays { get; set; }
 
     [ObservableProperty]
+    public partial decimal? UserInactiveDays { get; set; }
+
+    [ObservableProperty]
     public partial string OptionsErrorText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -234,6 +237,8 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     partial void OnGuestInactiveDaysChanged(decimal? value) => SaveOptions();
 
     partial void OnGuestPendingInviteDaysChanged(decimal? value) => SaveOptions();
+
+    partial void OnUserInactiveDaysChanged(decimal? value) => SaveOptions();
 
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
     public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
@@ -268,6 +273,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         SignInLookbackDays = options.SignInLookbackDays;
         GuestInactiveDays = options.GuestInactiveDays;
         GuestPendingInviteDays = options.GuestPendingInviteDays;
+        UserInactiveDays = options.UserInactiveDays;
         _loading = false;
     }
 
@@ -281,7 +287,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         if (ExpiryWarningDays is not { } warning || ExpiryCriticalDays is not { } critical ||
             NewGroupGraceDays is not { } grace || ReportOnlyWarningDays is not { } reportOnly ||
             SignInLookbackDays is not { } lookback || GuestInactiveDays is not { } guestInactive ||
-            GuestPendingInviteDays is not { } guestPendingInvite)
+            GuestPendingInviteDays is not { } guestPendingInvite || UserInactiveDays is not { } userInactive)
         {
             OptionsErrorText = "Enter a number of days.";
             return;
@@ -296,6 +302,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
             SignInLookbackDays = (int)lookback,
             GuestInactiveDays = (int)guestInactive,
             GuestPendingInviteDays = (int)guestPendingInvite,
+            UserInactiveDays = (int)userInactive,
         };
 
         if (CheckOptions.Validate(options) is { } error)

@@ -90,6 +90,32 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void User_inactive_days_are_saved_immediately()
+    {
+        var vm = Create();
+
+        vm.UserInactiveDays = 180;
+
+        Assert.Equal(string.Empty, vm.OptionsErrorText);
+        Assert.Equal(180, new SettingsStore(_dir).Load(out _).CheckOptions.UserInactiveDays);
+        Assert.Equal(180, Create().UserInactiveDays);
+    }
+
+    [Theory]
+    [InlineData(29)]
+    [InlineData(366)]
+    public void Out_of_range_user_inactive_days_show_an_error_and_are_not_saved(int days)
+    {
+        var vm = Create();
+
+        vm.UserInactiveDays = days;
+
+        Assert.Contains("Inactive user days must be between 30 and 365.", vm.OptionsErrorText);
+        Assert.Contains("Not saved", vm.OptionsErrorText);
+        Assert.Equal(90, new SettingsStore(_dir).Load(out _).CheckOptions.UserInactiveDays);
+    }
+
+    [Fact]
     public void Zero_guest_pending_invite_days_show_an_error_and_are_not_saved()
     {
         var vm = Create();

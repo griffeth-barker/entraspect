@@ -65,6 +65,15 @@ public sealed class CsvFindingExporterTests
     }
 
     [Fact]
+    public async Task Writes_the_category_by_name()
+    {
+        var bytes = await WriteAsync(ExportTestData.RolesReport());
+
+        var lines = Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3).Split("\r\n");
+        Assert.StartsWith("roles-check,Admin role counts,RolesAndAdmins,", lines[1]);
+    }
+
+    [Fact]
     public async Task Empty_optional_fields_keep_every_column()
     {
         var report = ExportTestData.Report() with

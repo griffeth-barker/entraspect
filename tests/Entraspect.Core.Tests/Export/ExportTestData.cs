@@ -18,6 +18,8 @@ internal static class ExportTestData
     public static readonly ICheck SettingsCheck =
         new FakeCheck("settings-check", "External collaboration", CheckCategory.ExternalIdentities);
 
+    public static readonly ICheck RolesCheck = new FakeCheck("roles-check", "Admin role counts", CheckCategory.RolesAndAdmins);
+
     public static Finding ExpiringSecret() => new()
     {
         CheckId = AppCheck.Id,
@@ -52,6 +54,37 @@ internal static class ExportTestData
         Message = "Anyone in the organisation, guests included, can invite guests.",
         Value = "Everyone",
     };
+
+    /// <summary>
+    /// A report with one check in a category added between others, so a test can tell the name from the number.
+    /// </summary>
+    public static ScanReport RolesReport() => ScanReport.Create(
+        Time.GetUtcNow(),
+        "Contoso test",
+        TenantId,
+        "1.2.3",
+        [RolesCheck],
+        [
+            new CheckResult
+            {
+                CheckId = RolesCheck.Id,
+                Status = CheckResultStatus.Succeeded,
+                Findings =
+                [
+                    new Finding
+                    {
+                        CheckId = RolesCheck.Id,
+                        Severity = Severity.Warning,
+                        ObjectType = "Role",
+                        ObjectId = "00000000-0000-0000-0000-0000000000r1",
+                        ObjectDisplayName = "Global Administrator",
+                        Message = "Only 1 user holds Global Administrator.",
+                        Value = "1",
+                    },
+                ],
+                CompletedAt = Time.GetUtcNow(),
+            },
+        ]);
 
     /// <summary>A report with one check about tenant settings, whose finding has a current value.</summary>
     public static ScanReport SettingsReport() => ScanReport.Create(

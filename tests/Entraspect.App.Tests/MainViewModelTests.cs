@@ -118,6 +118,37 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Sections_follow_the_entra_admin_center_order()
+    {
+        Assert.Equal(
+            new[]
+            {
+                "Users", "Groups", "App registrations", "Enterprise apps", "Roles & admins", "Conditional Access",
+                "External Identities",
+            },
+            Enum.GetValues<CheckCategory>().Select(MainViewModel.CategoryTitle));
+    }
+
+    [Fact]
+    public void A_section_without_checks_is_hidden()
+    {
+        var vm = CreateViewModel();
+
+        Assert.DoesNotContain(vm.Checks, c => c.Category == CheckCategory.RolesAndAdmins);
+        Assert.DoesNotContain(vm.MenuItems, i => i.Title == "Roles & admins");
+    }
+
+    [Fact]
+    public void Every_section_has_its_own_fluent_symbol_icon()
+    {
+        var icons = Enum.GetValues<CheckCategory>().Select(MainViewModel.CategoryIcon).ToList();
+
+        Assert.All(icons, icon => Assert.True(Enum.TryParse<FluentAvalonia.UI.Controls.FASymbol>(icon, out _), icon));
+        Assert.Equal(icons.Count, icons.Distinct().Count());
+        Assert.Equal("Admin", MainViewModel.CategoryIcon(CheckCategory.RolesAndAdmins));
+    }
+
+    [Fact]
     public void Selecting_a_disabled_page_or_a_section_keeps_the_current_page()
     {
         var vm = CreateViewModel();

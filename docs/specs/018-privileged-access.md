@@ -28,12 +28,13 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 
 All four: category `RolesAndAdmins`. "Admins" means users who hold at least one role that `PrivilegedRoles` rates Tier 0 or Privileged, through `RoleHolders`: active assignments only, at any scope, directly or through a role-assignable group. Members and guests both count; guests are also reported by spec 016. Severity names the highest tier the user holds.
 
-User columns as spec 016: "Display name", "User principal name", "Object ID", and `SubObjectDisplayName` "Roles", listing the user's privileged roles, highest tier first, comma-separated. Never combine two properties in one field: the roles list is one property (the user's roles).
+User columns as spec 016: "Display name", "User principal name", "Object ID", and `SubObjectDisplayName` "Roles", listing the user's privileged roles, highest tier first, then by name, comma-separated. Never combine two properties in one field: the roles list is one property (the user's roles).
 
 **`roles-admin-counts`** (title "Admin role counts"). Requires `User.Read.All`, `RoleManagement.Read.Directory` and `GroupMember.Read.All`. Findings are about roles, not users: `ObjectType` `Role`, `ObjectId` the role template ID, `ObjectDisplayName` the role name. Labels "Role", "Object ID" and `Value` "Holders"; the user columns are hidden.
 
 - Global Administrator held by 5 or more distinct users: **Warning**, "N users hold Global Administrator. Microsoft recommends fewer than five."
 - Global Administrator held by fewer than 2 users: **Warning**, "Only N user(s) hold Global Administrator. Keep at least two, such as two emergency access accounts, so you can't lose access to the tenant."
+- Messages use the singular or plural as the number needs ("Only 1 user holds", "1 licence"), here and in the other checks.
 - Users holding Tier 0 or Privileged roles: count distinct (user, role) pairs. 10 or more: **Info**, "N privileged role assignments. Microsoft recommends fewer than ten." `ObjectDisplayName` "Privileged roles", `ObjectId` empty.
 - Assignments through groups count once per user who receives the role.
 
@@ -45,9 +46,11 @@ User columns as spec 016: "Display name", "User principal name", "Object ID", an
 
 **`roles-admins-no-phishing-resistant-mfa`** (title "No phishing-resistant MFA"). Requires the same three permissions plus `AuditLog.Read.All`; `RequiredLicence` P1, reading spec 005's registration report (`GetUserRegistrationsAsync`, cached per scan).
 
-- Phishing-resistant methods are passkeys (device-bound, including Microsoft Authenticator and Windows Hello passkeys), FIDO2 security keys, Windows Hello for Business and certificate-based authentication (multifactor). Put the matching `methodsRegistered` values in one Core list, `PhishingResistantMethods`, taking the exact strings from the Graph `userRegistrationDetails` docs and the authentication methods activity docs. Add a comment with the URL and date you read them. Match them case-insensitively, and treat unknown values as not phishing-resistant.
+- Phishing-resistant methods are passkeys (device-bound, including Microsoft Authenticator and Windows Hello passkeys), FIDO2 security keys, Windows Hello for Business, Platform Credential for macOS (Microsoft's phishing-resistant authentication strength counts it with Windows Hello for Business) and certificate-based authentication. Put the matching `methodsRegistered` values in one Core list, `PhishingResistantMethods`: `passKeyDeviceBound`, `passKeyDeviceBoundAuthenticator`, `passKeyDeviceBoundWindowsHello`, `fido2SecurityKey`, `fido2`, `windowsHelloForBusiness`, `macOsSecureEnclaveKey` and `certificateBasedAuthentication`. The Graph `userRegistrationDetails` docs and the authentication methods activity docs don't list the values: only `passKeyDeviceBound` appears there, and the rest come from observed report output. Add a comment saying so, with the URL and date you read the docs. Match them case-insensitively, and treat unknown values as not phishing-resistant.
 - An admin with none of them registered: Tier 0 **Warning**, Privileged **Info**, "No phishing-resistant method registered (passkey, security key, Windows Hello or certificate). Admins should sign in with one."
 - An admin missing from the report: **Info**, "No registration details for this admin." Spec 005 explains that the report can leave users out.
+- Disabled admins are skipped: the report never lists disabled users, and spec 017 reports disabled admins. The other three checks include disabled admins, since the role is still assigned.
+- Like spec 005's checks, it implements `GetDataUpdatedAsync`, so its page shows when Microsoft last updated the report.
 - Admins without any MFA are spec 005's (Critical). This check is about the strength of the MFA, so both may list the same admin.
 
 **`roles-licensed-admins`** (title "Licensed admins"). Requires the same three permissions.
@@ -65,12 +68,12 @@ Tests with a fake reader:
 
 ## Step 3: Graph implementation
 
-No new endpoints: users with `onPremisesSyncEnabled` and `assignedLicenses` (spec 017), role assignments and definitions (specs 008 and 016), transitive group members (spec 008), and the registration report (spec 005). If the registration report's `$select` leaves out `methodsRegistered`, add it. Keep any mapping change in a pure, tested method. All v1.0 GETs, no `$batch`, no beta.
+No new endpoints: users with `onPremisesSyncEnabled` and `assignedLicenses` (spec 017), role assignments and definitions (specs 008 and 016), transitive group members (spec 008), and the registration report (spec 005). The registration report read asks only for users who aren't MFA capable (`$filter=isMfaCapable eq false`), which leaves out every admin with a phishing-resistant method. Drop the filter and read the whole report, once per scan; spec 005's checks test `IsMfaCapable` in code, so their results don't change. Update `GetUserRegistrationsAsync`'s doc comment. The read has no `$select`, so `methodsRegistered` is already returned. Keep any mapping change in a pure, tested method. All v1.0 GETs, no `$batch`, no beta.
 
 ## Step 4: Docs
 
 - `docs/setup.md`: add the four checks to the rows of the permissions they use, and note that No phishing-resistant MFA needs P1 or P2.
-- `README.md`: add the Roles & admins section and its four checks to "What it checks".
+- `README.md`: add the Roles & admins section and its four checks to "What it checks", and add Roles & admins and External Identities to the section list under "Using entraspect".
 - `AGENTS.md`: mention `PhishingResistantMethods` next to `PrivilegedRoles`.
 
 ## Acceptance criteria
@@ -95,3 +98,8 @@ No new endpoints: users with `onPremisesSyncEnabled` and `assignedLicenses` (spe
 - **Scoped assignments:** a role assigned to an administrative unit counts as if tenant-wide. Should the admin unit name be shown?
 - **Custom roles:** never privileged in `PrivilegedRoles`; see spec 017.
 - **Mailboxes:** a licence is a stand-in for "has a mailbox". Reading mailboxes needs Exchange Online permissions, which entraspect doesn't use.
+- **`methodsRegistered` values aren't documented:** Microsoft's docs name only `passKeyDeviceBound`. The other values in `PhishingResistantMethods` come from observed report output, so a renamed or new value would make an admin look unprotected (a false finding, never a missed one). Check the values against a dev-tenant admin's report entry, and revisit if Microsoft documents them.
+- **Synced passkeys:** Microsoft treats synced passkeys (for example iCloud Keychain or Google Password Manager) as phishing-resistant, but unattested. They're left out: the spec counts device-bound passkeys only, and no `methodsRegistered` value for them is known.
+- **Single-factor versus multifactor certificates:** the report has one `certificateBasedAuthentication` value, so a certificate the CBA binding policy treats as single-factor counts as phishing-resistant too.
+- **Disabled admins:** No phishing-resistant MFA skips them, because the report never lists disabled users and spec 017 reports them. The other three checks include them.
+- **Active assignments only:** a tenant that makes Global Administrator eligible-only through PIM has few or no active holders, so it gets the "fewer than 2" Warning. Counting eligible holders waits for the PIM question above.

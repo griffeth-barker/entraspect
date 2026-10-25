@@ -55,6 +55,14 @@ public sealed class JsonScanExporterTests
     }
 
     [Fact]
+    public async Task Writes_the_category_by_name()
+    {
+        using var doc = JsonDocument.Parse(await WriteAsync(ExportTestData.RolesReport()));
+
+        Assert.Equal("RolesAndAdmins", doc.RootElement.GetProperty("checks")[0].GetProperty("category").GetString());
+    }
+
+    [Fact]
     public async Task Includes_a_failed_check_with_its_error()
     {
         using var doc = JsonDocument.Parse(await WriteAsync(ExportTestData.Report()));

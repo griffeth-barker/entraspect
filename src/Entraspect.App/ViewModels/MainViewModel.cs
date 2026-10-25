@@ -579,17 +579,20 @@ public partial class MainViewModel : ViewModelBase
         CheckCategory.Groups => "Groups",
         CheckCategory.AppRegistrations => "App registrations",
         CheckCategory.EnterpriseApps => "Enterprise apps",
+        CheckCategory.RolesAndAdmins => "Roles & admins",
         CheckCategory.ConditionalAccess => "Conditional Access",
         CheckCategory.ExternalIdentities => "External Identities",
         _ => category.ToString(),
     };
 
-    private static string CategoryIcon(CheckCategory category) => category switch
+    /// <summary>The FluentAvalonia symbol name of a section's icon.</summary>
+    public static string CategoryIcon(CheckCategory category) => category switch
     {
         CheckCategory.Users => "Contact",
         CheckCategory.Groups => "People",
         CheckCategory.AppRegistrations => "AllApps",
         CheckCategory.EnterpriseApps => "Globe",
+        CheckCategory.RolesAndAdmins => "Admin",
         CheckCategory.ConditionalAccess => "Permissions",
         CheckCategory.ExternalIdentities => "Share",
         _ => "AllApps",

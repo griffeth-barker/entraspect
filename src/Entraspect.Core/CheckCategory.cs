@@ -10,6 +10,7 @@ public enum CheckCategory
     Groups,
     AppRegistrations,
     EnterpriseApps,
+    RolesAndAdmins,
     ConditionalAccess,
     ExternalIdentities,
 }

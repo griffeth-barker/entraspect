@@ -161,8 +161,8 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             IsRoleAssignable = group.IsAssignableToRole == true,
             CreatedDateTime = group.CreatedDateTime,
             HasMembers = hasMembers,
-            // Owners Graph does return are still counted for kinds it documents as unavailable, so hybrid groups
-            // with cloud owners are recognised; an empty list there is unknown.
+            // Owners Graph does return are still counted for the other kinds, so groups with cloud owners are
+            // recognised; an empty list there is unknown.
             HasOwners = OwnersAvailable(kind, isSynced) || hasOwners ? hasOwners : null,
         };
     }
@@ -188,12 +188,15 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     }
 
     /// <summary>
-    /// Graph documents owners as unavailable for groups synced from on-premises, distribution groups and
-    /// mail-enabled security groups, so an empty owner list for them means unknown, not none. Groups converted to
-    /// cloud management (source of authority) have <c>onPremisesSyncEnabled</c> null and count as cloud groups.
+    /// Whether an empty owner list means the group has no owners in Entra ID. True for Microsoft 365 and security
+    /// groups, including synced security groups: their owner may still be set in Active Directory (managedBy),
+    /// which the no-owners check says. Graph documents owners as unavailable for distribution groups,
+    /// mail-enabled security groups and other synced groups, so an empty list for them means unknown. Groups
+    /// converted to cloud management (source of authority) have <c>onPremisesSyncEnabled</c> null and count as
+    /// cloud groups.
     /// </summary>
     public static bool OwnersAvailable(GroupKind kind, bool isSyncedFromOnPremises) =>
-        !isSyncedFromOnPremises && kind is GroupKind.Microsoft365 or GroupKind.Security;
+        kind == GroupKind.Security || (kind == GroupKind.Microsoft365 && !isSyncedFromOnPremises);
 
     private static bool HasGroupType(IEnumerable<string>? groupTypes, string groupType) =>
         groupTypes?.Any(t => string.Equals(t, groupType, StringComparison.OrdinalIgnoreCase)) == true;

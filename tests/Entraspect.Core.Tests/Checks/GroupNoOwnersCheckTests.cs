@@ -74,11 +74,40 @@ public sealed class GroupNoOwnersCheckTests
     [Theory]
     [InlineData(null)]
     [InlineData(false)]
-    public async Task Synced_group_has_no_finding(bool? hasOwners)
+    public async Task Synced_group_of_other_kinds_has_no_finding(bool? hasOwners)
     {
         Assert.Empty(await RunAsync(
-            Group("1", GroupKind.Security, isSynced: true, hasOwners: hasOwners),
-            Group("2", GroupKind.Microsoft365, isSynced: true, hasOwners: hasOwners)));
+            Group("1", GroupKind.Microsoft365, isSynced: true, hasOwners: hasOwners),
+            Group("2", GroupKind.MailEnabledSecurity, isSynced: true, hasOwners: hasOwners),
+            Group("3", GroupKind.Distribution, isSynced: true, hasOwners: hasOwners)));
+    }
+
+    [Fact]
+    public async Task Ownerless_synced_security_group_is_info_that_mentions_managed_by()
+    {
+        var f = Assert.Single(await RunAsync(Group("1", GroupKind.Security, isSynced: true, hasOwners: false)));
+
+        Assert.Equal(Severity.Info, f.Severity);
+        Assert.Equal(
+            "Synced security group has no owners in Entra ID. Its owner may be set only in Active Directory " +
+            "(managedBy), which isn't synced.",
+            f.Message);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(null)]
+    public async Task Synced_security_group_with_owners_or_unknown_owners_has_no_finding(bool? hasOwners)
+    {
+        Assert.Empty(await RunAsync(Group("1", GroupKind.Security, isSynced: true, hasOwners: hasOwners)));
+    }
+
+    [Fact]
+    public async Task Synced_security_group_inside_the_grace_period_is_skipped()
+    {
+        var created = new DateTimeOffset(2026, 1, 9, 0, 0, 0, TimeSpan.Zero);
+
+        Assert.Empty(await RunAsync(Group("1", GroupKind.Security, isSynced: true, hasOwners: false, created: created)));
     }
 
     [Fact]

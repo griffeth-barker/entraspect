@@ -86,10 +86,22 @@ public sealed class GroupMappingTests
         Assert.Null(GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false).HasOwners);
     }
 
+    [Fact]
+    public void MapGroup_synced_security_group_with_no_owners_has_no_owners_in_entra()
+    {
+        var group = new Group { GroupTypes = [], SecurityEnabled = true, MailEnabled = false, OnPremisesSyncEnabled = true };
+
+        var result = GraphDirectoryReader.MapGroup(group, hasMembers: true, hasOwners: false);
+
+        Assert.True(result.IsSyncedFromOnPremises);
+        Assert.False(result.HasOwners);
+    }
+
     [Theory]
-    [InlineData(new string[0], true, false)]
+    [InlineData(new string[0], true, true)]
+    [InlineData(new string[0], false, true)]
     [InlineData(new[] { "Unified" }, false, true)]
-    public void MapGroup_owners_are_unknown_for_synced_groups(string[] groupTypes, bool securityEnabled, bool mailEnabled)
+    public void MapGroup_owners_are_unknown_for_other_synced_groups(string[] groupTypes, bool securityEnabled, bool mailEnabled)
     {
         var group = new Group
         {

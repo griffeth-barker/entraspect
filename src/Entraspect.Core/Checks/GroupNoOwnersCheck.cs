@@ -18,10 +18,11 @@ public sealed class GroupNoOwnersCheck : ICheck
     public string Title => "Groups with no owners";
 
     public string Description =>
-        "Surfaces Microsoft 365 and security groups with no owners. Groups synced from on-premises, distribution " +
-        "groups and mail-enabled security groups are reported only when Microsoft Graph returns their owners: Graph " +
-        "documents owners as unavailable for them, so an empty list doesn't mean no owner. Groups converted to " +
-        "cloud management are checked like cloud groups. Groups newer than the new group grace period are skipped.";
+        "Surfaces Microsoft 365 and security groups with no owners, including security groups synced from " +
+        "on-premises, which are Info because their owner may be set only in Active Directory (managedBy). " +
+        "Distribution and mail-enabled security groups are skipped: Microsoft Graph documents their owners as " +
+        "unavailable. Groups converted to cloud management are checked like cloud groups. Groups newer than the " +
+        "new group grace period are skipped.";
 
     public CheckCategory Category => CheckCategory.Groups;
 
@@ -52,11 +53,22 @@ public sealed class GroupNoOwnersCheck : ICheck
 
     private Finding? Evaluate(DirectoryGroup group, CheckOptions options, DateTimeOffset now)
     {
-        // Graph documents owners as unavailable for synced groups, so the reader never reports them as ownerless;
-        // this guards it.
-        if (group.HasOwners is not false || group.IsSyncedFromOnPremises || GroupCheckRules.IsNew(group, options, now))
+        if (group.HasOwners is not false || GroupCheckRules.IsNew(group, options, now))
         {
             return null;
+        }
+
+        // Active Directory's managedBy isn't synced to Entra ID, so a synced group can have an owner Graph can't
+        // see. Only synced security groups are reported; for other synced kinds owners aren't available at all.
+        if (group.IsSyncedFromOnPremises)
+        {
+            return group.Kind == GroupKind.Security
+                ? MakeFinding(
+                    group,
+                    Severity.Info,
+                    "Synced security group has no owners in Entra ID. Its owner may be set only in Active Directory " +
+                    "(managedBy), which isn't synced.")
+                : null;
         }
 
         return group.Kind switch

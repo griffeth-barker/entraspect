@@ -9,9 +9,9 @@ Status: early development. See `docs/specs/` for the roadmap.
 - **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
   - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.
-- **Groups with no owners** (groups): Microsoft 365 and security groups with no owners. Microsoft Graph documents owners as unavailable for synced, distribution and mail-enabled security groups, so those are never reported as ownerless. Groups converted to cloud management are checked like cloud groups.
+- **Groups with no owners** (groups): Microsoft 365 and security groups with no owners, including security groups synced from on-premises. Microsoft Graph documents owners as unavailable for distribution and mail-enabled security groups, so those are never reported. Groups converted to cloud management are checked like cloud groups.
   - **Warning:** a Microsoft 365 group with no owners. No one can manage its membership, and it can't be renewed when group expiration is on.
-  - **Info:** a security group with no owners.
+  - **Info:** a security group with no owners. For a synced security group, the owner may be set only in Active Directory (managedBy), which isn't synced to Entra ID.
 
 Both group checks skip groups created in the last 7 days (the new group grace period, set in **Settings** > **Checks**).
 

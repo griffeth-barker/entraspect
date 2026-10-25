@@ -161,4 +161,73 @@ public sealed class SettingsStoreTests
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
         }
     }
+
+    [Fact]
+    public void Time_zone_defaults_to_utc_and_round_trips()
+    {
+        var dir = TempDir();
+        try
+        {
+            var store = new SettingsStore(dir);
+            Assert.Equal(AppSettings.UtcTimeZone, store.Load(out _).TimeZone);
+
+            store.Save(new AppSettings { TimeZone = "Europe/Berlin" });
+
+            Assert.Equal("Europe/Berlin", store.Load(out var error).TimeZone);
+            Assert.Null(error);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
+    [Theory]
+    [InlineData("{\"UseLocalTime\":true}", "Local")]
+    [InlineData("{\"useLocalTime\":false}", "UTC")]
+    [InlineData("{\"UseLocalTime\":true,\"TimeZone\":\"Asia/Tokyo\"}", "Asia/Tokyo")]
+    [InlineData("{\"TimeZone\":\"local\"}", "Local")]
+    [InlineData("{\"TimeZone\":\"\"}", "UTC")]
+    [InlineData("{\"TimeZone\":null}", "UTC")]
+    public void Older_files_and_odd_values_load_a_time_zone(string json, string expected)
+    {
+        var dir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "settings.json"), json);
+
+            var loaded = new SettingsStore(dir).Load(out var error);
+
+            Assert.Null(error);
+            Assert.Equal(expected, loaded.TimeZone);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
+    [Fact]
+    public void Use_local_time_is_no_longer_written()
+    {
+        var dir = TempDir();
+        try
+        {
+            Directory.CreateDirectory(dir);
+            var path = Path.Combine(dir, "settings.json");
+            File.WriteAllText(path, "{\"UseLocalTime\":true}");
+            var store = new SettingsStore(dir);
+
+            store.Save(store.Load(out _));
+
+            var text = File.ReadAllText(path);
+            Assert.DoesNotContain("UseLocalTime", text);
+            Assert.Contains("\"TimeZone\": \"Local\"", text);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
 }

@@ -31,9 +31,6 @@ public sealed class MainViewModelTests : IDisposable
 
     private static readonly DateTimeOffset Now = new(2026, 1, 15, 12, 0, 0, TimeSpan.Zero);
 
-    private static readonly TimeZoneInfo PlusTwoHours =
-        TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
-
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"entraspect-main-{Guid.NewGuid()}");
     private readonly FakeTimeProvider _time = new(Now);
     private readonly FakeUserInteraction _prompt = new();
@@ -344,7 +341,7 @@ public sealed class MainViewModelTests : IDisposable
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         await vm.ScanCommand.ExecuteAsync(null);
-        vm.Preferences.UseLocalTime = true;
+        SelectTimeZone(vm, AppSettings.LocalTimeZone);
 
         await vm.ExportCommand.ExecuteAsync(null);
 
@@ -776,12 +773,27 @@ public sealed class MainViewModelTests : IDisposable
         await vm.ScanCommand.ExecuteAsync(null);
         Assert.Equal("Last scan: 2026-01-15 12:00 UTC", vm.Overview.LastScanText);
 
-        vm.Preferences.UseLocalTime = true;
+        SelectTimeZone(vm, AppSettings.LocalTimeZone);
 
         Assert.Equal("Last scan: 2026-01-15 14:00", vm.Overview.LastScanText);
         Assert.Equal("2026-01-15 14:00", vm.Overview.ConnectedAtText);
         Assert.Equal("Expires (local)", CheckPage(vm).DueHeader);
-        Assert.True(new SettingsStore(_dir).Load(out _).UseLocalTime);
+        Assert.Equal(AppSettings.LocalTimeZone, new SettingsStore(_dir).Load(out _).TimeZone);
+    }
+
+    [Fact]
+    public async Task A_chosen_time_zone_is_saved_and_reformats_shown_times()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        SelectTimeZone(vm, "Asia/Tokyo");
+
+        Assert.Equal("Last scan: 2026-01-15 21:00 (UTC+09:00)", vm.Overview.LastScanText);
+        Assert.Equal("2026-01-15 21:00 (UTC+09:00)", vm.Overview.ConnectedAtText);
+        Assert.Equal("Expires (Asia/Tokyo)", CheckPage(vm).DueHeader);
+        Assert.Equal("Asia/Tokyo", new SettingsStore(_dir).Load(out _).TimeZone);
     }
 
     [Fact]
@@ -796,6 +808,9 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(string.Empty, vm.ConnectedProfileTitle);
     }
 
+    private static void SelectTimeZone(MainViewModel vm, string id) =>
+        vm.Preferences.SelectedTimeZone = vm.Preferences.TimeZoneChoices.Single(c => c.Id == id);
+
     private MainViewModel CreateConnectableViewModel()
     {
         SaveProfiles(new ConnectionProfile { Name = "p1", TenantId = "t1", ClientId = ClientId, CertificateThumbprint = "AB" });
@@ -809,7 +824,7 @@ public sealed class MainViewModelTests : IDisposable
             new SettingsStore(_dir).Save(new AppSettings { LastUsedProfileName = lastUsed });
         }
 
-        return new MainViewModel(new ProfileStore(_dir), new SettingsStore(_dir), Connect, _prompt, _time, PlusTwoHours);
+        return new MainViewModel(new ProfileStore(_dir), new SettingsStore(_dir), Connect, _prompt, _time, TestTimeZones.Create());
     }
 
     private Task<DirectoryConnection> Connect(ConnectionProfile profile, string? password, CancellationToken ct)

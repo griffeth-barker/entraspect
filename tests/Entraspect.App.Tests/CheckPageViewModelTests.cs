@@ -178,8 +178,8 @@ public sealed class CheckPageViewModelTests
     public void Dates_follow_the_local_time_preference()
     {
         var settings = new SettingsState(new SettingsStore(TempDir()));
-        var page = CreatePage(new TimeDisplay(settings, PlusTwoHours));
-        settings.SetUseLocalTime(true);
+        var page = CreatePage(new TimeDisplay(settings, new TimeZones(PlusTwoHours, [])));
+        settings.SetTimeZone(AppSettings.LocalTimeZone);
 
         page.SetResult(Succeeded(Finding(Severity.Critical, "a", 1)));
 

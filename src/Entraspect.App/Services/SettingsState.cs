@@ -52,9 +52,10 @@ public sealed class SettingsState
 
     public string? SetCheckOptions(CheckOptions options) => Update(s => s with { CheckOptions = options });
 
-    public string? SetUseLocalTime(bool useLocalTime) => useLocalTime == Current.UseLocalTime
+    /// <param name="timeZone"><see cref="AppSettings.UtcTimeZone"/>, <see cref="AppSettings.LocalTimeZone"/> or a zone ID.</param>
+    public string? SetTimeZone(string timeZone) => timeZone == Current.TimeZone
         ? null
-        : Update(s => s with { UseLocalTime = useLocalTime });
+        : Update(s => s with { TimeZone = timeZone });
 
     public string? SetLastUsedProfile(string profileName) => profileName == Current.LastUsedProfileName
         ? null

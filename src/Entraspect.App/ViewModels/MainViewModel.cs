@@ -46,13 +46,13 @@ public partial class MainViewModel : ViewModelBase
         Func<ConnectionProfile, string?, CancellationToken, Task<DirectoryConnection>> connect,
         IUserInteraction ui,
         TimeProvider timeProvider,
-        TimeZoneInfo? localTimeZone = null)
+        TimeZones? timeZones = null)
     {
         _connect = connect;
         _ui = ui;
         _timeProvider = timeProvider;
         _settings = new SettingsState(settingsStore);
-        Time = new TimeDisplay(_settings, localTimeZone);
+        Time = new TimeDisplay(_settings, timeZones);
 
         Checks = CheckCatalog.All(timeProvider);
         ExcessPermissions = new ExcessPermissionsViewModel();
@@ -93,7 +93,7 @@ public partial class MainViewModel : ViewModelBase
             .Add(new NavItemViewModel(NavItemKind.SettingsPage, "About", "Important", About));
         FooterItems.Add(SettingsItem);
 
-        // Turning a check on or off changes which missing permissions the banners list; the time preference
+        // Turning a check on or off changes which missing permissions the banners list; the time zone preference
         // changes how every date is shown.
         _settings.Changed += (_, _) =>
         {
@@ -545,7 +545,7 @@ public partial class MainViewModel : ViewModelBase
         ExportCommand.NotifyCanExecuteChanged();
     }
 
-    /// <summary>Re-shows every date and time after the UTC or local time preference changes.</summary>
+    /// <summary>Re-shows every date and time after the time zone preference changes.</summary>
     private void RefreshTimes()
     {
         ApplyResults(_lastResults, _lastScanAt);

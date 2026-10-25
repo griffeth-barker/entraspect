@@ -6,7 +6,8 @@ namespace Entraspect.App.Services;
 
 /// <summary>
 /// Saves application settings as settings.json next to profiles.json. CheckOptions values are validated on load with
-/// <see cref="CheckOptions.Normalize"/>: values that break their rule fall back to their defaults.
+/// <see cref="CheckOptions.Normalize"/>: values that break their rule fall back to their defaults. A file written before
+/// the time zone choice (<c>"UseLocalTime": true</c> and no <c>TimeZone</c>) loads as local time.
 /// </summary>
 public sealed class SettingsStore
 {
@@ -41,12 +42,12 @@ public sealed class SettingsStore
         try
         {
             var json = File.ReadAllText(_filePath);
-            var raw = JsonSerializer.Deserialize<AppSettings>(json, Options) ?? new AppSettings();
+            var raw = JsonSerializer.Deserialize<SettingsFile>(json, Options) ?? new SettingsFile();
             return new AppSettings
             {
                 DisabledCheckIds = raw.DisabledCheckIds ?? new List<string>(),
                 LastUsedProfileName = raw.LastUsedProfileName,
-                UseLocalTime = raw.UseLocalTime,
+                TimeZone = TimeZoneFrom(raw),
                 CheckOptions = CheckOptions.Normalize(raw.CheckOptions),
             };
         }
@@ -72,6 +73,39 @@ public sealed class SettingsStore
         File.WriteAllText(_filePath, json);
     }
 
+    private static string TimeZoneFrom(SettingsFile raw)
+    {
+        var zone = raw.TimeZone?.Trim();
+        if (string.IsNullOrEmpty(zone))
+        {
+            return raw.UseLocalTime == true ? AppSettings.LocalTimeZone : AppSettings.UtcTimeZone;
+        }
+
+        if (string.Equals(zone, AppSettings.UtcTimeZone, StringComparison.OrdinalIgnoreCase))
+        {
+            return AppSettings.UtcTimeZone;
+        }
+
+        return string.Equals(zone, AppSettings.LocalTimeZone, StringComparison.OrdinalIgnoreCase)
+            ? AppSettings.LocalTimeZone
+            : zone;
+    }
+
     private static string DefaultDirectory() =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "entraspect");
+
+    /// <summary>settings.json as written, including fields older versions wrote. Only <see cref="AppSettings"/> is saved.</summary>
+    private sealed class SettingsFile
+    {
+        public List<string>? DisabledCheckIds { get; init; }
+
+        public CheckOptions? CheckOptions { get; init; }
+
+        public string? LastUsedProfileName { get; init; }
+
+        public string? TimeZone { get; init; }
+
+        /// <summary>Written before the time zone choice; read only to migrate to <see cref="TimeZone"/>.</summary>
+        public bool? UseLocalTime { get; init; }
+    }
 }

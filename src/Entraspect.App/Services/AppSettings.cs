@@ -8,12 +8,21 @@ namespace Entraspect.App.Services;
 /// </summary>
 public sealed record AppSettings
 {
+    /// <summary><see cref="TimeZone"/> value for UTC, the default.</summary>
+    public const string UtcTimeZone = "UTC";
+
+    /// <summary><see cref="TimeZone"/> value for the computer's own time zone.</summary>
+    public const string LocalTimeZone = "Local";
+
     public List<string> DisabledCheckIds { get; init; } = new();
 
     public CheckOptions CheckOptions { get; init; } = new();
 
     public string? LastUsedProfileName { get; init; }
 
-    /// <summary>Show dates and times in the computer's time zone instead of UTC (Settings > Preferences).</summary>
-    public bool UseLocalTime { get; init; }
+    /// <summary>
+    /// Where dates and times are shown (Settings > Preferences): <see cref="UtcTimeZone"/>, <see cref="LocalTimeZone"/>,
+    /// or a time zone ID (IANA where the platform has one, otherwise Windows).
+    /// </summary>
+    public string TimeZone { get; init; } = UtcTimeZone;
 }

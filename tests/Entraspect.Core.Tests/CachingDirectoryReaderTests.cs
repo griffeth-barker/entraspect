@@ -15,6 +15,8 @@ public sealed class CachingDirectoryReaderTests
 
         public int EnterpriseAppCalls { get; private set; }
 
+        public int UserRegistrationCalls { get; private set; }
+
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -33,6 +35,13 @@ public sealed class CachingDirectoryReaderTests
             EnterpriseAppCalls++;
             return Task.FromResult<IReadOnlyList<EnterpriseApp>>(Array.Empty<EnterpriseApp>());
         }
+
+        public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            UserRegistrationCalls++;
+            return Task.FromResult<IReadOnlyList<UserRegistration>>(Array.Empty<UserRegistration>());
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -40,6 +49,7 @@ public sealed class CachingDirectoryReaderTests
         private bool _failed;
         private bool _groupsFailed;
         private bool _enterpriseAppsFailed;
+        private bool _userRegistrationsFailed;
 
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
@@ -73,6 +83,18 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<EnterpriseApp>>(Array.Empty<EnterpriseApp>());
+        }
+
+        public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_userRegistrationsFailed)
+            {
+                _userRegistrationsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<UserRegistration>>(Array.Empty<UserRegistration>());
         }
     }
 
@@ -145,6 +167,30 @@ public sealed class CachingDirectoryReaderTests
 
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetEnterpriseAppsAsync());
         var result = await caching.GetEnterpriseAppsAsync();
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Fetches_user_registrations_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetUserRegistrationsAsync();
+        await caching.GetUserRegistrationsAsync();
+
+        Assert.Equal(1, inner.UserRegistrationCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_user_registration_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetUserRegistrationsAsync());
+        var result = await caching.GetUserRegistrationsAsync();
 
         Assert.NotNull(result);
     }

@@ -543,6 +543,9 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<EnterpriseApp>>([]);
+
+        public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<UserRegistration>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -554,6 +557,9 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -579,6 +585,13 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

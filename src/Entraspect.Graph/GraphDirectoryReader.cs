@@ -24,6 +24,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadEnterpriseAppsAsync(cancellationToken));
 
+    // Implemented in spec 005 step 4.
+    public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading user registration details isn't available yet.");
+
     // Turns Graph SDK and Azure.Identity failures into DirectoryReadException, so no SDK types leave this assembly.
     private static async Task<T> ReadAsync<T>(Func<Task<T>> read)
     {

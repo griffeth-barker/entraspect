@@ -15,6 +15,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<AppRegistration>? _appRegistrations;
     private IReadOnlyList<DirectoryGroup>? _groups;
     private IReadOnlyList<EnterpriseApp>? _enterpriseApps;
+    private IReadOnlyList<UserRegistration>? _userRegistrations;
 
     public CachingDirectoryReader(IDirectoryReader inner) => _inner = inner;
 
@@ -35,5 +36,12 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     {
         return _enterpriseApps ??=
             await _inner.GetEnterpriseAppsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _userRegistrations ??=
+            await _inner.GetUserRegistrationsAsync(cancellationToken).ConfigureAwait(false);
     }
 }

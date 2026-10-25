@@ -73,14 +73,14 @@ public sealed class EnterpriseAppMappingTests
             [
                 Key("Sign", Guid.NewGuid()),
                 Key("Verify", Guid.NewGuid()),
-                Key("Sign", Guid.NewGuid(), [0xFF, 0x00]),
-                Key("Verify", Guid.NewGuid(), [0xFF, 0x00]),
+                WithKey(Key("Sign", Guid.NewGuid(), Sha256Sized)),
+                WithKey(Key("Verify", Guid.NewGuid(), Sha256Sized)),
             ],
         };
 
         var app = GraphDirectoryReader.MapServicePrincipal(servicePrincipal);
 
-        Assert.Equal(new[] { Thumbprint, "FF00" }, app.SigningCertificates.Select(c => c.Thumbprint));
+        Assert.Equal(new[] { Thumbprint, AbcSha1 }, app.SigningCertificates.Select(c => c.Thumbprint));
     }
 
     [Theory]
@@ -135,5 +135,66 @@ public sealed class EnterpriseAppMappingTests
 
         Assert.False(app.AccountEnabled);
         Assert.Equal("oidc", app.PreferredSingleSignOnMode);
+    }
+
+    // SHA-1("abc"), a published test vector, stands in for a certificate's thumbprint.
+    private static readonly byte[] Abc = "abc"u8.ToArray();
+
+    private const string AbcSha1 = "A9993E364706816ABA3E25717850C26C9CD0D89D";
+
+    // What Entra sets as customKeyIdentifier on SAML signing certificates: 32 bytes, a SHA-256 hash.
+    private static readonly byte[] Sha256Sized = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
+
+    [Fact]
+    public void Thumbprint_is_the_sha1_of_the_certificate_key()
+    {
+        var credential = new KeyCredential { Key = Abc, CustomKeyIdentifier = Sha256Sized };
+
+        Assert.Equal(AbcSha1, GraphDirectoryReader.Thumbprint(credential));
+    }
+
+    [Fact]
+    public void Thumbprint_without_key_ignores_a_sha256_sized_identifier()
+    {
+        var credential = new KeyCredential { CustomKeyIdentifier = Sha256Sized };
+
+        Assert.Equal(string.Empty, GraphDirectoryReader.Thumbprint(credential));
+    }
+
+    [Fact]
+    public void Thumbprint_without_key_uses_a_sha1_sized_identifier()
+    {
+        var credential = new KeyCredential { CustomKeyIdentifier = ThumbprintBytes };
+
+        Assert.Equal(Thumbprint, GraphDirectoryReader.Thumbprint(credential));
+    }
+
+    [Fact]
+    public void MapServicePrincipal_matches_the_preferred_thumbprint_from_the_key_like_entra_returns_it()
+    {
+        // Shaped like a real SAML app read with GET /servicePrincipals/{id}?$select=keyCredentials: a Sign and Verify
+        // pair sharing a SHA-256 customKeyIdentifier, with the certificate in key.
+        var servicePrincipal = new ServicePrincipal
+        {
+            Id = "sp-1",
+            PreferredSingleSignOnMode = "saml",
+            PreferredTokenSigningKeyThumbprint = AbcSha1,
+            KeyCredentials =
+            [
+                WithKey(Key("Verify", Guid.NewGuid(), Sha256Sized)),
+                WithKey(Key("Sign", Guid.NewGuid(), Sha256Sized)),
+            ],
+        };
+
+        var app = GraphDirectoryReader.MapServicePrincipal(servicePrincipal);
+
+        Assert.Equal(AbcSha1, Assert.Single(app.SigningCertificates).Thumbprint);
+        Assert.Equal(app.PreferredTokenSigningKeyThumbprint, app.SigningCertificates[0].Thumbprint);
+    }
+
+    private static KeyCredential WithKey(KeyCredential credential)
+    {
+        credential.Key = Abc;
+        return credential;
     }
 }

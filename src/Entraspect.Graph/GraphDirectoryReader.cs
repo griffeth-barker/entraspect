@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Azure.Identity;
 using Entraspect.Core;
 using Microsoft.Graph;
@@ -79,10 +80,12 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     /// <summary>
     /// Reads every service principal. SAML apps are picked out by the check, not the query. The List
     /// servicePrincipals docs give 100 as the maximum page size, so that is what is asked for; every page is followed.
+    /// Listing doesn't return the certificate data (<c>key</c>) that the SHA-1 thumbprint comes from, so each service
+    /// principal with a signing certificate is then read on its own with <c>$select=keyCredentials</c>.
     /// </summary>
     private async Task<IReadOnlyList<EnterpriseApp>> ReadEnterpriseAppsAsync(CancellationToken cancellationToken)
     {
-        var result = new List<EnterpriseApp>();
+        var servicePrincipals = new List<ServicePrincipal>();
 
         ServicePrincipalCollectionResponse? response = await _client.ServicePrincipals.GetAsync(config =>
         {
@@ -98,10 +101,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         {
             if (response.Value is not null)
             {
-                foreach (var servicePrincipal in response.Value)
-                {
-                    result.Add(MapServicePrincipal(servicePrincipal));
-                }
+                servicePrincipals.AddRange(response.Value);
             }
 
             response = string.IsNullOrEmpty(response.OdataNextLink)
@@ -110,7 +110,37 @@ public sealed class GraphDirectoryReader : IDirectoryReader
                     .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
         }
 
-        return result;
+        foreach (var servicePrincipal in servicePrincipals)
+        {
+            if (servicePrincipal.Id is { } id && servicePrincipal.KeyCredentials?.Any(IsSigningCertificate) == true)
+            {
+                servicePrincipal.KeyCredentials = await ReadKeyCredentialsAsync(id, cancellationToken)
+                    .ConfigureAwait(false) ?? servicePrincipal.KeyCredentials;
+            }
+        }
+
+        return servicePrincipals.Select(MapServicePrincipal).ToList();
+    }
+
+    /// <summary>
+    /// <c>GET /servicePrincipals/{id}?$select=keyCredentials</c>, which includes each certificate's <c>key</c>.
+    /// Returns null if the service principal was deleted since it was listed.
+    /// </summary>
+    private async Task<List<KeyCredential>?> ReadKeyCredentialsAsync(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var servicePrincipal = await _client.ServicePrincipals[id].GetAsync(config =>
+            {
+                config.QueryParameters.Select = ["keyCredentials"];
+            }, cancellationToken).ConfigureAwait(false);
+
+            return servicePrincipal?.KeyCredentials;
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+        {
+            return null;
+        }
     }
 
     public static EnterpriseApp MapServicePrincipal(ServicePrincipal servicePrincipal) =>
@@ -141,14 +171,29 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         new()
         {
             KeyId = credential.KeyId ?? Guid.Empty,
-            // customKeyIdentifier defaults to the certificate thumbprint; preferredTokenSigningKeyThumbprint is its hex.
-            Thumbprint = credential.CustomKeyIdentifier is { Length: > 0 } identifier
-                ? Convert.ToHexString(identifier)
-                : string.Empty,
+            Thumbprint = Thumbprint(credential),
             DisplayName = credential.DisplayName ?? string.Empty,
             StartDateTime = credential.StartDateTime ?? default,
             EndDateTime = credential.EndDateTime,
         };
+
+    /// <summary>
+    /// The certificate's SHA-1 thumbprint in uppercase hex, the form <c>preferredTokenSigningKeyThumbprint</c> uses: the
+    /// SHA-1 hash of <c>key</c> (the certificate's DER bytes). Without <c>key</c>, <c>customKeyIdentifier</c> is used
+    /// only when it is SHA-1 sized; Entra sets it to a SHA-256 hash for SAML signing certificates, which never matches.
+    /// </summary>
+    public static string Thumbprint(KeyCredential credential)
+    {
+        if (credential.Key is { Length: > 0 } key)
+        {
+            // An identifier, not a security use of SHA-1: it is how Entra names the active certificate.
+            return Convert.ToHexString(SHA1.HashData(key));
+        }
+
+        return credential.CustomKeyIdentifier is { Length: 20 } identifier
+            ? Convert.ToHexString(identifier)
+            : string.Empty;
+    }
 
     /// <summary>
     /// Reads every group, then which groups have at least one direct member and at least one owner. Presence comes

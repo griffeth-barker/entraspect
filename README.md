@@ -78,10 +78,11 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 
 ## Using entraspect
 
-- **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
+- **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here. **Open profiles.json** opens the profiles in your default app for JSON files; after editing and saving, select **Reload**.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
 - **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations, Enterprise apps and Conditional Access): each check's findings, with Search and Add filter like the Entra admin center.
-- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period, report-only warning days and sign-in lookback days. **Settings > Preferences:** show times in UTC or local time.
+- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period, report-only warning days and sign-in lookback days. **Settings > Preferences:** show dates and times in UTC, your computer's time zone or any other time zone, and choose a light, dark or system theme.
+- **Settings > About:** the version, the logo, and where entraspect stores its files. **Open settings.json** and **Reload** work like the profiles pair.
 - **Export**, next to **Scan**: save results as CSV (one row per finding, for spreadsheets) or JSON (every check's status and error, and all findings). On **Overview** it saves every finding from the last scan; on a check page, the findings shown after search and filters. Dates in exports are always UTC.
 
 Results stay in memory and are only written to disk when you export them. Exported files contain tenant data (tenant ID, object names and IDs): store them as you would other tenant data, and never commit them to a repository.

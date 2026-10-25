@@ -124,8 +124,8 @@ After connecting, entraspect opens **Overview**, which shows the connected tenan
 Under **Settings**:
 
 - **Checks** turns checks on or off and sets the check options: the expiry windows (warning and critical days) the new group grace period (groups created fewer than this many days ago are skipped by the group checks), the report-only warning days (Policy hygiene warns about report-only Conditional Access policies unchanged for at least this many days), and the sign-in lookback days (how many days of sign-in logs MFA not required and Unused policies read, 1 to 30). Unused policies reads every interactive sign-in in that period, so in a busy tenant a longer period makes the scan much slower; the scan bar shows how many sign-ins it has read, and **Cancel** stops it within one page of 1,000 sign-ins.
-- **Preferences** chooses whether dates and times show in UTC or your computer's time zone.
-- **About** shows the version and where entraspect stores its files.
+- **Preferences** chooses where dates and times show: UTC, your computer's time zone, or any time zone your computer knows. In a time zone you pick, times show that zone's UTC offset on that date, so daylight saving time is right for every date. It also chooses the theme: **Use system setting** (follows your operating system), **Light** or **Dark**.
+- **About** shows the version and the logo, where entraspect stores its files, and **Open settings.json** and **Reload** (see below).
 
 Results are kept in memory and are cleared when you disconnect or close entraspect, unless you export them.
 
@@ -139,7 +139,21 @@ Profiles and settings are stored in an `entraspect` folder in your local applica
 - macOS: `~/Library/Application Support/entraspect`
 - Linux: `~/.local/share/entraspect`
 
-`profiles.json` holds tenant IDs, client IDs and certificate paths or thumbprints. `settings.json` holds which checks are off, the check options, the last used profile and the time zone preference. Neither file ever holds passwords, private keys or tokens.
+`profiles.json` holds tenant IDs, client IDs and certificate paths or thumbprints. `settings.json` holds which checks are off, the check options, the last used profile, the time zone and the theme. Neither file ever holds passwords, private keys or tokens.
+
+### Editing the files
+
+You can edit both files in a text editor, for example to add several profiles at once:
+
+1. Select **Open profiles.json** on **Settings** > **Connection profiles**, or **Open settings.json** on **Settings** > **About**. The file opens in your computer's default app for JSON files. If it doesn't exist yet, entraspect saves it first.
+2. Edit the file and save it.
+3. Back in entraspect, select **Reload** next to the button you used. The changes apply at once, as if you had made them in entraspect.
+
+If the file isn't valid JSON or has a value entraspect can't use, **Reload** shows the error and keeps what is already loaded. It never changes the file, so you can fix it and select **Reload** again. Profiles are checked like profiles saved from the profile form: each needs a name, a tenant ID, a client ID that is a GUID, and either a `.pfx` path or a thumbprint. In `settings.json`, `TimeZone` is `"UTC"`, `"Local"` or a time zone ID such as `"Europe/Berlin"`, and `Theme` is `"System"`, `"Light"` or `"Dark"`.
+
+entraspect saves these files itself whenever you change profiles or settings in the app, which replaces edits you haven't reloaded. Select **Reload** before changing anything in entraspect. Reloading profiles doesn't disconnect you, even if you renamed or removed the connected profile.
+
+Don't add a password to either file; entraspect never reads one from them. It asks for a `.pfx` password each time you connect.
 
 ## Troubleshooting
 

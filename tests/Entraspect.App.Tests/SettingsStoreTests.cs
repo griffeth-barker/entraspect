@@ -115,6 +115,10 @@ public sealed class SettingsStoreTests
             Assert.Null(error);
             Assert.Equal(40, loaded.CheckOptions.ExpiryWarningDays);
             Assert.Equal(10, loaded.CheckOptions.ExpiryCriticalDays);
+
+            // A file written before the guest options existed gets their defaults.
+            Assert.Equal(90, loaded.CheckOptions.GuestInactiveDays);
+            Assert.Equal(30, loaded.CheckOptions.GuestPendingInviteDays);
         }
         finally
         {

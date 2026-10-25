@@ -21,10 +21,22 @@ public sealed class CheckOptions
 
     public const int MaxSignInLookbackDays = 30;
 
+    /// <summary>Inactive guests reports guests with no successful sign-in for at least this many UTC calendar days.</summary>
+    public int GuestInactiveDays { get; init; } = 90;
+
+    public const int MinGuestInactiveDays = 30;
+
+    public const int MaxGuestInactiveDays = 365;
+
+    /// <summary>Pending guest invitations reports invitations not accepted after this many UTC calendar days.</summary>
+    public int GuestPendingInviteDays { get; init; } = 30;
+
+    public const int MinGuestPendingInviteDays = 1;
+
     /// <summary>Returns null if <paramref name="options"/> is valid, otherwise what is wrong, for Settings.</summary>
     public static string? Validate(CheckOptions options) =>
         ExpiryError(options) ?? NewGroupGraceError(options) ?? ReportOnlyError(options) ??
-        SignInLookbackError(options);
+        SignInLookbackError(options) ?? GuestInactiveError(options) ?? GuestPendingInviteError(options);
 
     private static string? ExpiryError(CheckOptions options) =>
         options.ExpiryCriticalDays < 0
@@ -44,13 +56,25 @@ public sealed class CheckOptions
             ? $"Sign-in lookback days must be between {MinSignInLookbackDays} and {MaxSignInLookbackDays}."
             : null;
 
+    private static string? GuestInactiveError(CheckOptions options) =>
+        options.GuestInactiveDays is < MinGuestInactiveDays or > MaxGuestInactiveDays
+            ? $"Inactive guest days must be between {MinGuestInactiveDays} and {MaxGuestInactiveDays}."
+            : null;
+
+    private static string? GuestPendingInviteError(CheckOptions options) =>
+        options.GuestPendingInviteDays < MinGuestPendingInviteDays
+            ? $"Pending invitation days must be at least {MinGuestPendingInviteDays}."
+            : null;
+
     /// <summary>
     /// Returns a valid copy of <paramref name="options"/>, or the defaults if it is null. Each rule only resets the
     /// options it covers, so add new options here with their own rule. Expiry: <c>0 &lt;= ExpiryCriticalDays &lt;=
     /// ExpiryWarningDays</c>, otherwise both expiry values fall back to their defaults. New group grace:
     /// <c>NewGroupGraceDays &gt;= 0</c>, otherwise it falls back to its default. Report-only warning:
     /// <c>ReportOnlyWarningDays &gt;= 0</c>, otherwise it falls back to its default. Sign-in lookback:
-    /// <c>1 &lt;= SignInLookbackDays &lt;= 30</c>, otherwise it falls back to its default.
+    /// <c>1 &lt;= SignInLookbackDays &lt;= 30</c>, otherwise it falls back to its default. Inactive guests:
+    /// <c>30 &lt;= GuestInactiveDays &lt;= 365</c>, otherwise it falls back to its default. Pending invitations:
+    /// <c>GuestPendingInviteDays &gt;= 1</c>, otherwise it falls back to its default.
     /// </summary>
     public static CheckOptions Normalize(CheckOptions? options)
     {
@@ -64,6 +88,8 @@ public sealed class CheckOptions
         var graceValid = NewGroupGraceError(options) is null;
         var reportOnlyValid = ReportOnlyError(options) is null;
         var lookbackValid = SignInLookbackError(options) is null;
+        var guestInactiveValid = GuestInactiveError(options) is null;
+        var guestPendingInviteValid = GuestPendingInviteError(options) is null;
 
         return new CheckOptions
         {
@@ -72,6 +98,9 @@ public sealed class CheckOptions
             NewGroupGraceDays = graceValid ? options.NewGroupGraceDays : defaults.NewGroupGraceDays,
             ReportOnlyWarningDays = reportOnlyValid ? options.ReportOnlyWarningDays : defaults.ReportOnlyWarningDays,
             SignInLookbackDays = lookbackValid ? options.SignInLookbackDays : defaults.SignInLookbackDays,
+            GuestInactiveDays = guestInactiveValid ? options.GuestInactiveDays : defaults.GuestInactiveDays,
+            GuestPendingInviteDays =
+                guestPendingInviteValid ? options.GuestPendingInviteDays : defaults.GuestPendingInviteDays,
         };
     }
 }

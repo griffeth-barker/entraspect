@@ -12,6 +12,8 @@ public sealed class CheckOptionsTests
         Assert.Equal(7, options.NewGroupGraceDays);
         Assert.Equal(30, options.ReportOnlyWarningDays);
         Assert.Equal(7, options.SignInLookbackDays);
+        Assert.Equal(90, options.GuestInactiveDays);
+        Assert.Equal(30, options.GuestPendingInviteDays);
     }
 
     [Theory]
@@ -140,5 +142,55 @@ public sealed class CheckOptionsTests
         Assert.Equal(7, normalized.SignInLookbackDays);
         Assert.Equal(3, normalized.ReportOnlyWarningDays);
         Assert.Equal("Sign-in lookback days must be between 1 and 30.", CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(30)]
+    [InlineData(365)]
+    public void Valid_guest_inactive_days_are_kept_and_accepted(int days)
+    {
+        var options = new CheckOptions { GuestInactiveDays = days };
+
+        Assert.Equal(days, CheckOptions.Normalize(options).GuestInactiveDays);
+        Assert.Null(CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(29)]
+    [InlineData(366)]
+    public void Out_of_range_guest_inactive_days_fall_back_to_default_and_are_rejected(int days)
+    {
+        var options = new CheckOptions { GuestPendingInviteDays = 5, GuestInactiveDays = days };
+
+        var normalized = CheckOptions.Normalize(options);
+
+        Assert.Equal(90, normalized.GuestInactiveDays);
+        Assert.Equal(5, normalized.GuestPendingInviteDays);
+        Assert.Equal("Inactive guest days must be between 30 and 365.", CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3650)]
+    public void Valid_guest_pending_invite_days_are_kept_and_accepted(int days)
+    {
+        var options = new CheckOptions { GuestPendingInviteDays = days };
+
+        Assert.Equal(days, CheckOptions.Normalize(options).GuestPendingInviteDays);
+        Assert.Null(CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Guest_pending_invite_days_below_one_fall_back_to_default_and_are_rejected(int days)
+    {
+        var options = new CheckOptions { GuestInactiveDays = 60, GuestPendingInviteDays = days };
+
+        var normalized = CheckOptions.Normalize(options);
+
+        Assert.Equal(30, normalized.GuestPendingInviteDays);
+        Assert.Equal(60, normalized.GuestInactiveDays);
+        Assert.Equal("Pending invitation days must be at least 1.", CheckOptions.Validate(options));
     }
 }

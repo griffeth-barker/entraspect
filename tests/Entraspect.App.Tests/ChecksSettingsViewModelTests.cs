@@ -61,6 +61,46 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
     }
 
     [Fact]
+    public void Guest_options_are_saved_immediately()
+    {
+        var vm = Create();
+
+        vm.GuestInactiveDays = 30;
+        vm.GuestPendingInviteDays = 1;
+
+        Assert.Equal(string.Empty, vm.OptionsErrorText);
+        var options = new SettingsStore(_dir).Load(out _).CheckOptions;
+        Assert.Equal((30, 1), (options.GuestInactiveDays, options.GuestPendingInviteDays));
+        Assert.Equal(30, Create().GuestInactiveDays);
+        Assert.Equal(1, Create().GuestPendingInviteDays);
+    }
+
+    [Theory]
+    [InlineData(29, "between 30 and 365")]
+    [InlineData(366, "between 30 and 365")]
+    public void Out_of_range_guest_inactive_days_show_an_error_and_are_not_saved(int days, string expected)
+    {
+        var vm = Create();
+
+        vm.GuestInactiveDays = days;
+
+        Assert.Contains(expected, vm.OptionsErrorText);
+        Assert.Contains("Not saved", vm.OptionsErrorText);
+        Assert.Equal(90, new SettingsStore(_dir).Load(out _).CheckOptions.GuestInactiveDays);
+    }
+
+    [Fact]
+    public void Zero_guest_pending_invite_days_show_an_error_and_are_not_saved()
+    {
+        var vm = Create();
+
+        vm.GuestPendingInviteDays = 0;
+
+        Assert.Contains("at least 1", vm.OptionsErrorText);
+        Assert.Equal(30, new SettingsStore(_dir).Load(out _).CheckOptions.GuestPendingInviteDays);
+    }
+
+    [Fact]
     public void Negative_report_only_warning_days_show_an_error_and_are_not_saved()
     {
         var vm = Create();

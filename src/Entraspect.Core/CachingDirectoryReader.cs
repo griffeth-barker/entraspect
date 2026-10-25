@@ -22,6 +22,8 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<ConditionalAccessPolicy>? _conditionalAccessPolicies;
     private IReadOnlyList<DirectoryUser>? _users;
     private IReadOnlyList<DirectoryRoleAssignment>? _directoryRoleAssignments;
+    private IReadOnlyList<GuestSignInActivity>? _guestSignInActivity;
+    private IReadOnlyList<DirectoryRoleDefinition>? _directoryRoleDefinitions;
     private bool? _securityDefaultsEnabled;
     private (DateTimeOffset Since, IReadOnlyDictionary<string, SingleFactorSignIns> SignIns)? _singleFactorSignIns;
     private (DateTimeOffset Since, ConditionalAccessUsage Usage)? _conditionalAccessUsage;
@@ -122,6 +124,20 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     {
         return _directoryRoleAssignments ??=
             await _inner.GetDirectoryRoleAssignmentsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _guestSignInActivity ??=
+            await _inner.GetGuestSignInActivityAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _directoryRoleDefinitions ??=
+            await _inner.GetDirectoryRoleDefinitionsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Reads each group's members at most once per scan.</summary>

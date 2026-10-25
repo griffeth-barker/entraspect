@@ -127,7 +127,7 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public List<DateTimeOffset> SignInReads { get; } = [];
 
     public Task<IReadOnlyList<DirectoryUser>> GetUsersAsync(CancellationToken cancellationToken = default) =>
-        Task.FromResult(Users);
+        UsersFailure is { } failure ? throw failure : Task.FromResult(Users);
 
     public Task<IReadOnlyList<DirectoryRoleAssignment>> GetDirectoryRoleAssignmentsAsync(
         CancellationToken cancellationToken = default) =>
@@ -205,4 +205,25 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
         CancellationToken cancellationToken = default) =>
         CrossTenantPartnersFailure is { } failure ? throw failure : Task.FromResult(CrossTenantPartners);
+
+    public IReadOnlyList<GuestSignInActivity> GuestSignInActivity { get; init; } = [];
+
+    /// <summary>When set, <see cref="GetGuestSignInActivityAsync"/> throws it.</summary>
+    public DirectoryReadException? GuestSignInActivityFailure { get; init; }
+
+    public IReadOnlyList<DirectoryRoleDefinition> RoleDefinitions { get; init; } = [];
+
+    /// <summary>When set, <see cref="GetDirectoryRoleDefinitionsAsync"/> throws it.</summary>
+    public DirectoryReadException? RoleDefinitionsFailure { get; init; }
+
+    /// <summary>When set, <see cref="GetUsersAsync"/> throws it.</summary>
+    public DirectoryReadException? UsersFailure { get; init; }
+
+    public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+        CancellationToken cancellationToken = default) =>
+        GuestSignInActivityFailure is { } failure ? throw failure : Task.FromResult(GuestSignInActivity);
+
+    public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+        CancellationToken cancellationToken = default) =>
+        RoleDefinitionsFailure is { } failure ? throw failure : Task.FromResult(RoleDefinitions);
 }

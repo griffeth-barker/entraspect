@@ -99,6 +99,14 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadCrossTenantAccessPartnersAsync(cancellationToken));
 
+    public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadGuestSignInActivityAsync(cancellationToken));
+
+    public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadDirectoryRoleDefinitionsAsync(cancellationToken));
+
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
 
@@ -575,6 +583,128 @@ public sealed class GraphDirectoryReader : IDirectoryReader
                 RoleDefinitionId = assignment.RoleDefinitionId,
                 PrincipalId = assignment.PrincipalId,
             };
+
+    /// <summary>
+    /// <c>GET /roleManagement/directory/roleDefinitions?$select=id,templateId,displayName</c>, following every page.
+    /// </summary>
+    private async Task<IReadOnlyList<DirectoryRoleDefinition>> ReadDirectoryRoleDefinitionsAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = new List<DirectoryRoleDefinition>();
+        var requests = _client.RoleManagement.Directory.RoleDefinitions;
+
+        UnifiedRoleDefinitionCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Select = ["id", "templateId", "displayName"];
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                foreach (var definition in response.Value)
+                {
+                    if (MapRoleDefinition(definition) is { } mapped)
+                    {
+                        result.Add(mapped);
+                    }
+                }
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    /// <summary>The role, or null when Graph leaves out its ID. An empty template ID or name is null.</summary>
+    public static DirectoryRoleDefinition? MapRoleDefinition(UnifiedRoleDefinition definition) =>
+        string.IsNullOrEmpty(definition.Id)
+            ? null
+            : new DirectoryRoleDefinition
+            {
+                Id = definition.Id,
+                TemplateId = string.IsNullOrWhiteSpace(definition.TemplateId) ? null : definition.TemplateId,
+                DisplayName = string.IsNullOrWhiteSpace(definition.DisplayName) ? null : definition.DisplayName,
+            };
+
+    /// <summary>The first page of guests' sign-in activity.</summary>
+    public static string GuestSignInActivityUrl() =>
+        $"{V1BaseUrl}/users?$filter={Uri.EscapeDataString("userType eq 'Guest'")}&$select=id,signInActivity&$top=500";
+
+    /// <summary>
+    /// <c>GET /users?$filter=userType eq 'Guest'&amp;$select=id,signInActivity&amp;$top=500</c>, following every page;
+    /// 500 is the largest page Graph allows when <c>signInActivity</c> is selected. Read as JSON so that Graph's
+    /// "never" values (an empty string or <c>0001-01-01T00:00:00Z</c>) can't fail the read. <c>signInActivity</c>
+    /// needs an Entra ID P1 or P2 licence; without one Graph returns 403, which fails only the check that reads it.
+    /// </summary>
+    private async Task<IReadOnlyList<GuestSignInActivity>> ReadGuestSignInActivityAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = new List<GuestSignInActivity>();
+        string? url = GuestSignInActivityUrl();
+
+        while (url is not null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
+            url = AddGuestSignInActivity(page.RootElement, result, guestsOnly: false);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Adds one page of users' sign-in activity to <paramref name="result"/> and returns the next page's link, or null on
+    /// the last page. With <paramref name="guestsOnly"/>, users whose <c>userType</c> isn't <c>Guest</c> are skipped.
+    /// A user without an ID is skipped; missing or unexpected values never throw.
+    /// </summary>
+    public static string? AddGuestSignInActivity(JsonElement page, ICollection<GuestSignInActivity> result, bool guestsOnly)
+    {
+        if (page.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (page.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var user in value.EnumerateArray())
+            {
+                if (String(user, "id") is not { Length: > 0 } id ||
+                    (guestsOnly && !string.Equals(String(user, "userType"), "Guest", StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                user.TryGetProperty("signInActivity", out var activity);
+                result.Add(new GuestSignInActivity
+                {
+                    UserId = id,
+                    LastSuccessfulSignIn = MapSignInDate(String(activity, "lastSuccessfulSignInDateTime")),
+                    LastSignIn = MapSignInDate(String(activity, "lastSignInDateTime")),
+                    LastNonInteractiveSignIn = MapSignInDate(String(activity, "lastNonInteractiveSignInDateTime")),
+                });
+            }
+        }
+
+        return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
+    }
+
+    /// <summary>
+    /// A sign-in date, or null for "never": Graph returns an empty string or <c>0001-01-01T00:00:00Z</c>. A value that
+    /// isn't a date is also null.
+    /// </summary>
+    public static DateTimeOffset? MapSignInDate(string? value) =>
+        DateTimeOffset.TryParse(
+            value,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,
+            out var date) && date.UtcDateTime.Year > 1
+            ? date
+            : null;
 
     /// <summary>
     /// <c>GET /groups/{id}/transitiveMembers/microsoft.graph.user?$select=id&amp;$top=999</c>, following every page.

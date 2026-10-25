@@ -188,6 +188,24 @@ public sealed class CachingDirectoryReaderTests
             CrossTenantPartnersCalls++;
             return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([new CrossTenantAccessSettings { TenantId = "t1" }]);
         }
+
+        public int GuestSignInActivityCalls { get; private set; }
+
+        public int RoleDefinitionCalls { get; private set; }
+
+        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+            CancellationToken cancellationToken = default)
+        {
+            GuestSignInActivityCalls++;
+            return Task.FromResult<IReadOnlyList<GuestSignInActivity>>([new GuestSignInActivity { UserId = "u1" }]);
+        }
+
+        public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            RoleDefinitionCalls++;
+            return Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([new DirectoryRoleDefinition { Id = "r1" }]);
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -411,6 +429,33 @@ public sealed class CachingDirectoryReaderTests
 
             return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
         }
+
+        private bool _guestSignInActivityFailed;
+        private bool _roleDefinitionsFailed;
+
+        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_guestSignInActivityFailed)
+            {
+                _guestSignInActivityFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<GuestSignInActivity>>([]);
+        }
+
+        public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_roleDefinitionsFailed)
+            {
+                _roleDefinitionsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([]);
+        }
     }
 
     [Fact]
@@ -615,6 +660,36 @@ public sealed class CachingDirectoryReaderTests
         Assert.NotNull(await caching.GetAuthorizationPolicyAsync());
         Assert.NotNull(await caching.GetCrossTenantAccessDefaultsAsync());
         Assert.NotNull(await caching.GetCrossTenantAccessPartnersAsync());
+    }
+
+    [Fact]
+    public async Task Fetches_guest_sign_in_activity_and_role_definitions_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetGuestSignInActivityAsync();
+        var activity = await caching.GetGuestSignInActivityAsync();
+        await caching.GetDirectoryRoleDefinitionsAsync();
+        var definitions = await caching.GetDirectoryRoleDefinitionsAsync();
+
+        Assert.Equal("u1", Assert.Single(activity).UserId);
+        Assert.Equal("r1", Assert.Single(definitions).Id);
+        Assert.Equal(1, inner.GuestSignInActivityCalls);
+        Assert.Equal(1, inner.RoleDefinitionCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_guest_sign_in_activity_or_role_definition_reads()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGuestSignInActivityAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetDirectoryRoleDefinitionsAsync());
+
+        Assert.NotNull(await caching.GetGuestSignInActivityAsync());
+        Assert.NotNull(await caching.GetDirectoryRoleDefinitionsAsync());
     }
 
     [Fact]

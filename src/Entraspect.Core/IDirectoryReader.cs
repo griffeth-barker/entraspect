@@ -83,6 +83,16 @@ public interface IDirectoryReader
         IProgress<int>? signInsRead = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The sign-in activity of every guest. Separate from <see cref="GetUsersAsync"/> because it needs an Entra ID P1 or
+    /// P2 licence, so that a failure here fails only the check that reads it.
+    /// </summary>
+    Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>Every directory role definition, built-in and custom.</summary>
+    Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(
+        CancellationToken cancellationToken = default);
+
     /// <summary>The guest settings of the tenant's authorization policy.</summary>
     Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default);
 

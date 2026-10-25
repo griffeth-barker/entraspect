@@ -1169,6 +1169,12 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
+
+        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<GuestSignInActivity>>([]);
+
+        public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DirectoryRoleDefinition>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -1228,6 +1234,12 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -1360,6 +1372,20 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<GuestSignInActivity>> GetGuestSignInActivityAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<DirectoryRoleDefinition>> GetDirectoryRoleDefinitionsAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

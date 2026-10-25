@@ -42,15 +42,15 @@ All three: category `Users`, `ObjectType` `User`. Labels: `ObjectDisplayName` "D
 **`guests-inactive`** (title "Inactive guests"). Requires `User.Read.All` and `AuditLog.Read.All`, `RequiredLicence` P1 (spec 012).
 
 - Last activity is `LastSuccessfulSignIn`. Microsoft only started recording it in December 2023 and didn't backfill it, so when it's null, use the later of `LastSignIn` and `LastNonInteractiveSignIn`. Those also count failed attempts, so the message says "last sign-in attempt" in that case.
-- Last activity older than `GuestInactiveDays`: **Warning**, "No successful sign-in for N days." (or "No sign-in attempt for N days.")
-- No activity at all and created more than `GuestInactiveDays` ago: **Warning**, "Never signed in since being added N days ago." A guest created more recently: no finding.
+- Last activity at least `GuestInactiveDays` UTC calendar days ago: **Warning**, "No successful sign-in for N days." (or "No sign-in attempt for N days.")
+- No activity at all and created at least `GuestInactiveDays` UTC calendar days ago: **Warning**, "Never signed in since being added N days ago." A guest created more recently: no finding.
 - No activity, and `CreatedDateTime` unknown: **Info**, "Never signed in."
 - A disabled guest (`AccountEnabled` false) that would be reported: **Info** instead, ending "The account is disabled; consider deleting it."
-- `DueDate` is the last activity, labelled "Last sign-in". `SubObjectType` "Invitation" shows `Accepted` or `Pending`, so admins can tell never-redeemed guests apart. Pending guests also appear in the next check, which is fine: the two answer different questions.
+- `DueDate` is the last activity, labelled "Last sign-in". `Value` (spec 015), labelled "Invitation", shows `Accepted` or `Pending`, so admins can tell never-redeemed guests apart. It is empty when Graph has no invitation state (for example synced guests) or one entraspect doesn't know. Pending guests also appear in the next check, which is fine: the two answer different questions.
 
 **`guests-pending-invites`** (title "Pending guest invitations"). Requires `User.Read.All`, no licence.
 
-- `ExternalUserState` `PendingAcceptance` and the invitation (`ExternalUserStateChangeDateTime`, else `CreatedDateTime`) older than `GuestPendingInviteDays`: **Info**, "Invitation not accepted after N days. Resend it, or delete the guest if it's no longer needed."
+- `ExternalUserState` `PendingAcceptance` and the invitation (`ExternalUserStateChangeDateTime`, else `CreatedDateTime`) at least `GuestPendingInviteDays` UTC calendar days old: **Info**, "Invitation not accepted after N days. Resend it, or delete the guest if it's no longer needed."
 - `DueDate` is the invitation date, labelled "Invited".
 
 **`guests-admin-roles`** (title "Guests with admin roles"). Requires `User.Read.All`, `RoleManagement.Read.Directory` and `GroupMember.Read.All`, no licence.
@@ -89,6 +89,10 @@ Tests with a fake reader and `FakeTimeProvider`: the inactive boundaries (exactl
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
+- **Invitation column (decided during implementation):** the spec first put the invitation state in `SubObjectType`, which is meant for the type of an item inside the object. It uses `Value` from spec 015 instead, labelled "Invitation".
+- **Pending invitation with no date (decided during implementation):** when Graph returns neither `externalUserStateChangeDateTime` nor `createdDateTime`, Pending guest invitations reports the guest as **Info**, "Invitation not accepted. Resend it, or delete the guest if it's no longer needed.", with no `DueDate`. Is that right, or should such guests be skipped?
+- **Disabled guests in Pending guest invitations and Guests with admin roles (decided during implementation):** reported unchanged, with the same severity and message as enabled guests: a disabled guest's invitation can still be redeemed once the account is enabled, and a role assigned to a disabled guest is still assigned. Worth a lower severity or a note?
+- **One finding per role (decided during implementation):** Guests with admin roles reports one finding per guest per distinct role, not per assignment. The same role assigned directly and through a group, or at two scopes, would otherwise give identical rows, since findings don't show the scope or the path. Show the scope or the group the role comes through?
 - **Eligible (PIM) role assignments:** a guest eligible for a role can activate it. Reading eligibility needs `RoleEligibilitySchedule.Read.Directory` and P2. Worth adding to Guests with admin roles?
 - **Guests who own apps or groups:** owners can add credentials to apps or members to groups. Spec 003 and 006 already read owners, so this may need only owner IDs and user types.
 - **External members from cross-tenant synchronization:** synced users from other tenants can have `userType` `Member`. They are external, but these checks skip them. Identify them by `creationType` or the `#EXT#` UPN pattern?

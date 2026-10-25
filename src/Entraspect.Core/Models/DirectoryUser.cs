@@ -1,5 +1,15 @@
 namespace Entraspect.Core;
 
+/// <summary>Where a guest's invitation stands. Graph leaves it out for users who weren't invited, such as members.</summary>
+public enum ExternalUserState
+{
+    PendingAcceptance,
+    Accepted,
+
+    /// <summary>A value entraspect doesn't know.</summary>
+    Unknown,
+}
+
 /// <summary>A user in the tenant, including users synced from on-premises Active Directory.</summary>
 public sealed class DirectoryUser
 {
@@ -12,4 +22,13 @@ public sealed class DirectoryUser
     public required UserType UserType { get; init; }
 
     public required bool AccountEnabled { get; init; }
+
+    /// <summary>When the user was created, if Graph returned it.</summary>
+    public DateTimeOffset? CreatedDateTime { get; init; }
+
+    /// <summary>The invitation state of a guest invited through B2B collaboration; null when Graph has none.</summary>
+    public ExternalUserState? ExternalUserState { get; init; }
+
+    /// <summary>When <see cref="ExternalUserState"/> last changed, for example when the guest was invited.</summary>
+    public DateTimeOffset? ExternalUserStateChangeDateTime { get; init; }
 }

@@ -11,12 +11,17 @@ public sealed class CheckCatalogTests
         var checks = CheckCatalog.All(new FakeTimeProvider());
 
         Assert.Equal(
-            new[] { "group-no-members", "group-no-owners", "app-credential-expiry", "saml-signing-certificate-expiry" },
+            new[]
+            {
+                "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-credential-expiry",
+                "saml-signing-certificate-expiry",
+            },
             checks.Select(c => c.Id));
         Assert.Equal(
             new[]
             {
-                CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
+                CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
+                CheckCategory.EnterpriseApps,
             },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));
@@ -35,7 +40,9 @@ public sealed class CheckCatalogTests
     {
         var permissions = CheckCatalog.All(new FakeTimeProvider()).SelectMany(c => c.RequiredPermissions).Distinct();
 
-        Assert.Equal(new[] { "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All" }, permissions);
+        Assert.Equal(
+            new[] { "AuditLog.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All" },
+            permissions);
     }
 
     [Fact]
@@ -72,6 +79,22 @@ public sealed class CheckCatalogTests
             (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
                 check.Labels.SubObjectType, check.Labels.DueDate));
         Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Mfa_not_registered_columns_are_named_like_the_user_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "users-mfa-not-registered");
+
+        Assert.Equal("MFA not registered", check.Title);
+        Assert.Equal(CheckCategory.Users, check.Category);
+        Assert.Equal(
+            ("Display name (UPN)", "Object ID"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId));
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(new[] { "AuditLog.Read.All" }, check.RequiredPermissions);
     }
 
     [Theory]

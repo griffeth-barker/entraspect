@@ -17,6 +17,7 @@ public static class CheckCatalog
     public static IReadOnlyList<ICheck> All(TimeProvider timeProvider) =>
         new ICheck[]
         {
+            new Checks.UsersMfaNotRegisteredCheck(),
             new Checks.GroupNoMembersCheck(timeProvider),
             new Checks.GroupNoOwnersCheck(timeProvider),
             new Checks.AppCredentialExpiryCheck(timeProvider),

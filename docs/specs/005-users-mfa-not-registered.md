@@ -61,3 +61,5 @@ Tests: admin, member, guest, registered but not capable, capable (no finding), a
 - **Disabled users:** the Graph docs say this report "doesn't work for disabled users". Confirm whether disabled users are left out of the results. If they appear, filtering them needs `User.Read.All` (added in spec 007).
 - **Break-glass accounts:** emergency access accounts may deliberately have only a FIDO2 key or no method. They need the suppression feature from spec 002 Open questions.
 - **Service accounts and synced accounts:** no special handling. Should synced accounts or accounts with no sign-in activity be treated differently?
+- **User principal name column:** the spec puts the UPN in `ObjectDisplayName` ("Display name (UPN)"), so the column is labelled "Display name (UPN)". The Entra user list shows "User principal name" as its own column; that would need a new `FindingLabels` field or a sub-object, which this spec rules out.
+- **Guest admins:** a guest holding an admin role is Critical (admin wins) and still gets the home tenant note. Confirm that's wanted.

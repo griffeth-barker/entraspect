@@ -11,6 +11,9 @@ public sealed record FindingLabels
 
     public string ObjectDisplayName { get; init; } = "Display name";
 
+    /// <summary>Header for <see cref="Finding.UserPrincipalName"/>. Hidden unless a check about users sets it.</summary>
+    public string? UserPrincipalName { get; init; }
+
     public string? ObjectId { get; init; } = "Object ID";
 
     public string? SubObjectDisplayName { get; init; } = "Item";

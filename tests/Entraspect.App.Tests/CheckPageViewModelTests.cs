@@ -129,6 +129,41 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
+    public void User_principal_name_is_its_own_column_filter_and_search_field()
+    {
+        var page = new CheckPageViewModel(
+            new FakeCheck(
+                ["AuditLog.Read.All"],
+                new FindingLabels
+                {
+                    UserPrincipalName = "User principal name",
+                    SubObjectDisplayName = null,
+                    SubObjectType = null,
+                    DueDate = null,
+                }),
+            new PermissionBannerViewModel(() => Task.CompletedTask, _ => Task.CompletedTask, new RelayCommand(() => { })),
+            new TimeDisplay(new SettingsState(new SettingsStore(TempDir()))));
+        page.SetResult(Succeeded(
+            UserFinding("1", "Alex Wilber", "alexw@contoso.example"),
+            UserFinding("2", "Alex Wilber", "alex.wilber@contoso.example")));
+
+        Assert.Equal(
+            new[] { "Severity", "Display name", "User principal name", "Object ID", "Message" },
+            page.FilterFields.Select(f => f.Name));
+        Assert.Equal("alexw@contoso.example", page.Findings[0].UserPrincipalName);
+
+        page.SearchText = "alex.wilber@";
+        Assert.Equal("2", Assert.Single(page.Findings).ObjectId);
+
+        page.SearchText = string.Empty;
+        page.AddFilterCommand.Execute(null);
+        page.ChooseFieldCommand.Execute(Field(page, "User principal name"));
+        page.EditorText = "alexw@";
+        page.ApplyFilterCommand.Execute(null);
+        Assert.Equal("1", Assert.Single(page.Findings).ObjectId);
+    }
+
+    [Fact]
     public void Columns_and_filters_are_named_by_the_checks_labels()
     {
         var page = CreatePage();
@@ -267,7 +302,18 @@ public sealed class CheckPageViewModelTests
         DueDate = dueInDays is { } days ? Now.AddDays(days) : null,
     };
 
-    private sealed class FakeCheck(IReadOnlyList<string> permissions) : ICheck
+    private static Finding UserFinding(string id, string displayName, string userPrincipalName) => new()
+    {
+        CheckId = "fake",
+        Severity = Severity.Warning,
+        ObjectType = "User",
+        ObjectId = id,
+        ObjectDisplayName = displayName,
+        UserPrincipalName = userPrincipalName,
+        Message = "Not registered for MFA.",
+    };
+
+    private sealed class FakeCheck(IReadOnlyList<string> permissions, FindingLabels? labels = null) : ICheck
     {
         public string Id => "fake";
 
@@ -279,7 +325,8 @@ public sealed class CheckPageViewModelTests
 
         public IReadOnlyList<string> RequiredPermissions => permissions;
 
-        public FindingLabels Labels { get; } = new() { SubObjectDisplayName = "Credential", DueDate = "Expires" };
+        public FindingLabels Labels { get; } =
+            labels ?? new() { SubObjectDisplayName = "Credential", DueDate = "Expires" };
 
         public Task<IReadOnlyList<Finding>> RunAsync(
             IDirectoryReader reader, CheckOptions options, CancellationToken cancellationToken = default) =>

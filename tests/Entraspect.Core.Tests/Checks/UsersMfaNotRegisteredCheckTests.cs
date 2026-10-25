@@ -41,7 +41,8 @@ public sealed class UsersMfaNotRegisteredCheckTests
         Assert.Equal(Severity.Warning, f.Severity);
         Assert.Equal("User", f.ObjectType);
         Assert.Equal("1", f.ObjectId);
-        Assert.Equal("User 1 (user1@contoso.example)", f.ObjectDisplayName);
+        Assert.Equal("User 1", f.ObjectDisplayName);
+        Assert.Equal("user1@contoso.example", f.UserPrincipalName);
         Assert.Equal("Not registered for MFA.", f.Message);
         Assert.Null(f.DueDate);
         Assert.Null(f.SubObjectType);
@@ -107,19 +108,17 @@ public sealed class UsersMfaNotRegisteredCheckTests
             findings.Select(f => (f.ObjectId, f.Severity)));
     }
 
-    [Theory]
-    [InlineData("", "a@contoso.example", "a@contoso.example")]
-    [InlineData("Alex", "", "Alex")]
-    [InlineData("Alex", " ", "Alex")]
-    public async Task Display_name_falls_back_to_whichever_name_is_set(
-        string displayName,
-        string userPrincipalName,
-        string expected)
+    [Fact]
+    public async Task Duplicate_display_names_stay_apart_by_user_principal_name()
     {
-        var f = Assert.Single(await RunAsync(
-            User("1", displayName: displayName, userPrincipalName: userPrincipalName)));
+        var findings = await RunAsync(
+            User("1", displayName: "Alex Wilber", userPrincipalName: "alexw@contoso.example"),
+            User("2", displayName: "Alex Wilber", userPrincipalName: "alex.wilber@contoso.example"));
 
-        Assert.Equal(expected, f.ObjectDisplayName);
+        Assert.All(findings, f => Assert.Equal("Alex Wilber", f.ObjectDisplayName));
+        Assert.Equal(
+            new[] { "alexw@contoso.example", "alex.wilber@contoso.example" },
+            findings.Select(f => f.UserPrincipalName));
     }
 
     [Fact]

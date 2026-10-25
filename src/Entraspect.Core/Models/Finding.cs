@@ -19,6 +19,12 @@ public sealed class Finding
 
     public required string ObjectDisplayName { get; init; }
 
+    /// <summary>
+    /// The user principal name, for findings about a user. Kept apart from <see cref="ObjectDisplayName"/>: a display
+    /// name is for presentation and can repeat, while a UPN is unique in the tenant.
+    /// </summary>
+    public string? UserPrincipalName { get; init; }
+
     public required string Message { get; init; }
 
     public DateTimeOffset? DueDate { get; init; }

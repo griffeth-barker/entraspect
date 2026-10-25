@@ -26,6 +26,8 @@ public sealed class FindingRow
 
     public string ObjectDisplayName => Finding.ObjectDisplayName;
 
+    public string? UserPrincipalName => Finding.UserPrincipalName;
+
     public string ObjectId => Finding.ObjectId;
 
     public string? SubObjectDisplayName => Finding.SubObjectDisplayName;
@@ -39,10 +41,13 @@ public sealed class FindingRow
 
     public string Message => Finding.Message;
 
-    /// <summary>True if <paramref name="text"/> appears in the display name, object ID, item or message.</summary>
+    /// <summary>
+    /// True if <paramref name="text"/> appears in the display name, user principal name, object ID, item or message.
+    /// </summary>
     public bool MatchesSearch(string text) =>
         string.IsNullOrWhiteSpace(text)
         || Contains(ObjectDisplayName, text)
+        || Contains(UserPrincipalName, text)
         || Contains(ObjectId, text)
         || Contains(SubObjectDisplayName, text)
         || Contains(Message, text);

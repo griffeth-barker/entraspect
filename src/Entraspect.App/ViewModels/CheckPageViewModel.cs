@@ -291,6 +291,11 @@ public partial class CheckPageViewModel : ViewModelBase
             new(labels.ObjectDisplayName, FilterKind.Text, r => r.ObjectDisplayName),
         };
 
+        if (labels.UserPrincipalName is { } userPrincipalName)
+        {
+            fields.Add(new FilterField(userPrincipalName, FilterKind.Text, r => r.UserPrincipalName));
+        }
+
         if (labels.ObjectId is { } objectId)
         {
             fields.Add(new FilterField(objectId, FilterKind.Text, r => r.ObjectId));

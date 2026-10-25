@@ -31,7 +31,7 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - Member: **Warning**.
 - Guest: **Info**, with "Guests may do MFA in their home tenant, depending on your cross-tenant access settings." added to the message.
 - Message: "Not registered for MFA." when `IsMfaRegistered` is false, or "Registered MFA methods are not allowed by the current policy." when it is true.
-- `ObjectType` `User`, `ObjectDisplayName` "Display name (UPN)", no sub-object, no `DueDate`. Required permission: `AuditLog.Read.All`.
+- `ObjectType` `User`, `ObjectDisplayName` the display name, `UserPrincipalName` the UPN in its own "User principal name" column, no sub-object, no `DueDate`. Required permission: `AuditLog.Read.All`.
 
 Tests: admin, member, guest, registered but not capable, capable (no finding), and a mix.
 
@@ -61,7 +61,7 @@ Tests: admin, member, guest, registered but not capable, capable (no finding), a
 - **Disabled users:** the Graph docs say this report "doesn't work for disabled users". Confirm whether disabled users are left out of the results. If they appear, filtering them needs `User.Read.All` (added in spec 007).
 - **Break-glass accounts:** emergency access accounts may deliberately have only a FIDO2 key or no method. They need the suppression feature from spec 002 Open questions.
 - **Service accounts and synced accounts:** no special handling. Should synced accounts or accounts with no sign-in activity be treated differently?
-- **User principal name column:** the spec puts the UPN in `ObjectDisplayName` ("Display name (UPN)"), so the column is labelled "Display name (UPN)". The Entra user list shows "User principal name" as its own column; that would need a new `FindingLabels` field or a sub-object, which this spec rules out.
-- **Guest admins:** a guest holding an admin role is Critical (admin wins) and still gets the home tenant note. Confirm that's wanted.
+- **User principal name column (decided):** don't combine the display name and the UPN. A display name is for presentation and can repeat; a UPN is unique in the tenant. `Finding.UserPrincipalName` and `FindingLabels.UserPrincipalName` add a "User principal name" column, hidden for checks that don't set it.
+- **Guest admins (decided for now):** a guest holding an admin role is Critical (admin wins) and still gets the home tenant note.
 - **Report updated time:** the check page shows "Report updated" from the most recent `lastUpdatedDateTime` among the rows read, which are only users who aren't MFA capable. With no such users there's nothing to show. A tenant-wide time would need an extra read of the unfiltered report. The time reaches the page through a new optional `ICheck.GetDataUpdatedAsync` (default null), called by `ScanRunner` after `RunAsync` on the cached reader.
 - **Page size:** the List userRegistrationDetails docs document only `$filter`, not `$top`, so Graph's default page size is used and every `@odata.nextLink` is followed.

@@ -89,8 +89,8 @@ public sealed class CheckCatalogTests
         Assert.Equal("MFA not registered", check.Title);
         Assert.Equal(CheckCategory.Users, check.Category);
         Assert.Equal(
-            ("Display name (UPN)", "Object ID"),
-            (check.Labels.ObjectDisplayName, check.Labels.ObjectId));
+            ("Display name", "User principal name", "Object ID"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId));
         Assert.Null(check.Labels.SubObjectDisplayName);
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);
@@ -105,6 +105,7 @@ public sealed class CheckCatalogTests
         var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
 
         Assert.Equal(("Display name", "Object ID"), (check.Labels.ObjectDisplayName, check.Labels.ObjectId));
+        Assert.Null(check.Labels.UserPrincipalName);
         Assert.Null(check.Labels.SubObjectDisplayName);
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);

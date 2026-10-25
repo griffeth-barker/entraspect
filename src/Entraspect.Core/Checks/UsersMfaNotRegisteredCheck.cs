@@ -22,11 +22,11 @@ public sealed class UsersMfaNotRegisteredCheck : ICheck
 
     public IReadOnlyList<string> RequiredPermissions => new[] { "AuditLog.Read.All" };
 
-    // Named like the user list in the Entra admin center. The display name column also carries the user principal
-    // name. Findings are about the user itself, with no due date.
+    // Named like the user list in the Entra admin center. Findings are about the user itself, with no due date.
     public FindingLabels Labels { get; } = new()
     {
-        ObjectDisplayName = "Display name (UPN)",
+        ObjectDisplayName = "Display name",
+        UserPrincipalName = "User principal name",
         ObjectId = "Object ID",
         SubObjectDisplayName = null,
         SubObjectType = null,
@@ -82,17 +82,9 @@ public sealed class UsersMfaNotRegisteredCheck : ICheck
             Severity = severity,
             ObjectType = "User",
             ObjectId = user.Id,
-            ObjectDisplayName = DisplayName(user),
+            ObjectDisplayName = user.DisplayName,
+            UserPrincipalName = user.UserPrincipalName,
             Message = message,
         };
     }
-
-    /// <summary>"Display name (UPN)", or whichever of the two is set.</summary>
-    private static string DisplayName(UserRegistration user) =>
-        (string.IsNullOrWhiteSpace(user.DisplayName), string.IsNullOrWhiteSpace(user.UserPrincipalName)) switch
-        {
-            (false, false) => $"{user.DisplayName} ({user.UserPrincipalName})",
-            (false, true) => user.DisplayName,
-            _ => user.UserPrincipalName,
-        };
 }

@@ -135,6 +135,8 @@
                 <!-- Headers for the columns below come from the check's FindingLabels (code-behind). -->
                 <DataGridTextColumn SortMemberPath="ObjectDisplayName"
                                     Binding="{Binding ObjectDisplayName}" Width="2*" MinWidth="140" />
+                <DataGridTextColumn SortMemberPath="UserPrincipalName"
+                                    Binding="{Binding UserPrincipalName}" Width="2*" MinWidth="140" />
                 <DataGridTextColumn SortMemberPath="ObjectId"
                                     Binding="{Binding ObjectId}" Width="1.5*" MinWidth="120" />
                 <DataGridTextColumn SortMemberPath="SubObjectDisplayName"

@@ -45,6 +45,7 @@ public partial class CheckPageView : UserControl
     {
         var labels = vm.Labels;
         SetColumn(nameof(FindingRow.ObjectDisplayName), labels.ObjectDisplayName);
+        SetColumn(nameof(FindingRow.UserPrincipalName), labels.UserPrincipalName);
         SetColumn(nameof(FindingRow.ObjectId), labels.ObjectId);
         SetColumn(nameof(FindingRow.SubObjectDisplayName), labels.SubObjectDisplayName);
         SetColumn(nameof(FindingRow.SubObjectType), labels.SubObjectType);

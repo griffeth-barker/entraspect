@@ -61,7 +61,7 @@ Add `CheckOptions.SignInLookbackDays` (default 7, range 1 to 30), shown in Setti
   - If report-only policies would require it, add "Report-only policies that would require MFA: policy names."
   - If the user had successful single-factor sign-ins in the lookback period, add "N successful single-factor sign-ins in the last D days, most recent DATE." The sign-ins don't change the severity.
 - Read sign-ins only when at least one finding needs them, and read them once per scan.
-- `ObjectType` `User`, `ObjectDisplayName` "Display name (UPN)", no sub-object, no `DueDate`. Required permissions: `Policy.Read.All`, `User.Read.All`, `GroupMember.Read.All`, `RoleManagement.Read.Directory`, `AuditLog.Read.All`. The check page says the per-user MFA state and sign-in data come from beta Graph.
+- `ObjectType` `User`, `ObjectDisplayName` the display name, `UserPrincipalName` the UPN in its own "User principal name" column (as in spec 005), no sub-object, no `DueDate`. Required permissions: `Policy.Read.All`, `User.Read.All`, `GroupMember.Read.All`, `RoleManagement.Read.Directory`, `AuditLog.Read.All`. The check page says the per-user MFA state and sign-in data come from beta Graph.
 
 Tests: security defaults on, disabled user skipped, admin, member and guest with no policy, "in some cases" severities, report-only note, a user covered by one full policy, per-user MFA `Enabled`, `Enforced` and `Unknown`, sign-in evidence in the message, and no sign-in read when there are no findings.
 

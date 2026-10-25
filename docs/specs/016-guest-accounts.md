@@ -1,6 +1,6 @@
 # Spec 016: Guest accounts
 
-**Status:** Ready (depends on specs 005, 007, 008 and 012)
+**Status:** Done (not yet tested on a tenant; see "Tests still to do")
 **Goal:** Three checks in the Users nav section about guest accounts: guests who haven't signed in for a long time, guest invitations that were never accepted, and guests holding directory roles.
 
 **Placement:** these checks report user objects, so they go under **Users**, as Entra lists guests under Users. The tenant-wide guest settings are in the External Identities section (spec 015).
@@ -84,6 +84,16 @@ Tests with a fake reader and `FakeTimeProvider`: the inactive boundaries (exactl
   - A guest given a directory role (for example Directory Readers) appears under Guests with admin roles as Critical. Remove the role afterwards.
   - On a P1 or P2 tenant, a guest with no recent sign-in appears under Inactive guests. Without P1 or P2, the check is grayed out as in spec 012.
   - Changing the two options on Settings > Checks changes the results of the next scan.
+
+## Tests still to do
+
+Not tested in the running app or against a tenant yet. Built and unit tested on 2026-10-25.
+
+- Graph accepts `$filter=userType eq 'Guest'` together with `$select=id,signInActivity` on v1.0 `GET /users`. If it answers HTTP 400, the read falls back to selecting `userType` for every user; check that the fallback returns the same guests.
+- The manual checks under Acceptance criteria: a pending invitation (with the setting at 1 day), a guest with Directory Readers (Critical; remove the role afterwards), an inactive guest on a P1 or P2 tenant, and Inactive guests grayed out without P1 or P2.
+- Without P1 or P2 and without `LicenseAssignment.Read.All`, Inactive guests fails with "This check needs an Entra ID P1 or P2 licence." Note the Graph error code from `GET /users?$select=signInActivity`, and add it to `CheckFailureMessage` if it isn't `Authentication_RequestFromNonPremiumTenantOrB2CTenant`.
+- Changing Inactive guests (days) and Pending invitations (days) on **Settings** > **Checks** changes the next scan's results.
+- The Invitation, Last sign-in, Invited and Role columns show, and Search and Add filter find their values.
 
 ## Open questions
 

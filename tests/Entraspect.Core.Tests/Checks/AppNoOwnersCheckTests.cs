@@ -4,7 +4,7 @@ namespace Entraspect.Core.Tests.Checks;
 
 public sealed class AppNoOwnersCheckTests
 {
-    private static AppRegistration App(string id, bool hasOwners) =>
+    private static AppRegistration App(string id, bool hasOwners, params string[] identifierUris) =>
         new()
         {
             Id = id,
@@ -12,6 +12,7 @@ public sealed class AppNoOwnersCheckTests
             DisplayName = $"App {id}",
             Credentials = [],
             HasOwners = hasOwners,
+            IdentifierUris = identifierUris,
         };
 
     private static Task<IReadOnlyList<Finding>> RunAsync(params AppRegistration[] apps) =>
@@ -29,6 +30,30 @@ public sealed class AppNoOwnersCheckTests
         var app = new AppRegistration { Id = "1", AppId = Guid.NewGuid(), DisplayName = "App 1", Credentials = [] };
 
         Assert.Empty(await RunAsync(app));
+    }
+
+    [Theory]
+    [InlineData("urn:p2p_cert")]
+    [InlineData("URN:P2P_CERT")]
+    public async Task P2P_server_created_by_entra_is_skipped(string identifierUri)
+    {
+        Assert.Empty(await RunAsync(App("1", hasOwners: false, identifierUri)));
+    }
+
+    [Fact]
+    public async Task App_named_like_a_microsoft_app_is_still_reported()
+    {
+        var app = new AppRegistration
+        {
+            Id = "1",
+            AppId = Guid.NewGuid(),
+            DisplayName = "Microsoft Graph API",
+            Credentials = [],
+            HasOwners = false,
+            IdentifierUris = ["api://contoso", "urn:p2p_cert:other"],
+        };
+
+        Assert.Equal("Microsoft Graph API", Assert.Single(await RunAsync(app)).ObjectDisplayName);
     }
 
     [Fact]

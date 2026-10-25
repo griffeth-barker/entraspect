@@ -19,6 +19,7 @@ public sealed class AppHygieneMappingTests
             AppId = "11111111-1111-1111-1111-111111111111",
             DisplayName = "My App",
             SignInAudience = "AzureADMyOrg",
+            IdentifierUris = ["urn:p2p_cert", ""],
             Web = new WebApplication { RedirectUris = ["https://contoso.com/signin-oidc", "http://example.com"] },
             Spa = new SpaApplication { RedirectUris = ["http://localhost:3000"] },
             PublicClient = new PublicClientApplication { RedirectUris = ["http://localhost"] },
@@ -28,6 +29,7 @@ public sealed class AppHygieneMappingTests
 
         Assert.Equal("AzureADMyOrg", result.SignInAudience);
         Assert.False(result.HasOwners);
+        Assert.Equal(new[] { "urn:p2p_cert" }, result.IdentifierUris);
         Assert.Equal(
             new[]
             {
@@ -47,6 +49,7 @@ public sealed class AppHygieneMappingTests
             hasOwners: true);
 
         Assert.Empty(result.RedirectUris);
+        Assert.Empty(result.IdentifierUris);
         Assert.Null(result.SignInAudience);
         Assert.True(result.HasOwners);
     }

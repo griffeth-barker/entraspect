@@ -15,6 +15,9 @@ public sealed class AppRegistration
     /// <summary>Who can sign in to the app, for example <c>AzureADMyOrg</c>, as Graph returns it.</summary>
     public string? SignInAudience { get; init; }
 
+    /// <summary>The app's identifier URIs (Application ID URIs), for example <c>api://contoso</c>.</summary>
+    public IReadOnlyList<string> IdentifierUris { get; init; } = [];
+
     /// <summary>The redirect URIs of the Web, single-page application and public client platforms.</summary>
     public IReadOnlyList<RedirectUri> RedirectUris { get; init; } = [];
 

@@ -78,7 +78,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             config.QueryParameters.Select =
             [
                 "id", "appId", "displayName", "passwordCredentials", "keyCredentials", "signInAudience", "web",
-                "spa", "publicClient",
+                "spa", "publicClient", "identifierUris",
             ];
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
@@ -582,6 +582,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             DisplayName = application.DisplayName ?? string.Empty,
             Credentials = credentials,
             SignInAudience = application.SignInAudience,
+            IdentifierUris = application.IdentifierUris?.Where(u => !string.IsNullOrEmpty(u)).ToList() ?? [],
             RedirectUris = MapRedirectUris(application),
             HasOwners = hasOwners,
         };

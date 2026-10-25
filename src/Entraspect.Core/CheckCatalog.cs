@@ -20,5 +20,6 @@ public static class CheckCatalog
             new Checks.GroupNoMembersCheck(timeProvider),
             new Checks.GroupNoOwnersCheck(timeProvider),
             new Checks.AppCredentialExpiryCheck(timeProvider),
+            new Checks.SamlSigningCertificateExpiryCheck(timeProvider),
         };
 }

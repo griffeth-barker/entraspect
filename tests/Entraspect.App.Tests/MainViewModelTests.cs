@@ -13,6 +13,8 @@ namespace Entraspect.App.Tests;
 public sealed class MainViewModelTests : IDisposable
 {
     private const string CheckId = "app-credential-expiry";
+
+    private const string SamlCheckId = "saml-signing-certificate-expiry";
     private const string FakePassword = "fake-pfx-password-for-test";
     private const string ClientId = "00000000-0000-0000-0000-0000000000c1";
 
@@ -61,7 +63,9 @@ public sealed class MainViewModelTests : IDisposable
         var vm = CreateViewModel();
 
         Assert.Same(vm.OverviewItem, vm.MenuItems[0]);
-        Assert.Equal(new[] { "Groups", "App registrations" }, vm.MenuItems.Skip(1).Select(i => i.Title));
+        Assert.Equal(
+            new[] { "Groups", "App registrations", "Enterprise apps" },
+            vm.MenuItems.Skip(1).Select(i => i.Title));
         Assert.Equal(
             new[] { "group-no-members", "group-no-owners" },
             vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
@@ -69,6 +73,9 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(section.IsPage);
         Assert.False(section.IsExpanded);
         Assert.Equal(CheckId, Assert.IsType<CheckPageViewModel>(Assert.Single(section.Children).Page).Check.Id);
+        Assert.Equal(
+            SamlCheckId,
+            Assert.IsType<CheckPageViewModel>(Assert.Single(vm.MenuItems[3].Children).Page).Check.Id);
         Assert.Equal(
             new[] { "Connection profiles", "Checks", "Preferences", "About" },
             Assert.Single(vm.FooterItems).Children.Select(c => c.Title));
@@ -302,7 +309,7 @@ public sealed class MainViewModelTests : IDisposable
             banner.Message);
         Assert.True(vm.Overview.Banner.IsOpen);
         Assert.Equal(
-            $"Application.Read.All: needed by {CheckPage(vm).Title}",
+            $"Application.Read.All: needed by {CheckPage(vm).Title}, Expiring SAML certificates",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsMissing);
         Assert.True(vm.ChecksSettingsItem.HasWarning);
@@ -350,10 +357,18 @@ public sealed class MainViewModelTests : IDisposable
 
         AppCheckRow(vm).IsEnabled = false;
 
+        Assert.Equal(
+            "Application.Read.All: needed by Expiring SAML certificates",
+            Assert.Single(vm.Overview.Banner.Details));
+
+        vm.ChecksSettings.Rows.Single(r => r.Check.Id == SamlCheckId).IsEnabled = false;
+
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.False(vm.ChecksSettingsItem.HasWarning);
         Assert.True(CheckPage(vm).IsDisabled);
-        Assert.Equal(new[] { CheckId }, new SettingsStore(_dir).Load(out _).DisabledCheckIds);
+        Assert.Equal(
+            new[] { CheckId, SamlCheckId },
+            new SettingsStore(_dir).Load(out _).DisabledCheckIds.Order());
     }
 
     [Fact]

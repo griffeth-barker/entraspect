@@ -11,10 +11,13 @@ public sealed class CheckCatalogTests
         var checks = CheckCatalog.All(new FakeTimeProvider());
 
         Assert.Equal(
-            new[] { "group-no-members", "group-no-owners", "app-credential-expiry" },
+            new[] { "group-no-members", "group-no-owners", "app-credential-expiry", "saml-signing-certificate-expiry" },
             checks.Select(c => c.Id));
         Assert.Equal(
-            new[] { CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations },
+            new[]
+            {
+                CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
+            },
             checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));
     }
@@ -56,6 +59,19 @@ public sealed class CheckCatalogTests
             ("Display name", "Object ID", "Credential", "Type", "Expires"),
             (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
                 check.Labels.SubObjectType, check.Labels.DueDate));
+    }
+
+    [Fact]
+    public void Expiring_saml_certificates_columns_are_named_like_the_enterprise_app()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "saml-signing-certificate-expiry");
+
+        Assert.Equal("Expiring SAML certificates", check.Title);
+        Assert.Equal(
+            ("Display name", "Object ID", "Certificate", (string?)null, "Expires"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+        Assert.Equal(new[] { "Application.Read.All" }, check.RequiredPermissions);
     }
 
     [Theory]

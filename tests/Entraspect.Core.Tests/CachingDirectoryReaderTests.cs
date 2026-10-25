@@ -161,6 +161,33 @@ public sealed class CachingDirectoryReaderTests
             signInsRead?.Report(2);
             return Task.FromResult(aggregator.ToUsage());
         }
+
+        public int AuthorizationPolicyCalls { get; private set; }
+
+        public int CrossTenantDefaultsCalls { get; private set; }
+
+        public int CrossTenantPartnersCalls { get; private set; }
+
+        public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(
+            CancellationToken cancellationToken = default)
+        {
+            AuthorizationPolicyCalls++;
+            return Task.FromResult(new AuthorizationPolicySettings());
+        }
+
+        public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            CrossTenantDefaultsCalls++;
+            return Task.FromResult(new CrossTenantAccessSettings());
+        }
+
+        public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            CrossTenantPartnersCalls++;
+            return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([new CrossTenantAccessSettings { TenantId = "t1" }]);
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -344,6 +371,46 @@ public sealed class CachingDirectoryReaderTests
             FailOnce("usage");
             return Task.FromResult(new ConditionalAccessUsageAggregator(since, since).ToUsage());
         }
+
+        private bool _authorizationPolicyFailed;
+        private bool _crossTenantDefaultsFailed;
+        private bool _crossTenantPartnersFailed;
+
+        public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_authorizationPolicyFailed)
+            {
+                _authorizationPolicyFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult(new AuthorizationPolicySettings());
+        }
+
+        public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_crossTenantDefaultsFailed)
+            {
+                _crossTenantDefaultsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult(new CrossTenantAccessSettings());
+        }
+
+        public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_crossTenantPartnersFailed)
+            {
+                _crossTenantPartnersFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
+        }
     }
 
     [Fact]
@@ -514,6 +581,40 @@ public sealed class CachingDirectoryReaderTests
         var result = await caching.GetConditionalAccessPoliciesAsync();
 
         Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Fetches_guest_and_cross_tenant_settings_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetAuthorizationPolicyAsync();
+        await caching.GetAuthorizationPolicyAsync();
+        await caching.GetCrossTenantAccessDefaultsAsync();
+        await caching.GetCrossTenantAccessDefaultsAsync();
+        await caching.GetCrossTenantAccessPartnersAsync();
+        var partners = await caching.GetCrossTenantAccessPartnersAsync();
+
+        Assert.Equal("t1", Assert.Single(partners).TenantId);
+        Assert.Equal(1, inner.AuthorizationPolicyCalls);
+        Assert.Equal(1, inner.CrossTenantDefaultsCalls);
+        Assert.Equal(1, inner.CrossTenantPartnersCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_guest_or_cross_tenant_settings_reads()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetAuthorizationPolicyAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetCrossTenantAccessDefaultsAsync());
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetCrossTenantAccessPartnersAsync());
+
+        Assert.NotNull(await caching.GetAuthorizationPolicyAsync());
+        Assert.NotNull(await caching.GetCrossTenantAccessDefaultsAsync());
+        Assert.NotNull(await caching.GetCrossTenantAccessPartnersAsync());
     }
 
     [Fact]

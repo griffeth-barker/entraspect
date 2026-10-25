@@ -8,6 +8,7 @@ using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Abstractions;
 using Microsoft.Kiota.Abstractions.Serialization;
+using AllowInvitesFrom = Entraspect.Core.AllowInvitesFrom;
 using ConditionalAccessPolicy = Entraspect.Core.ConditionalAccessPolicy;
 using ConditionalAccessPolicyState = Entraspect.Core.ConditionalAccessPolicyState;
 using UserType = Entraspect.Core.UserType;
@@ -87,6 +88,17 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadConditionalAccessUsageAsync(since, signInsRead, cancellationToken));
 
+    public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadAuthorizationPolicyAsync(cancellationToken));
+
+    public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadCrossTenantAccessDefaultsAsync(cancellationToken));
+
+    public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadCrossTenantAccessPartnersAsync(cancellationToken));
+
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
 
@@ -107,9 +119,10 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
         catch (JsonException ex)
         {
-            // Only beta responses are parsed here; a response that isn't JSON fails just the check that read it.
+            // Only raw JSON responses (beta, and the authorization policy) are parsed here; a response that isn't JSON
+            // fails just the check that read it.
             throw new DirectoryReadException(
-                $"Microsoft Graph beta returned a response that couldn't be read: {ex.Message}",
+                $"Microsoft Graph returned a response that couldn't be read: {ex.Message}",
                 innerException: ex);
         }
     }
@@ -619,6 +632,151 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         return policy?.IsEnabled == true;
     }
 
+    /// <summary>The Microsoft Graph v1.0 endpoint.</summary>
+    public const string V1BaseUrl = "https://graph.microsoft.com/v1.0";
+
+    /// <summary>
+    /// <c>GET /policies/authorizationPolicy?$select=guestUserRoleId,allowInvitesFrom,allowEmailVerifiedUsersToJoinOrganization</c>,
+    /// read as JSON: the SDK's types drop an <c>allowInvitesFrom</c> they don't know and a <c>guestUserRoleId</c> that
+    /// isn't a GUID, and the check shows those raw values.
+    /// </summary>
+    private async Task<AuthorizationPolicySettings> ReadAuthorizationPolicyAsync(CancellationToken cancellationToken)
+    {
+        using var document = await GetJsonAsync(
+            $"{V1BaseUrl}/policies/authorizationPolicy" +
+            "?$select=guestUserRoleId,allowInvitesFrom,allowEmailVerifiedUsersToJoinOrganization",
+            cancellationToken).ConfigureAwait(false);
+        return MapAuthorizationPolicy(document.RootElement);
+    }
+
+    /// <summary>Missing or unexpected values never throw.</summary>
+    public static AuthorizationPolicySettings MapAuthorizationPolicy(JsonElement policy)
+    {
+        var allowInvitesFrom = String(policy, "allowInvitesFrom");
+        return new AuthorizationPolicySettings
+        {
+            GuestUserRoleId = String(policy, "guestUserRoleId")?.Trim() ?? string.Empty,
+            AllowInvitesFrom = MapAllowInvitesFrom(allowInvitesFrom),
+            AllowInvitesFromRaw = allowInvitesFrom,
+            AllowEmailVerifiedUsersToJoinOrganization = Boolean(policy, "allowEmailVerifiedUsersToJoinOrganization"),
+        };
+    }
+
+    /// <summary>A missing or unrecognised value is <see cref="AllowInvitesFrom.Unknown"/>; case is ignored.</summary>
+    public static AllowInvitesFrom MapAllowInvitesFrom(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "NONE" => AllowInvitesFrom.None,
+        "ADMINSANDGUESTINVITERS" => AllowInvitesFrom.AdminsAndGuestInviters,
+        "ADMINSGUESTINVITERSANDALLMEMBERS" => AllowInvitesFrom.AdminsGuestInvitersAndAllMembers,
+        "EVERYONE" => AllowInvitesFrom.Everyone,
+        _ => AllowInvitesFrom.Unknown,
+    };
+
+    /// <summary><c>GET /policies/crossTenantAccessPolicy/default</c>.</summary>
+    private async Task<CrossTenantAccessSettings> ReadCrossTenantAccessDefaultsAsync(CancellationToken cancellationToken)
+    {
+        var defaults = await _client.Policies.CrossTenantAccessPolicy.Default
+            .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+
+        return MapCrossTenantAccessDefaults(defaults);
+    }
+
+    /// <summary><c>GET /policies/crossTenantAccessPolicy/partners</c>, following every page.</summary>
+    private async Task<IReadOnlyList<CrossTenantAccessSettings>> ReadCrossTenantAccessPartnersAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = new List<CrossTenantAccessSettings>();
+        var partners = _client.Policies.CrossTenantAccessPolicy.Partners;
+
+        var response = await partners.GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value.OfType<CrossTenantAccessPolicyConfigurationPartner>()
+                    .Select(MapCrossTenantAccessPartner));
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await partners.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    public static CrossTenantAccessSettings MapCrossTenantAccessDefaults(
+        CrossTenantAccessPolicyConfigurationDefault? defaults) => new()
+    {
+        IsServiceDefault = defaults?.IsServiceDefault,
+        InboundTrust = MapInboundTrust(defaults?.InboundTrust),
+        AutomaticRedemptionInbound = defaults?.AutomaticUserConsentSettings?.InboundAllowed,
+        AutomaticRedemptionOutbound = defaults?.AutomaticUserConsentSettings?.OutboundAllowed,
+        B2bCollaborationInbound = MapCrossTenantAccess(defaults?.B2bCollaborationInbound),
+        B2bCollaborationOutbound = MapCrossTenantAccess(defaults?.B2bCollaborationOutbound),
+        B2bDirectConnectInbound = MapCrossTenantAccess(defaults?.B2bDirectConnectInbound),
+        B2bDirectConnectOutbound = MapCrossTenantAccess(defaults?.B2bDirectConnectOutbound),
+    };
+
+    /// <summary>A partner's settings. A property Graph returns as null isn't set and inherits the defaults.</summary>
+    public static CrossTenantAccessSettings MapCrossTenantAccessPartner(CrossTenantAccessPolicyConfigurationPartner partner) =>
+        new()
+        {
+            TenantId = partner.TenantId ?? string.Empty,
+            IsServiceProvider = partner.IsServiceProvider,
+            InboundTrust = MapInboundTrust(partner.InboundTrust),
+            AutomaticRedemptionInbound = partner.AutomaticUserConsentSettings?.InboundAllowed,
+            AutomaticRedemptionOutbound = partner.AutomaticUserConsentSettings?.OutboundAllowed,
+            B2bCollaborationInbound = MapCrossTenantAccess(partner.B2bCollaborationInbound),
+            B2bCollaborationOutbound = MapCrossTenantAccess(partner.B2bCollaborationOutbound),
+            B2bDirectConnectInbound = MapCrossTenantAccess(partner.B2bDirectConnectInbound),
+            B2bDirectConnectOutbound = MapCrossTenantAccess(partner.B2bDirectConnectOutbound),
+        };
+
+    private static CrossTenantInboundTrust MapInboundTrust(CrossTenantAccessPolicyInboundTrust? trust) => new()
+    {
+        IsMfaAccepted = trust?.IsMfaAccepted,
+        IsCompliantDeviceAccepted = trust?.IsCompliantDeviceAccepted,
+        IsHybridJoinedDeviceAccepted = trust?.IsHybridAzureADJoinedDeviceAccepted,
+    };
+
+    /// <summary>The <c>AllUsers</c> target of <c>usersAndGroups</c>.</summary>
+    public const string AllUsersTarget = "AllUsers";
+
+    /// <summary>The <c>AllApplications</c> target of <c>applications</c>. <c>Office365</c> isn't all applications.</summary>
+    public const string AllApplicationsTarget = "AllApplications";
+
+    /// <summary>Null when Graph returned no setting (on a partner: inherited from the defaults).</summary>
+    public static CrossTenantAccess? MapCrossTenantAccess(CrossTenantAccessPolicyB2BSetting? setting) =>
+        setting is null
+            ? null
+            : new CrossTenantAccess
+            {
+                Users = MapAccessTarget(setting.UsersAndGroups, AllUsersTarget),
+                Applications = MapAccessTarget(setting.Applications, AllApplicationsTarget),
+            };
+
+    /// <summary>
+    /// Null when Graph returned no configuration. A missing or unrecognised access type is
+    /// <see cref="CrossTenantAccessType.Unknown"/>; missing targets don't include all.
+    /// </summary>
+    public static CrossTenantAccessTarget? MapAccessTarget(
+        CrossTenantAccessPolicyTargetConfiguration? configuration,
+        string allTarget) =>
+        configuration is null
+            ? null
+            : new CrossTenantAccessTarget(
+                configuration.AccessType switch
+                {
+                    CrossTenantAccessPolicyTargetConfigurationAccessType.Allowed => CrossTenantAccessType.Allowed,
+                    CrossTenantAccessPolicyTargetConfigurationAccessType.Blocked => CrossTenantAccessType.Blocked,
+                    _ => CrossTenantAccessType.Unknown,
+                },
+                configuration.Targets?.Any(t =>
+                    string.Equals(t?.Target, allTarget, StringComparison.OrdinalIgnoreCase)) == true);
+
     /// <summary>The Microsoft Graph beta endpoint, for data that v1.0 doesn't have.</summary>
     public const string BetaBaseUrl = "https://graph.microsoft.com/beta";
 
@@ -630,7 +788,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     {
         try
         {
-            using var document = await GetBetaAsync(
+            using var document = await GetJsonAsync(
                 $"{BetaBaseUrl}/users/{Uri.EscapeDataString(userId)}/authentication/requirements",
                 cancellationToken).ConfigureAwait(false);
             return MapPerUserMfaState(document.RootElement);
@@ -675,7 +833,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         while (url is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            using var page = await GetBetaAsync(url, cancellationToken).ConfigureAwait(false);
+            using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
             url = AddSingleFactorSignIns(page.RootElement, totals);
         }
 
@@ -811,15 +969,27 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         number == 0;
 
     private static string? String(JsonElement element, string property) =>
-        element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
+        element.ValueKind == JsonValueKind.Object
+        && element.TryGetProperty(property, out var value) && value.ValueKind == JsonValueKind.String
             ? value.GetString()
             : null;
 
+    private static bool? Boolean(JsonElement element, string property) =>
+        element.ValueKind == JsonValueKind.Object && element.TryGetProperty(property, out var value)
+            ? value.ValueKind switch
+            {
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                _ => null,
+            }
+            : null;
+
     /// <summary>
-    /// A GET to a beta URL through the Graph client's own request adapter, so authentication, retries and error mapping
-    /// are the same as for v1.0. Graph errors come back as <see cref="ODataError"/>.
+    /// A GET to a Graph URL through the Graph client's own request adapter, returning the raw JSON, so authentication,
+    /// retries and error mapping are the same as for typed requests. Used for beta, and for v1.0 values the SDK's types
+    /// would drop. Graph errors come back as <see cref="ODataError"/>.
     /// </summary>
-    private async Task<JsonDocument> GetBetaAsync(string url, CancellationToken cancellationToken)
+    private async Task<JsonDocument> GetJsonAsync(string url, CancellationToken cancellationToken)
     {
         var request = new RequestInformation { HttpMethod = Method.GET, URI = new Uri(url) };
         request.Headers.Add("Accept", "application/json");

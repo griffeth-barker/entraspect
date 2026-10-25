@@ -82,4 +82,17 @@ public interface IDirectoryReader
         DateTimeOffset since,
         IProgress<int>? signInsRead = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>The guest settings of the tenant's authorization policy.</summary>
+    Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The default cross-tenant access settings. Separate from <see cref="GetCrossTenantAccessPartnersAsync"/> so that
+    /// a failure here fails only the check that reads it.
+    /// </summary>
+    Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>The cross-tenant access settings of every partner organisation.</summary>
+    Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+        CancellationToken cancellationToken = default);
 }

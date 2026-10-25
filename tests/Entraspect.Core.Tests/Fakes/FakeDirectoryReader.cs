@@ -177,4 +177,32 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
         signInsRead?.Report(usage.SignInsRead);
         return Task.FromResult(usage);
     }
+
+    /// <summary>What <see cref="GetAuthorizationPolicyAsync"/> returns.</summary>
+    public AuthorizationPolicySettings AuthorizationPolicy { get; init; } = new();
+
+    /// <summary>When set, <see cref="GetAuthorizationPolicyAsync"/> throws it.</summary>
+    public DirectoryReadException? AuthorizationPolicyFailure { get; init; }
+
+    /// <summary>What <see cref="GetCrossTenantAccessDefaultsAsync"/> returns.</summary>
+    public CrossTenantAccessSettings CrossTenantDefaults { get; init; } = new();
+
+    /// <summary>When set, <see cref="GetCrossTenantAccessDefaultsAsync"/> throws it.</summary>
+    public DirectoryReadException? CrossTenantDefaultsFailure { get; init; }
+
+    public IReadOnlyList<CrossTenantAccessSettings> CrossTenantPartners { get; init; } = [];
+
+    /// <summary>When set, <see cref="GetCrossTenantAccessPartnersAsync"/> throws it.</summary>
+    public DirectoryReadException? CrossTenantPartnersFailure { get; init; }
+
+    public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default) =>
+        AuthorizationPolicyFailure is { } failure ? throw failure : Task.FromResult(AuthorizationPolicy);
+
+    public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(
+        CancellationToken cancellationToken = default) =>
+        CrossTenantDefaultsFailure is { } failure ? throw failure : Task.FromResult(CrossTenantDefaults);
+
+    public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+        CancellationToken cancellationToken = default) =>
+        CrossTenantPartnersFailure is { } failure ? throw failure : Task.FromResult(CrossTenantPartners);
 }

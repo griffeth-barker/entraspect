@@ -25,6 +25,9 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private bool? _securityDefaultsEnabled;
     private (DateTimeOffset Since, IReadOnlyDictionary<string, SingleFactorSignIns> SignIns)? _singleFactorSignIns;
     private (DateTimeOffset Since, ConditionalAccessUsage Usage)? _conditionalAccessUsage;
+    private AuthorizationPolicySettings? _authorizationPolicy;
+    private CrossTenantAccessSettings? _crossTenantAccessDefaults;
+    private IReadOnlyList<CrossTenantAccessSettings>? _crossTenantAccessPartners;
     private readonly Dictionary<string, IReadOnlyList<string>> _groupTransitiveUserIds =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PerUserMfaState> _perUserMfaStates = new(StringComparer.OrdinalIgnoreCase);
@@ -189,5 +192,26 @@ public sealed class CachingDirectoryReader : IDirectoryReader
             .ConfigureAwait(false);
         _conditionalAccessUsage = (since, usage);
         return usage;
+    }
+
+    public async Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _authorizationPolicy ??=
+            await _inner.GetAuthorizationPolicyAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _crossTenantAccessDefaults ??=
+            await _inner.GetCrossTenantAccessDefaultsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _crossTenantAccessPartners ??=
+            await _inner.GetCrossTenantAccessPartnersAsync(cancellationToken).ConfigureAwait(false);
     }
 }

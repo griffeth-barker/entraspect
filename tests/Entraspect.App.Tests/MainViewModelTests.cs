@@ -1153,6 +1153,15 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(DateTimeOffset since, IProgress<int>? signInsRead = null, CancellationToken cancellationToken = default) =>
             Task.FromResult(new ConditionalAccessUsageAggregator(since, since).ToUsage());
+
+        public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new AuthorizationPolicySettings());
+
+        public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult(new CrossTenantAccessSettings());
+
+        public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<CrossTenantAccessSettings>>([]);
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -1203,6 +1212,15 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(DateTimeOffset since, IProgress<int>? signInsRead = null, CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -1318,6 +1336,27 @@ public sealed class MainViewModelTests : IDisposable
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
             return new ConditionalAccessUsageAggregator(since, since).ToUsage();
+        }
+
+        public async Task<AuthorizationPolicySettings> GetAuthorizationPolicyAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return new AuthorizationPolicySettings();
+        }
+
+        public async Task<CrossTenantAccessSettings> GetCrossTenantAccessDefaultsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return new CrossTenantAccessSettings();
+        }
+
+        public async Task<IReadOnlyList<CrossTenantAccessSettings>> GetCrossTenantAccessPartnersAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
         }
     }
 }

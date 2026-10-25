@@ -85,3 +85,4 @@ Tests with a fake reader and `FakeTimeProvider`: each kind, synced groups (singl
 - **External senders allowed:** `allowExternalSenders` is only returned by `GET /groups/{id}`, so it needs one call per group.
 - **Paused processing on purpose:** admins sometimes pause dynamic processing on purpose, for example while changing a rule. Should the check skip groups paused recently? Graph has no "paused since" date in v1.0.
 - **Public security groups:** `visibility` is mainly for Microsoft 365 groups. Is `Public` on a security group meaningful enough to report?
+- **Navigation order (decided in step 2):** step 2 asks for the five checks after spec 003's two in the order listed, but AGENTS.md and `CheckCatalogTests` sort checks by title within each section. They follow the title order: Groups with no members, Groups with no owners, Groups with one owner, Licence errors, Paused dynamic groups, Public groups, Sync errors.

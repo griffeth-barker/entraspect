@@ -14,7 +14,8 @@ public sealed class CheckCatalogTests
             new[]
             {
                 "users-mfa-not-registered", "users-mfa-not-required", "group-no-members", "group-no-owners",
-                "app-no-owners",
+                "group-single-owner", "group-license-errors", "group-dynamic-paused", "group-public",
+                "group-sync-errors", "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
                 "sp-high-privilege-app-permissions", "ca-policy-hygiene", "ca-unused-policies",
             },
@@ -22,7 +23,9 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                CheckCategory.Users, CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
+                CheckCategory.Users, CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups,
+                CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups,
+                CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
                 CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess, CheckCategory.ConditionalAccess,
             },
@@ -186,6 +189,10 @@ public sealed class CheckCatalogTests
     [Theory]
     [InlineData("group-no-members", new[] { "GroupMember.Read.All", "Member.Read.Hidden" })]
     [InlineData("group-no-owners", new[] { "GroupMember.Read.All" })]
+    [InlineData("group-single-owner", new[] { "GroupMember.Read.All" })]
+    [InlineData("group-license-errors", new[] { "GroupMember.Read.All" })]
+    [InlineData("group-dynamic-paused", new[] { "GroupMember.Read.All" })]
+    [InlineData("group-public", new[] { "GroupMember.Read.All" })]
     public void Group_check_columns_are_named_like_the_group_list(string id, string[] permissions)
     {
         var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
@@ -196,6 +203,36 @@ public sealed class CheckCatalogTests
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);
         Assert.Equal(permissions, check.RequiredPermissions);
+    }
+
+    [Theory]
+    [InlineData("group-single-owner", "Groups with one owner")]
+    [InlineData("group-license-errors", "Licence errors")]
+    [InlineData("group-dynamic-paused", "Paused dynamic groups")]
+    [InlineData("group-public", "Public groups")]
+    [InlineData("group-sync-errors", "Sync errors")]
+    public void Group_hygiene_checks_are_in_the_groups_section(string id, string title)
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
+
+        Assert.Equal(title, check.Title);
+        Assert.Equal(CheckCategory.Groups, check.Category);
+        Assert.Equal(
+            id == "group-license-errors" ? LicenceRequirement.EntraIdP1 : LicenceRequirement.None,
+            check.RequiredLicence);
+    }
+
+    [Fact]
+    public void Sync_errors_columns_are_named_after_the_group_and_its_error()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "group-sync-errors");
+
+        Assert.Equal(
+            ("Display name", "Object ID", "Property", "Category", "Occurred"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.DueDate));
+        Assert.Null(check.Labels.UserPrincipalName);
+        Assert.Equal(new[] { "GroupMember.Read.All" }, check.RequiredPermissions);
     }
 
     [Fact]

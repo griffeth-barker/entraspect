@@ -36,7 +36,13 @@ internal static class GroupCheckRules
     /// </summary>
     public static string KindName(GroupKind kind, string? qualifier = null)
     {
-        var name = kind switch
+        var name = KindNoun(kind);
+        return qualifier is null ? char.ToUpperInvariant(name[0]) + name[1..] : $"{qualifier} {name}";
+    }
+
+    /// <summary>The group kind inside a sentence, for example "security group".</summary>
+    public static string KindNoun(GroupKind kind) =>
+        kind switch
         {
             GroupKind.Microsoft365 => "Microsoft 365 group",
             GroupKind.Security => "security group",
@@ -44,7 +50,4 @@ internal static class GroupCheckRules
             GroupKind.Distribution => "distribution group",
             _ => "group",
         };
-
-        return qualifier is null ? char.ToUpperInvariant(name[0]) + name[1..] : $"{qualifier} {name}";
-    }
 }

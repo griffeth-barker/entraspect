@@ -83,7 +83,11 @@ public sealed class MainViewModelTests : IDisposable
             new[] { MfaCheckId, MfaRequiredCheckId },
             vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
-            new[] { "group-no-members", "group-no-owners" },
+            new[]
+            {
+                "group-no-members", "group-no-owners", "group-single-owner", "group-license-errors",
+                "group-dynamic-paused", "group-public", "group-sync-errors",
+            },
             vm.MenuItems[2].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         var section = vm.MenuItems[3];
         Assert.False(section.IsPage);

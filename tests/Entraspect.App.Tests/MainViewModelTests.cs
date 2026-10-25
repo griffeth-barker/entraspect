@@ -27,7 +27,7 @@ public sealed class MainViewModelTests : IDisposable
     private readonly List<(ConnectionProfile Profile, string? Password)> _connectCalls = [];
 
     private IDirectoryReader _reader = new FakeReader(OneExpiringApp());
-    private IReadOnlyList<string> _granted = ["Application.Read.All"];
+    private IReadOnlyList<string> _granted = ["Application.Read.All", "GroupMember.Read.All"];
     private Exception? _connectError;
 
     public void Dispose()
@@ -61,8 +61,11 @@ public sealed class MainViewModelTests : IDisposable
         var vm = CreateViewModel();
 
         Assert.Same(vm.OverviewItem, vm.MenuItems[0]);
-        var section = Assert.Single(vm.MenuItems.Skip(1));
-        Assert.Equal("App registrations", section.Title);
+        Assert.Equal(new[] { "Groups", "App registrations" }, vm.MenuItems.Skip(1).Select(i => i.Title));
+        Assert.Equal(
+            new[] { "group-no-members", "group-no-owners" },
+            vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
+        var section = vm.MenuItems[2];
         Assert.False(section.IsPage);
         Assert.False(section.IsExpanded);
         Assert.Equal(CheckId, Assert.IsType<CheckPageViewModel>(Assert.Single(section.Children).Page).Check.Id);
@@ -286,7 +289,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_permission_shows_banners_on_connect_before_any_scan()
     {
-        _granted = [];
+        _granted = ["GroupMember.Read.All"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -301,7 +304,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             $"Application.Read.All: needed by {CheckPage(vm).Title}",
             Assert.Single(vm.Overview.Banner.Details));
-        Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsMissing);
+        Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsMissing);
         Assert.True(vm.ChecksSettingsItem.HasWarning);
         Assert.True(vm.ChecksSettingsItem.HasBadge);
     }
@@ -315,14 +318,14 @@ public sealed class MainViewModelTests : IDisposable
 
         Assert.False(CheckPage(vm).Banner.IsOpen);
         Assert.False(vm.Overview.Banner.IsOpen);
-        Assert.True(Assert.Single(Assert.Single(vm.ChecksSettings.Rows).Permissions).IsGranted);
+        Assert.True(Assert.Single(AppCheckRow(vm).Permissions).IsGranted);
         Assert.False(vm.ChecksSettingsItem.HasBadge);
     }
 
     [Fact]
     public async Task Banner_buttons_open_the_api_permissions_page_and_copy_the_names()
     {
-        _granted = [];
+        _granted = ["GroupMember.Read.All"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
@@ -340,12 +343,12 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_a_check_removes_it_from_the_overview_banner_and_is_saved()
     {
-        _granted = [];
+        _granted = ["GroupMember.Read.All"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.True(vm.Overview.Banner.IsOpen);
 
-        Assert.Single(vm.ChecksSettings.Rows).IsEnabled = false;
+        AppCheckRow(vm).IsEnabled = false;
 
         Assert.False(vm.Overview.Banner.IsOpen);
         Assert.False(vm.ChecksSettingsItem.HasWarning);
@@ -383,8 +386,7 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        var category = Assert.Single(vm.Overview.Categories);
-        Assert.Equal("App registrations", category.Title);
+        var category = vm.Overview.Categories.Single(c => c.Title == "App registrations");
         Assert.Equal((1, 0, 0), (category.Critical, category.Warning, category.Info));
         Assert.False(vm.Overview.HasProblems);
 
@@ -403,9 +405,8 @@ public sealed class MainViewModelTests : IDisposable
 
         await vm.ScanCommand.ExecuteAsync(null);
 
-        var problem = Assert.Single(vm.Overview.Problems);
+        var problem = vm.Overview.Problems.Single(p => p.Target == CheckItem(vm));
         Assert.Contains("fake read failure", problem.Reason);
-        Assert.Same(CheckItem(vm), problem.Target);
     }
 
     [Fact]
@@ -471,7 +472,10 @@ public sealed class MainViewModelTests : IDisposable
     private void SaveProfiles(params ConnectionProfile[] profiles) => new ProfileStore(_dir).Save(profiles);
 
     private static NavItemViewModel CheckItem(MainViewModel vm) =>
-        vm.MenuItems.SelectMany(i => i.Children).Single(i => i.Kind == NavItemKind.Check);
+        vm.MenuItems.SelectMany(i => i.Children)
+            .Single(i => i.Kind == NavItemKind.Check && ((CheckPageViewModel)i.Page!).Check.Id == CheckId);
+
+    private static CheckSettingsRow AppCheckRow(MainViewModel vm) => vm.ChecksSettings.Rows.Single(r => r.Check.Id == CheckId);
 
     private static CheckPageViewModel CheckPage(MainViewModel vm) => (CheckPageViewModel)CheckItem(vm).Page!;
 

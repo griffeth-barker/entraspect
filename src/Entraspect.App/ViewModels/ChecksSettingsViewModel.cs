@@ -70,6 +70,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         _loading = true;
         ExpiryWarningDays = settings.Current.CheckOptions.ExpiryWarningDays;
         ExpiryCriticalDays = settings.Current.CheckOptions.ExpiryCriticalDays;
+        NewGroupGraceDays = settings.Current.CheckOptions.NewGroupGraceDays;
         _loading = false;
     }
 
@@ -82,6 +83,9 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     public partial decimal? ExpiryCriticalDays { get; set; }
 
     [ObservableProperty]
+    public partial decimal? NewGroupGraceDays { get; set; }
+
+    [ObservableProperty]
     public partial string OptionsErrorText { get; set; } = string.Empty;
 
     [ObservableProperty]
@@ -90,6 +94,8 @@ public partial class ChecksSettingsViewModel : ViewModelBase
     partial void OnExpiryWarningDaysChanged(decimal? value) => SaveOptions();
 
     partial void OnExpiryCriticalDaysChanged(decimal? value) => SaveOptions();
+
+    partial void OnNewGroupGraceDaysChanged(decimal? value) => SaveOptions();
 
     public void SetGrantedPermissions(IReadOnlyCollection<string>? granted)
     {
@@ -106,7 +112,8 @@ public partial class ChecksSettingsViewModel : ViewModelBase
             return;
         }
 
-        if (ExpiryWarningDays is not { } warning || ExpiryCriticalDays is not { } critical)
+        if (ExpiryWarningDays is not { } warning || ExpiryCriticalDays is not { } critical ||
+            NewGroupGraceDays is not { } grace)
         {
             OptionsErrorText = "Enter a number of days.";
             return;
@@ -116,6 +123,7 @@ public partial class ChecksSettingsViewModel : ViewModelBase
         {
             ExpiryWarningDays = (int)warning,
             ExpiryCriticalDays = (int)critical,
+            NewGroupGraceDays = (int)grace,
         };
 
         if (CheckOptions.Validate(options) is { } error)

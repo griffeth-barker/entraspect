@@ -11,10 +11,28 @@ public sealed class CheckCatalogTests
         var checks = CheckCatalog.All(new FakeTimeProvider());
 
         Assert.Equal(
-            new[] { CheckCategory.AppRegistrations },
-            checks.Select(c => c.Category).Distinct());
-        Assert.Contains(checks, c => c.Id == "app-credential-expiry");
+            new[] { "group-no-members", "group-no-owners", "app-credential-expiry" },
+            checks.Select(c => c.Id));
+        Assert.Equal(
+            new[] { CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations },
+            checks.Select(c => c.Category));
         Assert.Contains(checks, c => c.RequiredPermissions.Contains("Application.Read.All"));
+    }
+
+    [Fact]
+    public void Ids_are_unique()
+    {
+        var checks = CheckCatalog.All(new FakeTimeProvider());
+
+        Assert.Equal(checks.Count, checks.Select(c => c.Id).Distinct().Count());
+    }
+
+    [Fact]
+    public void Only_read_permissions_are_required()
+    {
+        var permissions = CheckCatalog.All(new FakeTimeProvider()).SelectMany(c => c.RequiredPermissions).Distinct();
+
+        Assert.Equal(new[] { "GroupMember.Read.All", "Application.Read.All" }, permissions);
     }
 
     [Fact]
@@ -38,5 +56,19 @@ public sealed class CheckCatalogTests
             ("Display name", "Object ID", "Credential", "Type", "Expires"),
             (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
                 check.Labels.SubObjectType, check.Labels.DueDate));
+    }
+
+    [Theory]
+    [InlineData("group-no-members")]
+    [InlineData("group-no-owners")]
+    public void Group_check_columns_are_named_like_the_group_list(string id)
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == id);
+
+        Assert.Equal(("Display name", "Object ID"), (check.Labels.ObjectDisplayName, check.Labels.ObjectId));
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(new[] { "GroupMember.Read.All" }, check.RequiredPermissions);
     }
 }

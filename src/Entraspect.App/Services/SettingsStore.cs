@@ -5,8 +5,8 @@ using Entraspect.Core;
 namespace Entraspect.App.Services;
 
 /// <summary>
-/// Saves application settings as settings.json next to profiles.json. CheckOptions values are validated on load and
-/// fall back to their defaults if they break <c>0 &lt;= ExpiryCriticalDays &lt;= ExpiryWarningDays</c>.
+/// Saves application settings as settings.json next to profiles.json. CheckOptions values are validated on load with
+/// <see cref="CheckOptions.Normalize"/>: values that break their rule fall back to their defaults.
 /// </summary>
 public sealed class SettingsStore
 {

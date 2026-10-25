@@ -23,4 +23,13 @@ public interface ICheck
         IDirectoryReader reader,
         CheckOptions options,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// When the data this check reads was last refreshed, for checks that read a report Microsoft updates on its own
+    /// schedule; null otherwise. Called after <see cref="RunAsync"/> with the same reader, so it reads cached data.
+    /// </summary>
+    Task<DateTimeOffset?> GetDataUpdatedAsync(
+        IDirectoryReader reader,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<DateTimeOffset?>(null);
 }

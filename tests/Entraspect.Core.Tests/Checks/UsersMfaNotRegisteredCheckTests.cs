@@ -17,7 +17,8 @@ public sealed class UsersMfaNotRegisteredCheckTests
         bool isMfaRegistered = false,
         bool isMfaCapable = false,
         string? displayName = null,
-        string? userPrincipalName = null) =>
+        string? userPrincipalName = null,
+        DateTimeOffset? lastUpdated = null) =>
         new()
         {
             Id = id,
@@ -28,6 +29,7 @@ public sealed class UsersMfaNotRegisteredCheckTests
             IsMfaRegistered = isMfaRegistered,
             IsMfaCapable = isMfaCapable,
             MethodsRegistered = isMfaRegistered ? ["sms"] : [],
+            LastUpdatedDateTime = lastUpdated,
         };
 
     [Fact]
@@ -118,5 +120,27 @@ public sealed class UsersMfaNotRegisteredCheckTests
             User("1", displayName: displayName, userPrincipalName: userPrincipalName)));
 
         Assert.Equal(expected, f.ObjectDisplayName);
+    }
+
+    [Fact]
+    public async Task Data_updated_is_the_most_recent_report_update()
+    {
+        var reader = new FakeDirectoryReader(new[]
+        {
+            User("1", lastUpdated: new DateTimeOffset(2026, 10, 23, 6, 0, 0, TimeSpan.Zero)),
+            User("2", lastUpdated: new DateTimeOffset(2026, 10, 24, 6, 0, 0, TimeSpan.Zero)),
+            User("3"),
+        });
+
+        var updated = await new UsersMfaNotRegisteredCheck().GetDataUpdatedAsync(reader);
+
+        Assert.Equal(new DateTimeOffset(2026, 10, 24, 6, 0, 0, TimeSpan.Zero), updated);
+    }
+
+    [Fact]
+    public async Task Data_updated_is_null_with_no_report_rows()
+    {
+        Assert.Null(await new UsersMfaNotRegisteredCheck().GetDataUpdatedAsync(
+            new FakeDirectoryReader(Array.Empty<UserRegistration>())));
     }
 }

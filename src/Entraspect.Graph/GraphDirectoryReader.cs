@@ -5,6 +5,7 @@ using Microsoft.Graph;
 using Microsoft.Graph.Models;
 using Microsoft.Graph.Models.ODataErrors;
 using Microsoft.Kiota.Abstractions;
+using UserType = Entraspect.Core.UserType;
 
 namespace Entraspect.Graph;
 
@@ -24,10 +25,9 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadEnterpriseAppsAsync(cancellationToken));
 
-    // Implemented in spec 005 step 4.
     public Task<IReadOnlyList<UserRegistration>> GetUserRegistrationsAsync(
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading user registration details isn't available yet.");
+        ReadAsync(() => ReadUserRegistrationsAsync(cancellationToken));
 
     // Turns Graph SDK and Azure.Identity failures into DirectoryReadException, so no SDK types leave this assembly.
     private static async Task<T> ReadAsync<T>(Func<Task<T>> read)
@@ -235,6 +235,54 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             ? Convert.ToHexString(identifier)
             : string.Empty;
     }
+
+    /// <summary>
+    /// <c>GET /reports/authenticationMethods/userRegistrationDetails?$filter=isMfaCapable eq false</c>, following every
+    /// page. Only users who aren't MFA capable are asked for; the check still tests the flag. The report covers cloud
+    /// and synced users alike and needs an Entra ID P1 or P2 licence. The docs list no <c>$top</c> for it, so Graph's
+    /// default page size is used.
+    /// </summary>
+    private async Task<IReadOnlyList<UserRegistration>> ReadUserRegistrationsAsync(CancellationToken cancellationToken)
+    {
+        var result = new List<UserRegistration>();
+        var requests = _client.Reports.AuthenticationMethods.UserRegistrationDetails;
+
+        UserRegistrationDetailsCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Filter = "isMfaCapable eq false";
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value.Select(MapUserRegistration));
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    public static UserRegistration MapUserRegistration(UserRegistrationDetails details) =>
+        new()
+        {
+            Id = details.Id ?? string.Empty,
+            UserPrincipalName = details.UserPrincipalName ?? string.Empty,
+            DisplayName = details.UserDisplayName ?? string.Empty,
+            // Anything but guest, including a missing or future value, counts as a member so it isn't played down.
+            UserType = details.UserType == SignInUserType.Guest ? UserType.Guest : UserType.Member,
+            IsAdmin = details.IsAdmin == true,
+            IsMfaRegistered = details.IsMfaRegistered == true,
+            // Missing means not capable, so the user is reported rather than silently skipped.
+            IsMfaCapable = details.IsMfaCapable == true,
+            MethodsRegistered = details.MethodsRegistered?.Where(m => !string.IsNullOrEmpty(m)).ToList() ?? [],
+            LastUpdatedDateTime = details.LastUpdatedDateTime,
+        };
 
     /// <summary>
     /// Reads every group, then which groups have at least one direct member and at least one owner. Presence comes

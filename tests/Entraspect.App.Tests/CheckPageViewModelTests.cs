@@ -154,6 +154,22 @@ public sealed class CheckPageViewModelTests
     }
 
     [Fact]
+    public void Status_shows_when_the_report_was_updated()
+    {
+        var page = CreatePage();
+
+        page.SetResult(new CheckResult
+        {
+            CheckId = "fake",
+            Status = CheckResultStatus.Succeeded,
+            CompletedAt = Now,
+            DataUpdatedAt = Now.AddHours(-6),
+        });
+
+        Assert.Equal("Last run 2026-01-15 00:00 UTC · Report updated 2026-01-14 18:00 UTC", page.StatusText);
+    }
+
+    [Fact]
     public void Banner_shows_only_the_missing_permissions_while_connected()
     {
         var page = CreatePage("A.Read.All", "B.Read.All");

@@ -29,4 +29,7 @@ public sealed class CheckResult
     public string? ErrorCode { get; init; }
 
     public System.DateTimeOffset? CompletedAt { get; init; }
+
+    /// <summary>When the check's source report was last refreshed, if the check reads one (see <see cref="ICheck.GetDataUpdatedAsync"/>).</summary>
+    public System.DateTimeOffset? DataUpdatedAt { get; init; }
 }

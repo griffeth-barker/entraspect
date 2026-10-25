@@ -53,6 +53,28 @@ public sealed class ScanRunnerTests
     }
 
     [Fact]
+    public async Task Succeeded_check_reports_when_its_data_was_updated()
+    {
+        var updated = new System.DateTimeOffset(2026, 1, 14, 6, 0, 0, System.TimeSpan.Zero);
+        var users = new[]
+        {
+            new UserRegistration
+            {
+                Id = "u1", UserPrincipalName = "u1@contoso.example", DisplayName = "U1", UserType = UserType.Member,
+                IsAdmin = false, IsMfaRegistered = false, IsMfaCapable = false, MethodsRegistered = [],
+                LastUpdatedDateTime = updated,
+            },
+        };
+        var checks = new ICheck[] { new Core.Checks.UsersMfaNotRegisteredCheck(), new FakeCheck("c2") };
+        var runner = new ScanRunner(new FakeDirectoryReader(users), checks, new[] { "AuditLog.Read.All", "Application.Read.All" }, Options, _time);
+
+        var results = await runner.RunAsync();
+
+        Assert.Equal(updated, results[0].DataUpdatedAt);
+        Assert.Null(results[1].DataUpdatedAt);
+    }
+
+    [Fact]
     public async Task Failed_check_keeps_the_error_code()
     {
         var failing = new FakeCheck(

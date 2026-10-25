@@ -52,6 +52,15 @@ public sealed class UsersMfaNotRegisteredCheck : ICheck
         return findings;
     }
 
+    /// <summary>The most recent update time in the user registration details report, so admins know how fresh it is.</summary>
+    public async Task<DateTimeOffset?> GetDataUpdatedAsync(
+        IDirectoryReader reader,
+        CancellationToken cancellationToken = default)
+    {
+        var users = await reader.GetUserRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+        return users.Max(u => u.LastUpdatedDateTime);
+    }
+
     private Finding MakeFinding(UserRegistration user)
     {
         var severity = user.IsAdmin

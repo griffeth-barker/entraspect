@@ -127,7 +127,9 @@ public partial class CheckPageViewModel : ViewModelBase
                     .ThenBy(f => f.DueDate ?? DateTimeOffset.MaxValue)
                     .Select(f => new FindingRow(f, _time))
                     .ToList();
-                StatusText = $"Last run {lastRun}";
+                StatusText = result.DataUpdatedAt is { } updated
+                    ? $"Last run {lastRun} · Report updated {_time.DateTime(updated)}"
+                    : $"Last run {lastRun}";
                 break;
             case CheckResultStatus.Failed:
                 StatusText = $"Last run {lastRun} failed";

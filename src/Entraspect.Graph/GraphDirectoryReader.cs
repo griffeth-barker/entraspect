@@ -13,12 +13,19 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
     internal GraphDirectoryReader(GraphServiceClient client) => _client = client;
 
-    public async Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
-        CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadAppRegistrationsAsync(cancellationToken));
+
+    public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadGroupsAsync(cancellationToken));
+
+    // Turns Graph SDK and Azure.Identity failures into DirectoryReadException, so no SDK types leave this assembly.
+    private static async Task<T> ReadAsync<T>(Func<Task<T>> read)
     {
         try
         {
-            return await ReadAppRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+            return await read().ConfigureAwait(false);
         }
         catch (ApiException ex)
         {
@@ -33,10 +40,6 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             throw new DirectoryReadException($"Sign-in failed: {ex.Message}", innerException: ex);
         }
     }
-
-    // Implemented in spec 003 step 3.
-    public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading groups isn't available yet.");
 
     private async Task<IReadOnlyList<AppRegistration>> ReadAppRegistrationsAsync(CancellationToken cancellationToken)
     {
@@ -69,6 +72,128 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
         return result;
     }
+
+    /// <summary>
+    /// Reads every group, then which groups have at least one direct member and at least one owner. Presence comes
+    /// from two more group listings that expand <c>members</c> and <c>owners</c>: an expanded relationship of a
+    /// directory object returns at most 20 items and has no next link, which is enough to tell empty from not empty.
+    /// The relationships are expanded in separate listings because Graph doesn't promise more than one expand per
+    /// request. Never uses <c>POST /$batch</c>.
+    /// </summary>
+    private async Task<IReadOnlyList<DirectoryGroup>> ReadGroupsAsync(CancellationToken cancellationToken)
+    {
+        var groups = await ListGroupsAsync(config =>
+        {
+            config.QueryParameters.Select =
+            [
+                "id", "displayName", "groupTypes", "securityEnabled", "mailEnabled", "onPremisesSyncEnabled",
+                "isAssignableToRole", "createdDateTime",
+            ];
+            config.QueryParameters.Top = 999;
+        }, cancellationToken).ConfigureAwait(false);
+
+        var withMembers = await ListGroupIdsWithAnyAsync("members", g => g.Members, cancellationToken)
+            .ConfigureAwait(false);
+        var withOwners = await ListGroupIdsWithAnyAsync("owners", g => g.Owners, cancellationToken)
+            .ConfigureAwait(false);
+
+        return groups
+            .Select(g => MapGroup(g, withMembers.Contains(g.Id ?? string.Empty), withOwners.Contains(g.Id ?? string.Empty)))
+            .ToList();
+    }
+
+    private async Task<HashSet<string>> ListGroupIdsWithAnyAsync(
+        string relationship,
+        Func<Group, List<DirectoryObject>?> related,
+        CancellationToken cancellationToken)
+    {
+        var groups = await ListGroupsAsync(config =>
+        {
+            config.QueryParameters.Select = ["id"];
+            config.QueryParameters.Expand = [$"{relationship}($select=id)"];
+            // Graph may return smaller pages when expanding; every page is followed either way.
+            config.QueryParameters.Top = 100;
+        }, cancellationToken).ConfigureAwait(false);
+
+        return groups
+            .Where(g => g.Id is not null && related(g) is { Count: > 0 })
+            .Select(g => g.Id!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<List<Group>> ListGroupsAsync(
+        Action<RequestConfiguration<Microsoft.Graph.Groups.GroupsRequestBuilder.GroupsRequestBuilderGetQueryParameters>> configure,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<Group>();
+
+        GroupCollectionResponse? response =
+            await _client.Groups.GetAsync(configure, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value);
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await _client.Groups.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    public static DirectoryGroup MapGroup(Group group, bool hasMembers, bool hasOwners)
+    {
+        var kind = MapGroupKind(group.GroupTypes, group.SecurityEnabled, group.MailEnabled);
+        var isSynced = group.OnPremisesSyncEnabled == true;
+
+        return new DirectoryGroup
+        {
+            Id = group.Id ?? string.Empty,
+            DisplayName = group.DisplayName ?? string.Empty,
+            Kind = kind,
+            IsDynamic = HasGroupType(group.GroupTypes, "DynamicMembership"),
+            IsSyncedFromOnPremises = isSynced,
+            IsRoleAssignable = group.IsAssignableToRole == true,
+            CreatedDateTime = group.CreatedDateTime,
+            HasMembers = hasMembers,
+            HasOwners = OwnersAvailable(kind, isSynced) ? hasOwners : null,
+        };
+    }
+
+    /// <summary>
+    /// <c>Unified</c> in groupTypes is a Microsoft 365 group; otherwise security and mail enabled is a mail-enabled
+    /// security group, security only a security group, and mail only a distribution group.
+    /// </summary>
+    public static GroupKind MapGroupKind(IEnumerable<string>? groupTypes, bool? securityEnabled, bool? mailEnabled)
+    {
+        if (HasGroupType(groupTypes, "Unified"))
+        {
+            return GroupKind.Microsoft365;
+        }
+
+        return (securityEnabled == true, mailEnabled == true) switch
+        {
+            (true, true) => GroupKind.MailEnabledSecurity,
+            (false, true) => GroupKind.Distribution,
+            // Security only, and the unexpected case of neither flag: treat it as a security group.
+            _ => GroupKind.Security,
+        };
+    }
+
+    /// <summary>
+    /// Graph doesn't return owners for groups synced from on-premises, distribution groups or mail-enabled security
+    /// groups, so an empty owner list for them means unknown, not none.
+    /// </summary>
+    public static bool OwnersAvailable(GroupKind kind, bool isSyncedFromOnPremises) =>
+        !isSyncedFromOnPremises && kind is GroupKind.Microsoft365 or GroupKind.Security;
+
+    private static bool HasGroupType(IEnumerable<string>? groupTypes, string groupType) =>
+        groupTypes?.Any(t => string.Equals(t, groupType, StringComparison.OrdinalIgnoreCase)) == true;
 
     public static AppRegistration MapApplication(Application application)
     {

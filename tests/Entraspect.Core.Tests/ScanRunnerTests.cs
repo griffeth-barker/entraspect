@@ -75,6 +75,71 @@ public sealed class ScanRunnerTests
     }
 
     [Fact]
+    public async Task Unlicensed_check_is_skipped_without_reporting_missing_permissions()
+    {
+        var ran = new List<string>();
+        var checks = new ICheck[]
+        {
+            new FakeCheck("c1"),
+            new FakeCheck(
+                "c2",
+                requiredPermissions: new[] { "AuditLog.Read.All" },
+                run: (_, _, _) => { ran.Add("c2"); return Task.FromResult<IReadOnlyList<Finding>>(System.Array.Empty<Finding>()); },
+                requiredLicence: LicenceRequirement.EntraIdP1),
+        };
+        var progress = new List<ScanProgress>();
+        var runner = new ScanRunner(
+            new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), checks, new[] { "Application.Read.All" },
+            Options, _time, new SyncProgress(progress.Add), TenantLicence.Free);
+
+        var results = await runner.RunAsync();
+
+        Assert.Equal(CheckResultStatus.Succeeded, results[0].Status);
+        Assert.Equal(CheckResultStatus.MissingLicence, results[1].Status);
+        Assert.Empty(results[1].MissingPermissions);
+        Assert.Empty(ran);
+        Assert.Equal(1, Assert.Single(progress).Total);
+    }
+
+    [Theory]
+    [InlineData(TenantLicence.Unknown)]
+    [InlineData(TenantLicence.EntraIdP1)]
+    [InlineData(TenantLicence.EntraIdP2)]
+    public async Task Licensed_or_unknown_tenant_runs_a_p1_check(TenantLicence licence)
+    {
+        var checks = new ICheck[] { new FakeCheck("c1", requiredLicence: LicenceRequirement.EntraIdP1) };
+        var runner = new ScanRunner(
+            new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), checks, System.Array.Empty<string>(),
+            Options, _time, tenantLicence: licence);
+
+        var results = await runner.RunAsync();
+
+        Assert.Equal(CheckResultStatus.Succeeded, results[0].Status);
+    }
+
+    [Fact]
+    public async Task Cancellation_keeps_missing_licence_for_unlicensed_checks()
+    {
+        using var cts = new CancellationTokenSource();
+        var cancelling = new FakeCheck("c1", run: (_, _, ct) =>
+        {
+            cts.Cancel();
+            ct.ThrowIfCancellationRequested();
+            return Task.FromResult<IReadOnlyList<Finding>>(System.Array.Empty<Finding>());
+        });
+        var checks = new ICheck[] { cancelling, new FakeCheck("c2", requiredLicence: LicenceRequirement.EntraIdP2) };
+        var runner = new ScanRunner(
+            new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), checks, System.Array.Empty<string>(),
+            Options, _time, tenantLicence: TenantLicence.EntraIdP1);
+
+        var results = await runner.RunAsync(cts.Token);
+
+        Assert.Equal(
+            new[] { CheckResultStatus.Cancelled, CheckResultStatus.MissingLicence },
+            results.Select(r => r.Status));
+    }
+
+    [Fact]
     public async Task Failed_check_keeps_the_error_code()
     {
         var failing = new FakeCheck(

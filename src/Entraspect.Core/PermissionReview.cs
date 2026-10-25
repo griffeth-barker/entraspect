@@ -4,7 +4,8 @@ using System.Linq;
 namespace Entraspect.Core;
 
 /// <summary>
-/// Compares the granted permissions with every check's required permissions.
+/// Compares the granted permissions with every check's required permissions. Checks the tenant isn't licensed for
+/// don't report missing permissions, but their permissions still count as used.
 /// </summary>
 public static class PermissionReview
 {
@@ -17,18 +18,20 @@ public static class PermissionReview
 
     public static Result Review(
         IReadOnlyList<ICheck> checks,
-        IReadOnlyCollection<string> grantedPermissions)
+        IReadOnlyCollection<string> grantedPermissions,
+        TenantLicence tenantLicence = TenantLicence.Unknown)
     {
         var granted = new HashSet<string>(grantedPermissions, StringComparer.Ordinal);
         var missingByPermission = new Dictionary<string, List<ICheck>>(StringComparer.Ordinal);
 
-        var usedPermissions = new HashSet<string>(StringComparer.Ordinal);
+        var usedPermissions = new HashSet<string>(CheckCatalog.AppPermissions, StringComparer.Ordinal);
         foreach (var check in checks)
         {
+            var licensed = Licensing.IsLicensed(check, tenantLicence);
             foreach (var permission in check.RequiredPermissions)
             {
                 usedPermissions.Add(permission);
-                if (granted.Contains(permission))
+                if (granted.Contains(permission) || !licensed)
                 {
                     continue;
                 }

@@ -13,8 +13,10 @@ internal sealed class FakeCheck : ICheck
         string? title = null,
         CheckCategory category = CheckCategory.AppRegistrations,
         IReadOnlyList<string>? requiredPermissions = null,
-        System.Func<IDirectoryReader, CheckOptions, CancellationToken, Task<IReadOnlyList<Finding>>>? run = null)
+        System.Func<IDirectoryReader, CheckOptions, CancellationToken, Task<IReadOnlyList<Finding>>>? run = null,
+        LicenceRequirement requiredLicence = LicenceRequirement.None)
     {
+        RequiredLicence = requiredLicence;
         Id = id;
         Title = title ?? id;
         Description = id;
@@ -32,6 +34,8 @@ internal sealed class FakeCheck : ICheck
     public CheckCategory Category { get; }
 
     public IReadOnlyList<string> RequiredPermissions { get; }
+
+    public LicenceRequirement RequiredLicence { get; }
 
     public Task<IReadOnlyList<Finding>> RunAsync(
         IDirectoryReader reader,

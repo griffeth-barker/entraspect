@@ -16,14 +16,19 @@ public sealed class ScanRunner
     private readonly CheckOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly IProgress<ScanProgress>? _progress;
+    private readonly TenantLicence _tenantLicence;
 
+    /// <param name="tenantLicence">
+    /// The tenant's licence. Checks it doesn't cover aren't run; <see cref="TenantLicence.Unknown"/> runs them all.
+    /// </param>
     public ScanRunner(
         IDirectoryReader reader,
         IReadOnlyList<ICheck> checks,
         IEnumerable<string> grantedPermissions,
         CheckOptions options,
         TimeProvider timeProvider,
-        IProgress<ScanProgress>? progress = null)
+        IProgress<ScanProgress>? progress = null,
+        TenantLicence tenantLicence = TenantLicence.Unknown)
     {
         _reader = reader;
         _checks = checks;
@@ -31,28 +36,22 @@ public sealed class ScanRunner
         _options = options;
         _timeProvider = timeProvider;
         _progress = progress;
+        _tenantLicence = tenantLicence;
     }
 
     public async Task<IReadOnlyList<CheckResult>> RunAsync(CancellationToken cancellationToken = default)
     {
         var results = new List<CheckResult>(_checks.Count);
-        var total = _checks.Count(check => MissingPermissionsFor(check).Count == 0);
+        var total = _checks.Count(check => NotRunResult(check) is null);
         var runPosition = 0;
 
         for (var i = 0; i < _checks.Count; i++)
         {
             var check = _checks[i];
-            var missing = MissingPermissionsFor(check);
 
-            if (missing.Count > 0)
+            if (NotRunResult(check) is { } notRun)
             {
-                results.Add(new CheckResult
-                {
-                    CheckId = check.Id,
-                    Status = CheckResultStatus.MissingPermissions,
-                    MissingPermissions = missing,
-                    CompletedAt = _timeProvider.GetUtcNow(),
-                });
+                results.Add(notRun);
                 continue;
             }
 
@@ -111,6 +110,34 @@ public sealed class ScanRunner
         return results;
     }
 
+    /// <summary>
+    /// The result for a check that can't run: the tenant lacks its licence (checked first, so a check the tenant can't
+    /// use isn't reported as missing permissions) or a permission isn't granted. Null if the check can run.
+    /// </summary>
+    private CheckResult? NotRunResult(ICheck check)
+    {
+        if (!Licensing.IsLicensed(check, _tenantLicence))
+        {
+            return new CheckResult
+            {
+                CheckId = check.Id,
+                Status = CheckResultStatus.MissingLicence,
+                CompletedAt = _timeProvider.GetUtcNow(),
+            };
+        }
+
+        var missing = MissingPermissionsFor(check);
+        return missing.Count == 0
+            ? null
+            : new CheckResult
+            {
+                CheckId = check.Id,
+                Status = CheckResultStatus.MissingPermissions,
+                MissingPermissions = missing,
+                CompletedAt = _timeProvider.GetUtcNow(),
+            };
+    }
+
     private List<string> MissingPermissionsFor(ICheck check)
     {
         var missing = new List<string>();
@@ -131,16 +158,8 @@ public sealed class ScanRunner
         for (var j = start; j < _checks.Count; j++)
         {
             var check = _checks[j];
-            var missing = MissingPermissionsFor(check);
-            results.Add(missing.Count > 0
-                ? new CheckResult
-                {
-                    CheckId = check.Id,
-                    Status = CheckResultStatus.MissingPermissions,
-                    MissingPermissions = missing,
-                    CompletedAt = _timeProvider.GetUtcNow(),
-                }
-                : new CheckResult { CheckId = check.Id, Status = CheckResultStatus.Cancelled });
+            results.Add(NotRunResult(check)
+                ?? new CheckResult { CheckId = check.Id, Status = CheckResultStatus.Cancelled });
         }
     }
 }

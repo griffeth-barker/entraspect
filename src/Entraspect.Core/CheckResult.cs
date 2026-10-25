@@ -7,6 +7,9 @@ public enum CheckResultStatus
     Succeeded,
     Failed,
     MissingPermissions,
+
+    /// <summary>Not run because the tenant doesn't have the licence the check needs.</summary>
+    MissingLicence,
     Cancelled,
 }
 

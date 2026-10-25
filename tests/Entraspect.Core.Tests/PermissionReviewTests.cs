@@ -48,4 +48,46 @@ public sealed class PermissionReviewTests
         Assert.Equal(new[] { "Mail.Send", "User.ReadWrite.All" }, review.UnusedWritePermissions);
         Assert.Empty(review.UnusedReadPermissions);
     }
+
+    [Fact]
+    public void Unlicensed_check_reports_no_missing_permissions_but_its_permissions_are_used()
+    {
+        var licensed = new FakeCheck("c1", requiredPermissions: new[] { "Application.Read.All" });
+        var unlicensed = new FakeCheck(
+            "c2",
+            requiredPermissions: new[] { "AuditLog.Read.All", "Policy.Read.All" },
+            requiredLicence: LicenceRequirement.EntraIdP1);
+
+        var review = PermissionReview.Review(
+            new ICheck[] { licensed, unlicensed },
+            new[] { "Application.Read.All", "AuditLog.Read.All" },
+            TenantLicence.Free);
+
+        Assert.Empty(review.MissingPermissions);
+        Assert.Empty(review.UnusedReadPermissions);
+    }
+
+    [Fact]
+    public void Unknown_licence_reports_missing_permissions_as_before()
+    {
+        var check = new FakeCheck(
+            "c1", requiredPermissions: new[] { "AuditLog.Read.All" }, requiredLicence: LicenceRequirement.EntraIdP1);
+
+        var review = PermissionReview.Review(new[] { check }, System.Array.Empty<string>());
+
+        Assert.Equal("AuditLog.Read.All", Assert.Single(review.MissingPermissions).Permission);
+    }
+
+    [Fact]
+    public void Licence_permission_is_never_unused()
+    {
+        var check = new FakeCheck("c1", requiredPermissions: new[] { "Application.Read.All" });
+
+        var review = PermissionReview.Review(
+            new[] { check },
+            new[] { "Application.Read.All", "LicenseAssignment.Read.All" });
+
+        Assert.Empty(review.UnusedReadPermissions);
+        Assert.Empty(review.MissingPermissions);
+    }
 }

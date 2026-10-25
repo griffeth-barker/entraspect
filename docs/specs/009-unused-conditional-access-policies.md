@@ -1,6 +1,6 @@
 # Spec 009: Unused Conditional Access policies
 
-**Status:** Ready (depends on specs 007 and 008)
+**Status:** Done (not yet tested on a tenant; see "Tests still to do")
 **Goal:** A check in the Conditional Access nav section that finds enabled and report-only policies that didn't apply to any interactive sign-in during a recent period, based on the sign-in logs.
 
 **Out of scope for this spec:** non-interactive, service principal and managed identity sign-ins (beta only), explaining *why* a policy didn't apply, the What If tool.
@@ -48,6 +48,26 @@ Tests: enabled unused, enabled used, report-only both ways, no sign-ins, no CA d
 - No test makes a network call.
 - No new Graph permission is requested or documented.
 - Manual check: a test policy that includes only a user who didn't sign in during the period is listed; a policy requiring MFA for all users is not. Cancel stops the sign-in read within one page.
+
+## Tests still to do
+
+Not tested in the running app yet: the user's dev tenant has no Entra ID P1 or P2 licence. Built and unit tested on 2026-10-25.
+
+On the current tenant (no P1 or P2):
+
+- With `LicenseAssignment.Read.All` granted, Unused policies is grayed out on **Settings** > **Checks** and in the navigation with the licence note, Scan isn't clickable on its page, and a scan skips it.
+- Without `LicenseAssignment.Read.All`, the check fails with "This check needs an Entra ID P1 or P2 licence." Note the Graph error code from `GET /auditLogs/signIns`, and add it to `CheckFailureMessage` if it isn't `Authentication_RequestFromNonPremiumTenantOrB2CTenant`.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- The acceptance criteria above: a test policy that includes only a user who didn't sign in during the period is listed (Warning); a policy requiring MFA for all users is not.
+- A report-only copy of the test policy is listed as Info.
+- Disabled policies, a policy created during the period, and a policy that targets service principals aren't listed.
+- The scan bar shows "Unused policies (reading sign-ins, N so far)", and **Cancel** stops the read within one page.
+- The check page's status line shows the number of sign-ins read and the period, in the UTC or local time chosen in **Settings** > **Preferences**.
+- Graph accepts `$top=1000` on v1.0 `GET /auditLogs/signIns`.
+- Without `Policy.Read.All`, the check doesn't run and its page shows the permission banner.
+- Compare scan time with the sign-in lookback days at 1 and at 30.
 
 ## Open questions
 

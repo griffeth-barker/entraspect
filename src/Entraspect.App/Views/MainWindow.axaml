@@ -89,8 +89,12 @@
             </DataTemplate>
         </ui:FANavigationView.MenuItemTemplate>
 
-        <!-- No header: connection controls are on Settings > Connection profiles, the scan bar on the results pages. -->
-        <ContentControl Content="{Binding CurrentPage}" Margin="16" />
+        <!-- No header: connection controls are on Settings > Connection profiles, Scan on the results pages, and the
+             status bar along the bottom. The page scrolls above the status bar, which stays put. -->
+        <DockPanel>
+            <ContentControl DockPanel.Dock="Bottom" Content="{Binding StatusBar}" />
+            <ContentControl Content="{Binding CurrentPage}" Margin="16" />
+        </DockPanel>
     </ui:FANavigationView>
 
 </Window>

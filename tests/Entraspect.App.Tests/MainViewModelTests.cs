@@ -215,8 +215,8 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(item.ShowBadges);
         Assert.Single(CheckPage(vm).Findings);
         Assert.False(vm.IsScanning);
-        Assert.StartsWith("Scan finished", vm.ProgressText);
-        Assert.StartsWith("Last scan:", vm.Overview.LastScanText);
+        Assert.StartsWith("Scan finished", vm.StatusBar.ActivityText);
+        Assert.True(vm.Overview.HasScan);
     }
 
     [Fact]
@@ -342,7 +342,6 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(vm.About.Version, report.AppVersion);
         Assert.Equal(vm.Checks.Select(c => c.Id), report.Checks.Select(c => c.CheckId));
         Assert.Single(report.Checks.Single(c => c.CheckId == CheckId).Findings);
-        Assert.Equal("Exported to scan.json.", vm.ProgressText);
         Assert.Equal("Exported to scan.json", vm.StatusBar.ActivityText);
         Assert.Equal(string.Empty, vm.ExportErrorText);
     }
@@ -384,7 +383,7 @@ public sealed class MainViewModelTests : IDisposable
         await vm.ExportCommand.ExecuteAsync(null);
 
         Assert.Single(_prompt.SuggestedFileNames);
-        Assert.StartsWith("Scan finished", vm.ProgressText);
+        Assert.StartsWith("Scan finished", vm.StatusBar.ActivityText);
         Assert.Equal(string.Empty, vm.ExportErrorText);
     }
 
@@ -481,7 +480,6 @@ public sealed class MainViewModelTests : IDisposable
         await scan.WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.False(vm.IsScanning);
-        Assert.Equal("Scan cancelled.", vm.ProgressText);
         Assert.Equal(StatusBarViewModel.CancelledText, vm.StatusBar.ActivityText);
         Assert.False(vm.StatusBar.IsScanning);
         AssertNoBadge(CheckItem(vm));
@@ -504,7 +502,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.False(CheckItem(vm).IsEnabled);
         AssertNoBadge(CheckItem(vm));
         Assert.Empty(CheckPage(vm).Findings);
-        Assert.Equal(OverviewViewModel.NoScanText, vm.Overview.LastScanText);
+        Assert.False(vm.Overview.HasScan);
         Assert.False(vm.ScanCommand.CanExecute(null));
     }
 
@@ -847,11 +845,10 @@ public sealed class MainViewModelTests : IDisposable
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         await vm.ScanCommand.ExecuteAsync(null);
-        Assert.Equal("Last scan: 2026-01-15 12:00 UTC", vm.Overview.LastScanText);
+        Assert.Equal("Last scan 2026-01-15 12:00 UTC", vm.StatusBar.ContextText);
 
         SelectTimeZone(vm, AppSettings.LocalTimeZone);
 
-        Assert.Equal("Last scan: 2026-01-15 14:00", vm.Overview.LastScanText);
         Assert.Equal("Scan finished at 14:00", vm.StatusBar.ActivityText);
         Assert.Equal("Last scan 2026-01-15 14:00", vm.StatusBar.ContextText);
         vm.SelectedNavItem = CheckItem(vm);
@@ -870,7 +867,7 @@ public sealed class MainViewModelTests : IDisposable
 
         SelectTimeZone(vm, "Asia/Tokyo");
 
-        Assert.Equal("Last scan: 2026-01-15 21:00 (UTC+09:00)", vm.Overview.LastScanText);
+        Assert.Equal("Last scan 2026-01-15 21:00 (UTC+09:00)", vm.StatusBar.ContextText);
         Assert.Equal("2026-01-15 21:00 (UTC+09:00)", vm.Overview.ConnectedAtText);
         Assert.Equal("Expires (Asia/Tokyo)", CheckPage(vm).DueHeader);
         Assert.Equal("Asia/Tokyo", new SettingsStore(_dir).Load(out _).TimeZone);
@@ -923,7 +920,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(45, vm.ChecksSettings.ExpiryWarningDays);
         Assert.Equal(10, vm.ChecksSettings.ExpiryCriticalDays);
         Assert.Equal("Asia/Tokyo", vm.Preferences.SelectedTimeZone?.Id);
-        Assert.Equal("Last scan: 2026-01-15 21:00 (UTC+09:00)", vm.Overview.LastScanText);
+        Assert.Equal("Last scan 2026-01-15 21:00 (UTC+09:00)", vm.StatusBar.ContextText);
         Assert.Equal(AppTheme.Dark, vm.Preferences.SelectedTheme?.Theme);
         Assert.Equal(AppTheme.Dark, _prompt.Themes[^1]);
         Assert.Equal(written, File.ReadAllText(SettingsPath));

@@ -172,18 +172,15 @@ public partial class MainViewModel : ViewModelBase
         nameof(CancelCommand), nameof(ExportCommand))]
     public partial bool IsScanning { get; set; }
 
-    [ObservableProperty]
-    public partial string ProgressText { get; set; } = string.Empty;
-
     /// <summary>Why connecting failed, shown on Settings > Connection profiles.</summary>
     [ObservableProperty]
     public partial string ConnectionErrorText { get; set; } = string.Empty;
 
-    /// <summary>An unexpected scan error, shown in the scan bar on Overview and the check pages.</summary>
+    /// <summary>An unexpected scan error, shown under Scan on Overview and the check pages.</summary>
     [ObservableProperty]
     public partial string ScanErrorText { get; set; } = string.Empty;
 
-    /// <summary>Why the last export couldn't be written, shown in the scan bar.</summary>
+    /// <summary>Why the last export couldn't be written, shown under Scan.</summary>
     [ObservableProperty]
     public partial string ExportErrorText { get; set; } = string.Empty;
 
@@ -272,7 +269,6 @@ public partial class MainViewModel : ViewModelBase
         _connectedProfile = null;
         _connectedAt = null;
         IsScanning = false;
-        ProgressText = string.Empty;
         ScanErrorText = string.Empty;
         ConnectionErrorText = string.Empty;
         ApplyResults(null, null);
@@ -300,7 +296,6 @@ public partial class MainViewModel : ViewModelBase
         {
             if (generation == _scanGeneration && IsScanning)
             {
-                ProgressText = p.Message;
                 StatusBar.ScanProgressed(p);
             }
         });
@@ -317,7 +312,6 @@ public partial class MainViewModel : ViewModelBase
         IsScanning = true;
         ScanErrorText = string.Empty;
         ExportErrorText = string.Empty;
-        ProgressText = StatusBarViewModel.StartingScanText;
         StatusBar.ScanStarted();
 
         try
@@ -332,14 +326,12 @@ public partial class MainViewModel : ViewModelBase
             var finishedAt = _timeProvider.GetUtcNow();
             ApplyResults(results, finishedAt);
             var cancelled = results.Any(r => r.Status == CheckResultStatus.Cancelled);
-            ProgressText = cancelled ? "Scan cancelled." : $"Scan finished at {Time.Time(finishedAt)}.";
             StatusBar.ScanEnded(cancelled ? ScanEnd.Cancelled : ScanEnd.Finished, finishedAt);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             if (generation == _scanGeneration)
             {
-                ProgressText = "Scan cancelled.";
                 StatusBar.ScanEnded(ScanEnd.Cancelled);
             }
         }
@@ -349,7 +341,6 @@ public partial class MainViewModel : ViewModelBase
             if (generation == _scanGeneration)
             {
                 ScanErrorText = $"The scan stopped with an unexpected error: {ex.Message}";
-                ProgressText = string.Empty;
                 StatusBar.ScanEnded(ScanEnd.Failed);
             }
         }
@@ -397,7 +388,6 @@ public partial class MainViewModel : ViewModelBase
         {
             await using var stream = await file.OpenWriteAsync();
             await ScanExport.WriteAsync(stream, report, file.Format);
-            ProgressText = $"Exported to {file.Name}.";
             StatusBar.Exported(file.Name);
         }
         catch (Exception ex)
@@ -461,7 +451,6 @@ public partial class MainViewModel : ViewModelBase
             _connectedProfile = profile;
             _connectedAt = _timeProvider.GetUtcNow();
             IsScanning = false;
-            ProgressText = string.Empty;
             ScanErrorText = string.Empty;
             ApplyResults(null, null);
             StatusBar.SetConnection(profile.Name);
@@ -568,10 +557,7 @@ public partial class MainViewModel : ViewModelBase
             page.SetResult(result);
         }
 
-        Overview.SetResults(
-            MenuItems.Where(i => i.Kind == NavItemKind.Section),
-            results,
-            scannedAt is { } at ? Time.DateTime(at) : null);
+        Overview.SetResults(MenuItems.Where(i => i.Kind == NavItemKind.Section), results);
         StatusBar.SetLastScan(scannedAt);
         ExportCommand.NotifyCanExecuteChanged();
     }

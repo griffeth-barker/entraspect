@@ -34,13 +34,11 @@ public sealed record CategorySummary(
 public sealed record CheckProblem(string Title, string Reason, NavItemViewModel Target);
 
 /// <summary>
-/// Overview: the permission banners, the last scan time, Critical, Warning and Info counts per category, and the
-/// checks that failed or are missing permissions.
+/// Overview: the connected tenant, the permission banners, Critical, Warning and Info counts per category, and the
+/// checks that failed or are missing permissions. The last scan time is in the status bar.
 /// </summary>
 public partial class OverviewViewModel : ViewModelBase
 {
-    public const string NoScanText = "No scan yet.";
-
     private readonly Action<NavItemViewModel> _navigate;
 
     public OverviewViewModel(
@@ -86,9 +84,6 @@ public partial class OverviewViewModel : ViewModelBase
     [ObservableProperty]
     public partial bool HasScan { get; set; }
 
-    [ObservableProperty]
-    public partial string LastScanText { get; set; } = NoScanText;
-
     public ObservableCollection<CategorySummary> Categories { get; } = [];
 
     public ObservableCollection<CheckProblem> Problems { get; } = [];
@@ -98,15 +93,11 @@ public partial class OverviewViewModel : ViewModelBase
 
     /// <param name="sections">The navigation sections; each child is a check item with a <see cref="CheckPageViewModel"/>.</param>
     /// <param name="results">The last scan's results, or null before the first scan.</param>
-    public void SetResults(
-        IEnumerable<NavItemViewModel> sections,
-        IReadOnlyList<CheckResult>? results,
-        string? scannedAtText)
+    public void SetResults(IEnumerable<NavItemViewModel> sections, IReadOnlyList<CheckResult>? results)
     {
         Categories.Clear();
         Problems.Clear();
-        HasScan = results is not null && scannedAtText is not null;
-        LastScanText = HasScan ? $"Last scan: {scannedAtText}" : NoScanText;
+        HasScan = results is not null;
 
         if (results is not null)
         {

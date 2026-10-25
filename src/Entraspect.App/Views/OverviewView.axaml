@@ -37,8 +37,6 @@
             <ContentControl Content="{Binding Banner}" />
             <ContentControl Content="{Binding ExcessPermissions}" />
 
-            <TextBlock Text="{Binding LastScanText}" TextWrapping="Wrap" Classes="muted" Margin="0,4,0,0" />
-
             <StackPanel Spacing="4" IsVisible="{Binding HasScan}">
                 <Grid ColumnDefinitions="240,90,90,90" Margin="12,8,0,0">
                     <TextBlock Grid.Column="0" Text="Category" FontWeight="SemiBold" />

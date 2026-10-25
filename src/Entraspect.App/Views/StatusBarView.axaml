@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Entraspect.App.ViewModels"
+             xmlns:ui="using:FluentAvalonia.UI.Controls"
+             x:Class="Entraspect.App.Views.StatusBarView"
+             x:DataType="vm:StatusBarViewModel">
+    <UserControl.Styles>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- One line of status along the bottom of the main pane: what is happening now on the left, the page's context and
+         the connected profile on the right. The right side has a maximum width, so the activity keeps most of the line
+         when the window is narrow; both trim their text, with the full text as a tooltip. -->
+    <Border BorderThickness="0,1,0,0" Padding="16,0" MinHeight="30"
+            BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}"
+            Background="{DynamicResource SolidBackgroundFillColorSecondaryBrush}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+            <!-- The bar and Cancel sit right after the text; the text trims first. -->
+            <DockPanel HorizontalAlignment="Left">
+                <Button DockPanel.Dock="Right" Classes="iconButton" Padding="4" Margin="4,0,0,0"
+                        VerticalAlignment="Center"
+                        Command="{Binding CancelCommand}" IsVisible="{Binding IsScanning}"
+                        ToolTip.Tip="Cancel scan" AutomationProperties.Name="Cancel scan">
+                    <ui:FASymbolIcon Symbol="Dismiss" FontSize="12"
+                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                </Button>
+                <ProgressBar DockPanel.Dock="Right" Width="100" MinWidth="100" Margin="12,0,0,0"
+                             VerticalAlignment="Center"
+                             Minimum="0" Maximum="1" Value="{Binding ProgressValue}"
+                             IsIndeterminate="{Binding IsProgressIndeterminate}"
+                             IsVisible="{Binding IsProgressVisible}" />
+                <TextBlock Text="{Binding ActivityText}" ToolTip.Tip="{Binding ActivityText}" Classes="muted" />
+            </DockPanel>
+
+            <DockPanel Grid.Column="1" HorizontalAlignment="Right">
+                <TextBlock DockPanel.Dock="Right" Text="{Binding ProfileName}" ToolTip.Tip="{Binding ProfileName}"
+                           Classes="muted" MaxWidth="200" IsVisible="{Binding HasProfile}" />
+                <Border DockPanel.Dock="Right" Width="1" Height="14" Margin="12,0" VerticalAlignment="Center"
+                        Background="{DynamicResource DividerStrokeColorDefaultBrush}"
+                        IsVisible="{Binding HasContext}" />
+                <TextBlock Text="{Binding ContextText}" ToolTip.Tip="{Binding ContextText}" Classes="muted"
+                           MaxWidth="360" IsVisible="{Binding HasContext}" />
+            </DockPanel>
+        </Grid>
+    </Border>
+</UserControl>

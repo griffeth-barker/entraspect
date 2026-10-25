@@ -21,8 +21,15 @@
 
             <views:ScanBar />
 
+            <!-- Why the page is empty; how the check last ran is in the status bar. -->
             <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="{Binding StatusText}" Classes="muted" />
+                <StackPanel.IsVisible>
+                    <MultiBinding Converter="{x:Static BoolConverters.Or}">
+                        <Binding Path="!IsLicensed" />
+                        <Binding Path="IsDisabled" />
+                    </MultiBinding>
+                </StackPanel.IsVisible>
+                <TextBlock Text="{Binding NotAvailableText}" Classes="muted" IsVisible="{Binding !IsLicensed}" />
                 <TextBlock Text="{x:Static vm:CheckPageViewModel.DisabledText}" Classes="muted"
                            IsVisible="{Binding IsDisabled}" />
             </StackPanel>

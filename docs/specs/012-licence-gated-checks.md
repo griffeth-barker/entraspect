@@ -1,6 +1,6 @@
 # Spec 012: Licence-gated checks
 
-**Status:** Ready (depends on spec 005)
+**Status:** Done
 **Goal:** A check that needs a licence the tenant doesn't have is shown as unavailable instead of failing. Its toggle on Settings > Checks is grayed out with a short note, and Scan skips it. entraspect learns the tenant's licences at connect.
 
 Today (spec 005 step 1) such a check runs, gets a licence error from Graph, and its page shows a red error. That stays as the fallback when entraspect can't tell which licences the tenant has.
@@ -57,6 +57,8 @@ Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dot
 - Manual check, tenant without P1 or P2, with `LicenseAssignment.Read.All` granted: MFA not registered's toggle is grayed out with the note, its navigation item is grayed out and can't be opened, Scan doesn't run it, and there's no permission banner or warning badge for it, even with `AuditLog.Read.All` missing.
 - Same tenant without `LicenseAssignment.Read.All`: behaviour is as in spec 005 (the check runs and shows the licence message), and the check's card shows the neutral `LicenseAssignment.Read.All` label.
 - Tenant with P1 or P2: the check runs as in spec 005.
+
+**Closing note:** the manual checks passed on a dev tenant without Entra ID P1 or P2. With `LicenseAssignment.Read.All` granted, MFA not registered's toggle shows off and grayed out with the note. Its navigation item is grayed out and can't be opened, Scan skips the check, and there's no banner or badge for it. After testing, two follow-ups were added at the project owner's request: the grayed-out navigation item with Scan unavailable on the page, and the toggle shown as off. The check running normally on a P1 or P2 tenant waits for such a tenant; unit tests cover it until then.
 
 ## Open questions
 

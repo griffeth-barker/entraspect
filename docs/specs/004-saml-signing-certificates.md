@@ -1,6 +1,6 @@
 # Spec 004: Expiring SAML signing certificates on enterprise apps
 
-**Status:** Ready (depends on spec 002)
+**Status:** Done
 **Goal:** A check in the Enterprise apps nav section that lists SAML single sign-on apps whose token signing certificate has expired or expires soon.
 
 **Out of scope for this spec:** SAML token encryption certificates, apps using OIDC or password-based SSO, checking the certificate the service provider has on its side, notification email settings.
@@ -52,6 +52,8 @@ Tests: active expired, active in each window and on each boundary, active fine w
 - No test makes a network call.
 - No new Graph permission is requested or documented.
 - Manual check: a SAML enterprise app shows its active certificate's expiry, matching the SAML Certificates section of the app's Single sign-on page in the portal.
+
+**Closing note:** the manual check passed against a dev tenant: the findings matched the SAML Certificates section in the portal. That test also showed that `customKeyIdentifier` is a SHA-256 hash, not the SHA-1 thumbprint. The follow-up commits fixed this by reading the thumbprint from each `Verify` credential's certificate.
 
 ## Open questions
 

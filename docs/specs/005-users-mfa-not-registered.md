@@ -1,6 +1,6 @@
 # Spec 005: Users without MFA registered
 
-**Status:** Ready (depends on spec 002)
+**Status:** Done
 **Goal:** A check in the Users nav section that lists users who can't do multifactor authentication, because they haven't registered a method that policy allows.
 
 This check answers "who isn't registered for MFA". Spec 008 answers the separate question "who isn't required to use MFA". The check page description must say which question this check answers.
@@ -53,6 +53,14 @@ Tests: admin, member, guest, registered but not capable, capable (no finding), a
 - Only permissions from earlier specs plus `AuditLog.Read.All` are requested or documented.
 - Manual check (P1 or P2 tenant): a test user with no MFA methods appears as Warning; after they register the Authenticator app and the report refreshes, they no longer appear. The count roughly matches the portal's Authentication methods > User registration details view filtered to "Not MFA capable".
 - On a tenant without P1 or P2, the check fails with the licence message and the other checks still run.
+
+**Closing note:** the dev tenant has no Entra ID P1 or P2 licence. These manual checks passed there: the permission banner, the Overview line and the red label on Settings > Checks while `AuditLog.Read.All` was missing, and the banners going away after granting it and reconnecting. The licence message also showed on Scan, with the other checks still running; spec 012 has since replaced that with a grayed-out check. These checks wait for a P1 or P2 tenant, with unit tests standing in until then:
+- a user with no MFA methods appears as Warning, and admins and guests get their severities;
+- Display name, User principal name and Object ID show as separate columns;
+- the "Report updated" date shows;
+- the count roughly matches the portal's User registration details filtered to "Not MFA capable";
+- a user drops off after registering the Authenticator app and the report refreshing;
+- whether disabled users appear (see Open questions).
 
 ## Open questions
 

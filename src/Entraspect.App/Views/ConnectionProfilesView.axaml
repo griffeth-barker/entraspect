@@ -45,14 +45,14 @@
                     <Style Selector="ListBoxItem">
                         <Setter Property="Padding" Value="14,10" />
                         <Setter Property="Margin" Value="0,0,0,4" />
-                        <Setter Property="MinHeight" Value="56" />
+                        <Setter Property="MinHeight" Value="44" />
                     </Style>
                 </ListBox.Styles>
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="vm:ProfileListItem">
                         <StackPanel Spacing="3" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="15" />
-                            <TextBlock Text="{Binding ClientIdText}" Classes="muted" />
+                            <!-- Only the name; the tenant and client IDs show when the profile is edited. -->
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" />
                             <TextBlock Text="{x:Static vm:ConnectionProfilesViewModel.AddCertificateText}"
                                        IsVisible="{Binding NeedsCertificate}" Classes="error" />
                         </StackPanel>

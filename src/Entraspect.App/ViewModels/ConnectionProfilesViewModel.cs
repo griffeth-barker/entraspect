@@ -18,12 +18,8 @@ public sealed class ProfileListItem
 
     public ConnectionProfile Profile { get; }
 
+    /// <summary>The profile name, all the list shows; the tenant and client IDs are on the edit form.</summary>
     public string Name => Profile.Name;
-
-    /// <summary>The profile name with its tenant, for example "griff.systems (00000000-...)".</summary>
-    public string Title => $"{Profile.Name} ({Profile.TenantId})";
-
-    public string ClientIdText => $"Client ID {Profile.ClientId}";
 
     public bool NeedsCertificate => ConnectionProfilesViewModel.NeedsCertificate(Profile);
 }

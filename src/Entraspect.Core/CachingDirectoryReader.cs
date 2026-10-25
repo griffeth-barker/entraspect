@@ -23,6 +23,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<DirectoryRoleAssignment>? _directoryRoleAssignments;
     private bool? _securityDefaultsEnabled;
     private (DateTimeOffset Since, IReadOnlyDictionary<string, SingleFactorSignIns> SignIns)? _singleFactorSignIns;
+    private (DateTimeOffset Since, ConditionalAccessUsage Usage)? _conditionalAccessUsage;
     private readonly Dictionary<string, IReadOnlyList<string>> _groupTransitiveUserIds =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PerUserMfaState> _perUserMfaStates = new(StringComparer.OrdinalIgnoreCase);
@@ -159,5 +160,26 @@ public sealed class CachingDirectoryReader : IDirectoryReader
         var signIns = await _inner.GetSingleFactorSignInsAsync(since, cancellationToken).ConfigureAwait(false);
         _singleFactorSignIns = (since, signIns);
         return signIns;
+    }
+
+    /// <summary>
+    /// Kept for the last <paramref name="since"/> asked for; a different start reads again. A cached read reports its
+    /// total once.
+    /// </summary>
+    public async Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+        DateTimeOffset since,
+        IProgress<int>? signInsRead = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (_conditionalAccessUsage is { } cached && cached.Since == since)
+        {
+            signInsRead?.Report(cached.Usage.SignInsRead);
+            return cached.Usage;
+        }
+
+        var usage = await _inner.GetConditionalAccessUsageAsync(since, signInsRead, cancellationToken)
+            .ConfigureAwait(false);
+        _conditionalAccessUsage = (since, usage);
+        return usage;
     }
 }

@@ -66,4 +66,14 @@ public interface IDirectoryReader
     Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(
         DateTimeOffset since,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// How Conditional Access policies applied to the interactive sign-ins since <paramref name="since"/>. An
+    /// implementation reads the sign-ins a page at a time and reports through <paramref name="signInsRead"/> how many
+    /// it has read so far.
+    /// </summary>
+    Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+        DateTimeOffset since,
+        IProgress<int>? signInsRead = null,
+        CancellationToken cancellationToken = default);
 }

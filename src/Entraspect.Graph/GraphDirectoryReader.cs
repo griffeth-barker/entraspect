@@ -73,6 +73,13 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadSingleFactorSignInsAsync(since, cancellationToken));
 
+    // Implemented in spec 009 step 3.
+    public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+        DateTimeOffset since,
+        IProgress<int>? signInsRead = null,
+        CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading Conditional Access usage isn't available yet.");
+
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
 

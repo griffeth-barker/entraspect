@@ -150,4 +150,22 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
         SignInReads.Add(since);
         return Task.FromResult(SignIns);
     }
+
+    /// <summary>What <see cref="GetConditionalAccessUsageAsync"/> returns; no sign-ins unless set.</summary>
+    public ConditionalAccessUsage? Usage { get; init; }
+
+    /// <summary>The start passed to each <see cref="GetConditionalAccessUsageAsync"/> call.</summary>
+    public List<DateTimeOffset> UsageReads { get; } = [];
+
+    /// <summary>Reports the usage's sign-in count once, as if it were one page.</summary>
+    public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+        DateTimeOffset since,
+        IProgress<int>? signInsRead = null,
+        CancellationToken cancellationToken = default)
+    {
+        UsageReads.Add(since);
+        var usage = Usage ?? new ConditionalAccessUsageAggregator(since, since).ToUsage();
+        signInsRead?.Report(usage.SignInsRead);
+        return Task.FromResult(usage);
+    }
 }

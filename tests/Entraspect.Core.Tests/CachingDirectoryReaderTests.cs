@@ -136,6 +136,22 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(
                 new Dictionary<string, SingleFactorSignIns> { ["u1"] = new(1, since) });
         }
+
+        public List<DateTimeOffset> UsageReads { get; } = [];
+
+        public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+            DateTimeOffset since,
+            IProgress<int>? signInsRead = null,
+            CancellationToken cancellationToken = default)
+        {
+            UsageReads.Add(since);
+            var aggregator = new ConditionalAccessUsageAggregator(since, since);
+            aggregator.Add([new AppliedPolicyResult("p1", ConditionalAccessResult.Success)]);
+            aggregator.Add([]);
+            signInsRead?.Report(1);
+            signInsRead?.Report(2);
+            return Task.FromResult(aggregator.ToUsage());
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
@@ -296,6 +312,15 @@ public sealed class CachingDirectoryReaderTests
             FailOnce("signins");
             return Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(
                 new Dictionary<string, SingleFactorSignIns>());
+        }
+
+        public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(
+            DateTimeOffset since,
+            IProgress<int>? signInsRead = null,
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("usage");
+            return Task.FromResult(new ConditionalAccessUsageAggregator(since, since).ToUsage());
         }
     }
 
@@ -551,5 +576,35 @@ public sealed class CachingDirectoryReaderTests
         Assert.Equal(PerUserMfaState.Enabled, await caching.GetPerUserMfaStateAsync("u1"));
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetSingleFactorSignInsAsync(default));
         Assert.Empty(await caching.GetSingleFactorSignInsAsync(default));
+    }
+
+    [Fact]
+    public async Task Reads_conditional_access_usage_once_for_the_same_start()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+        var since = new DateTimeOffset(2026, 10, 18, 0, 0, 0, TimeSpan.Zero);
+        var reported = new List<int>();
+        var progress = new SyncProgress<int>(reported.Add);
+
+        await caching.GetConditionalAccessUsageAsync(since, progress);
+        var again = await caching.GetConditionalAccessUsageAsync(since, progress);
+        await caching.GetConditionalAccessUsageAsync(since.AddDays(-1));
+
+        Assert.Equal(2, again.SignInsRead);
+        Assert.Equal(1, again.Count("p1", ConditionalAccessResult.Success));
+        Assert.Equal(new[] { since, since.AddDays(-1) }, inner.UsageReads);
+        // The cached read reports its total once.
+        Assert.Equal(new[] { 1, 2, 2 }, reported);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_a_failed_conditional_access_usage_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetConditionalAccessUsageAsync(default));
+        Assert.Equal(0, (await caching.GetConditionalAccessUsageAsync(default)).SignInsRead);
     }
 }

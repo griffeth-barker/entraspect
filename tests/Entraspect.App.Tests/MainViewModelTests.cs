@@ -779,6 +779,9 @@ public sealed class MainViewModelTests : IDisposable
 
         public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<string, SingleFactorSignIns>>(new Dictionary<string, SingleFactorSignIns>());
+
+        public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(DateTimeOffset since, IProgress<int>? signInsRead = null, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ConditionalAccessUsageAggregator(since, since).ToUsage());
     }
 
     private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
@@ -823,6 +826,9 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyDictionary<string, SingleFactorSignIns>> GetSingleFactorSignInsAsync(DateTimeOffset since, CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(DateTimeOffset since, IProgress<int>? signInsRead = null, CancellationToken cancellationToken = default) =>
             throw Failure();
 
         private DirectoryReadException Failure() =>
@@ -924,6 +930,13 @@ public sealed class MainViewModelTests : IDisposable
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
             return new Dictionary<string, SingleFactorSignIns>();
+        }
+
+        public async Task<ConditionalAccessUsage> GetConditionalAccessUsageAsync(DateTimeOffset since, IProgress<int>? signInsRead = null, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return new ConditionalAccessUsageAggregator(since, since).ToUsage();
         }
     }
 }

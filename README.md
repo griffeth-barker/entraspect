@@ -35,6 +35,7 @@ Both group checks skip groups created in the last 7 days (the new group grace pe
 - **High-privilege apps** (enterprise apps): enterprise apps holding high-privilege Microsoft Graph application permissions, one finding per permission, with the date it was granted. Microsoft's own apps are skipped. Delegated permissions and permissions on other APIs aren't checked. entraspect only reads these permission names; it never requests them.
   - **Critical:** a permission that can be used to take over the tenant: `RoleManagement.ReadWrite.Directory`, `AppRoleAssignment.ReadWrite.All`, `Application.ReadWrite.All`, `Directory.ReadWrite.All`, `RoleAssignmentSchedule.ReadWrite.Directory`, `RoleEligibilitySchedule.ReadWrite.Directory`, `PrivilegedAccess.ReadWrite.AzureADGroup`, `UserAuthenticationMethod.ReadWrite.All` or `Policy.ReadWrite.ConditionalAccess`.
   - **Warning:** a permission with tenant-wide data access: `Mail.ReadWrite`, `Mail.Send`, `Files.ReadWrite.All`, `Sites.ReadWrite.All`, `Sites.FullControl.All`, `User.ReadWrite.All`, `Group.ReadWrite.All` or `GroupMember.ReadWrite.All`.
+  - **Info:** either kind of permission on a disabled app. It can't be used while the app is disabled, but comes back if the app is enabled again.
 
 Both expiry checks use the same expiry windows, set in **Settings** > **Checks**.
 

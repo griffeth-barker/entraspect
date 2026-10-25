@@ -7,13 +7,13 @@ public sealed class HighPrivilegeAppPermissionsCheckTests
     private static readonly DateTimeOffset Granted = new(2025, 3, 4, 10, 0, 0, TimeSpan.Zero);
     private static readonly Guid CustomerTenantId = Guid.Parse("99999999-9999-9999-9999-999999999999");
 
-    private static EnterpriseApp App(string id, Guid? ownerTenantId) =>
+    private static EnterpriseApp App(string id, Guid? ownerTenantId, bool accountEnabled = true) =>
         new()
         {
             Id = id,
             AppId = Guid.NewGuid(),
             DisplayName = $"App {id}",
-            AccountEnabled = true,
+            AccountEnabled = accountEnabled,
             AppOwnerOrganizationId = ownerTenantId,
             SigningCertificates = [],
         };
@@ -124,5 +124,22 @@ public sealed class HighPrivilegeAppPermissionsCheckTests
         Assert.Equal(
             new (string, string?)[] { ("1", "Mail.Send"), ("1", "Application.ReadWrite.All"), ("2", "Sites.FullControl.All") },
             findings.Select(f => (f.ObjectId, f.SubObjectDisplayName)));
+    }
+
+    [Theory]
+    [InlineData("Directory.ReadWrite.All")]
+    [InlineData("Mail.Send")]
+    public async Task Disabled_app_is_info_and_says_so(string permission)
+    {
+        var f = Assert.Single(await RunAsync([App("1", CustomerTenantId, accountEnabled: false)], Grant("1", permission)));
+
+        Assert.Equal(Severity.Info, f.Severity);
+        Assert.Equal($"App is disabled. Has Microsoft Graph application permission {permission}.", f.Message);
+    }
+
+    [Fact]
+    public async Task Disabled_app_with_a_permission_in_neither_list_has_no_finding()
+    {
+        Assert.Empty(await RunAsync([App("1", CustomerTenantId, accountEnabled: false)], Grant("1", "User.Read.All")));
     }
 }

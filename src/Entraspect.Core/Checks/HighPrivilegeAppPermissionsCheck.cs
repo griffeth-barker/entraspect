@@ -16,8 +16,8 @@ public sealed class HighPrivilegeAppPermissionsCheck : ICheck
 
     public string Description =>
         "Surfaces enterprise apps holding Microsoft Graph application permissions that can take over the tenant " +
-        "(Critical) or reach data across the whole tenant (Warning). Microsoft's own apps are skipped. Delegated " +
-        "permissions and permissions on other APIs aren't checked.";
+        "(Critical) or reach data across the whole tenant (Warning). Findings on disabled apps are Info. " +
+        "Microsoft's own apps are skipped. Delegated permissions and permissions on other APIs aren't checked.";
 
     public CheckCategory Category => CheckCategory.EnterpriseApps;
 
@@ -41,29 +41,35 @@ public sealed class HighPrivilegeAppPermissionsCheck : ICheck
     {
         var grants = await reader.GetGraphApplicationPermissionGrantsAsync(cancellationToken).ConfigureAwait(false);
         var apps = await reader.GetEnterpriseAppsAsync(cancellationToken).ConfigureAwait(false);
-        var microsoftOwned = apps
-            .Where(a => a.AppOwnerOrganizationId == MicrosoftTenantId)
-            .Select(a => a.Id)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var appsById = apps
+            .GroupBy(a => a.Id, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
         var findings = new List<Finding>();
 
         foreach (var grant in grants)
         {
-            if (microsoftOwned.Contains(grant.ServicePrincipalId) ||
+            appsById.TryGetValue(grant.ServicePrincipalId, out var app);
+
+            if (app?.AppOwnerOrganizationId == MicrosoftTenantId ||
                 HighPrivilegePermissions.SeverityOf(grant.PermissionName) is not { } severity)
             {
                 continue;
             }
 
+            // A disabled app can't get tokens, so nothing is urgent; the finding is kept because re-enabling the app
+            // restores the permission. An app missing from the list counts as enabled so it keeps its severity.
+            var isDisabled = app is { AccountEnabled: false };
+            var message = $"Has Microsoft Graph application permission {grant.PermissionName}.";
+
             findings.Add(new Finding
             {
                 CheckId = Id,
-                Severity = severity,
+                Severity = isDisabled ? Severity.Info : severity,
                 ObjectType = "EnterpriseApp",
                 ObjectId = grant.ServicePrincipalId,
                 ObjectDisplayName = grant.ServicePrincipalDisplayName,
                 // The grant date is in its own column, shown in the time zone chosen in Settings > Preferences.
-                Message = $"Has Microsoft Graph application permission {grant.PermissionName}.",
+                Message = isDisabled ? "App is disabled. " + message : message,
                 DueDate = grant.CreatedDateTime,
                 SubObjectType = "Application permission",
                 SubObjectDisplayName = grant.PermissionName,

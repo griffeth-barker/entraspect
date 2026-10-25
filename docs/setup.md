@@ -42,6 +42,7 @@ Don't use the **Object ID**. It is a different value and sign-in fails with it.
 | Permission | Used for |
 | --- | --- |
 | `Application.Read.All` | Expiring credentials (app registration secrets and certificates) |
+| `GroupMember.Read.All` | Groups with no members, Groups with no owners |
 
 Every permission entraspect uses is a read permission. Never grant entraspect's app registration a write permission (any permission containing `ReadWrite`). Anyone with its certificate could then change your tenant.
 
@@ -115,7 +116,7 @@ After connecting, entraspect opens **Overview**, which shows the connected tenan
 
 Under **Settings**:
 
-- **Checks** turns checks on or off and sets the expiry windows (warning and critical days).
+- **Checks** turns checks on or off and sets the check options: the expiry windows (warning and critical days) and the new group grace period (groups created fewer than this many days ago are skipped by the group checks).
 - **Preferences** chooses whether dates and times show in UTC or your computer's time zone.
 - **About** shows the version and where entraspect stores its files.
 

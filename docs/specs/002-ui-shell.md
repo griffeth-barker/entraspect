@@ -1,6 +1,6 @@
 # Spec 002: Navigation shell, app-only auth and permission validation
 
-**Status:** Ready
+**Status:** Done
 **Goal:** Replace the single-check connect-then-results UI with a portal-style shell: a left navigation panel grouped by object type (Users, Groups, App registrations, Enterprise apps, Conditional Access), an Overview page, and Settings at the bottom. The app starts on Settings, and the other pages unlock once connected. One Scan button runs every enabled check. entraspect drops interactive sign-in and supports app-only certificate auth only, so it can check the granted permissions exactly and warn about missing ones. Adding a check in a later spec should make it appear in the nav without UI changes.
 
 **Out of scope for this spec:** new checks (specs 003 onwards), export (spec 010), an app icon, adding or consenting permissions from inside entraspect.

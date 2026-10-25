@@ -14,17 +14,45 @@
         Width="1240" Height="660" MinWidth="900" MinHeight="520">
 
     <Window.Styles>
-        <!-- A slightly larger, round badge. FluentAvalonia's template gives the count a fixed bottom margin that sits
-             it high, so it is moved down to the centre. -->
-        <Style Selector="ui|FAInfoBadge">
-            <Setter Property="MinWidth" Value="18" />
-            <Setter Property="Height" Value="18" />
-            <Setter Property="MaxHeight" Value="18" />
-            <Setter Property="FontSize" Value="11" />
+        <!-- The navigation badges are severity pills like Overview's, so FAInfoBadge gets its own template: an optional
+             gray "!" for a check without a result, then the finding count coloured by the highest severity. Its theme
+             caps the height at 16, which the pills need more than. -->
+        <Style Selector="ui|FAInfoBadge.navPills">
+            <Setter Property="MaxHeight" Value="Infinity" />
+            <Setter Property="MinWidth" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <StackPanel Orientation="Horizontal" Spacing="4" x:DataType="vm:NavItemViewModel">
+                        <Border Classes="label navPill neutral" IsVisible="{Binding HasProblem}"
+                                ToolTip.Tip="{Binding ProblemToolTip}">
+                            <TextBlock Text="!" />
+                        </Border>
+                        <Border Classes="label navPill" IsVisible="{Binding HasCount}"
+                                Classes.critical="{Binding IsCritical}"
+                                Classes.warning="{Binding IsWarning}"
+                                Classes.info="{Binding IsInfo}"
+                                ToolTip.Tip="{Binding CountToolTip}">
+                            <TextBlock Text="{Binding BadgeCount}" />
+                        </Border>
+                    </StackPanel>
+                </ControlTemplate>
+            </Setter>
         </Style>
-        <Style Selector="ui|FAInfoBadge /template/ TextBlock#ValueTextBlock">
-            <Setter Property="RenderTransform" Value="translateY(2px)" />
-            <Setter Property="FontWeight" Value="SemiBold" />
+        <!-- Smaller than Overview's pills, to fit the item height, and wide enough for two digits so counts line up. -->
+        <Style Selector="Border.navPill">
+            <Setter Property="Padding" Value="5,2" />
+            <Setter Property="MinWidth" Value="26" />
+        </Style>
+        <Style Selector="Border.navPill > TextBlock">
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <!-- An item without a chevron (a check or settings page) gets a badge column as wide as a section's chevron
+             column, with the pill centred, so every pill sits on the same vertical line as the chevrons. -->
+        <Style Selector="uip|FANavigationViewItemPresenter:chevronhidden /template/ ContentPresenter#InfoBadgePresenter">
+            <Setter Property="MinWidth" Value="40" />
         </Style>
 
         <!-- Child items (check pages, settings pages) have no icon. Line their text up with their section's text, like
@@ -34,13 +62,6 @@
             <Setter Property="Width" Value="9" />
         </Style>
 
-        <!-- A check that failed or is missing permissions shows a warning marker instead of a count. -->
-        <Style Selector="ui|FAInfoBadge.warning">
-            <Setter Property="IconSource">
-                <ui:FASymbolIconSource Symbol="Important" />
-            </Setter>
-            <Setter Property="Background" Value="{DynamicResource SystemFillColorCautionBrush}" />
-        </Style>
     </Window.Styles>
 
     <ui:FANavigationView x:Name="Nav"
@@ -62,9 +83,7 @@
                                          ToolTip.Tip="{Binding ToolTip}"
                                          ToolTip.ShowOnDisabled="True">
                     <ui:FANavigationViewItem.InfoBadge>
-                        <ui:FAInfoBadge Value="{Binding BadgeCount}"
-                                        IsVisible="{Binding ShowBadges}"
-                                        Classes.warning="{Binding HasProblem}" />
+                        <ui:FAInfoBadge Classes="navPills" IsVisible="{Binding ShowBadges}" />
                     </ui:FANavigationViewItem.InfoBadge>
                 </ui:FANavigationViewItem>
             </DataTemplate>

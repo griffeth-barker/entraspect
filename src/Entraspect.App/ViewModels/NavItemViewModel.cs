@@ -69,7 +69,14 @@ public partial class NavItemViewModel : ObservableObject
 
     /// <summary>The highest severity among the counted findings, or null when there is no count badge.</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCritical), nameof(IsWarning), nameof(IsInfo))]
     public partial Severity? BadgeSeverity { get; set; }
+
+    public bool IsCritical => BadgeSeverity == Severity.Critical;
+
+    public bool IsWarning => BadgeSeverity == Severity.Warning;
+
+    public bool IsInfo => BadgeSeverity == Severity.Info;
 
     /// <summary>The count by severity, most severe first, for example "1 critical, 3 warning".</summary>
     [ObservableProperty]

@@ -87,7 +87,8 @@ A step is only done when build and tests both pass.
 
 ## UI conventions
 
-- Layout: navigation on the left, the page on the right, no header. Connection status and Connect, Reconnect and Disconnect live on Settings > Connection profiles; the scan bar (Scan, Cancel, progress) sits on Overview and every check page.
+- Layout: navigation on the left, the page on the right, no header. Connection status and Connect, Reconnect and Disconnect live on Settings > Connection profiles. The scan bar on Overview and every check page is just Scan (with Export and their errors). A status bar along the bottom of the main pane (`StatusBarViewModel`) shows what is happening (connecting, the running check with a progress bar and a small gray "X" to cancel, how the last scan ended) and the page's context (a check's last run, Overview's last scan) with the connected profile's name. It shows status only; errors stay on their page.
+- Navigation badges are severity pills like Overview's: a check's finding count coloured by its highest severity, a gray "!" for a check without a result (failed or missing permissions), and no badge when it found nothing. Only collapsed sections show a summary (their checks' total, plus "!" when one has no result). Every pill lines up in the chevron column.
 - View models reach the window (dialogs, clipboard, browser) only through `IUserInteraction`, so tests can fake it.
 - Keep pages light on text. Put descriptions and explainers in an info icon (`InfoTip`) next to the title, heading or field they explain, not in body text. Short status and error messages stay visible.
 - A check's `Title` is its navigation label: at most `CheckCatalog.MaxTitleLength` (26) characters. Don't repeat the section name; "Expiring credentials" sits under App registrations.

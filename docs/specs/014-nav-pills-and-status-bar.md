@@ -113,3 +113,7 @@ Add a `StatusBarViewModel` (or properties on `MainViewModel`, whichever keeps `M
 - **Decision: expanded sections** show no summary; only collapsed sections do.
 - **Decision: no "nothing found" mark.** A check scanned with no findings shows no badge; the lack of a badge means no problem.
 - **Decision: failed checks in a collapsed section** show a gray "!" pill next to the section's count, with a tooltip saying how many checks failed or are missing permissions.
+- **Export confirmation (implemented as a stopgap, confirm).** The scan bar used to show "Exported to *file*." after an export. With the progress text gone, the status bar's activity shows "Exported to *file*" until the next scan. Keep it there, or drop it?
+- **Export stays next to Scan.** Step 4 says the scan bar keeps only Scan and `ScanErrorText`; Export (spec 010) and its error were kept with it, since nothing else offers export.
+- **Settings in the footer has no summary.** Only check sections summarise while collapsed. A collapsed Settings doesn't show the "!" of Settings > Checks (missing permissions); Settings starts expanded. Should it?
+- **Long status text.** The status bar is one line: on a narrow window the activity and the context trim with an ellipsis and show the full text on hover. The sign-in period of report checks ("· 12,345 sign-in(s) from … to …") is part of the context and is often trimmed. Show it elsewhere?

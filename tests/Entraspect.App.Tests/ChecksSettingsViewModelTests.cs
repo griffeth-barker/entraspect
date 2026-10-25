@@ -36,6 +36,7 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         vm.ExpiryCriticalDays = 10;
         vm.NewGroupGraceDays = 0;
         vm.ReportOnlyWarningDays = 0;
+        vm.SignInLookbackDays = 30;
 
         Assert.Equal(string.Empty, vm.OptionsErrorText);
         var options = new SettingsStore(_dir).Load(out _).CheckOptions;
@@ -43,6 +44,20 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         Assert.Equal(0, options.ReportOnlyWarningDays);
         Assert.Equal(0, Create().NewGroupGraceDays);
         Assert.Equal(0, Create().ReportOnlyWarningDays);
+        Assert.Equal(30, options.SignInLookbackDays);
+        Assert.Equal(30, Create().SignInLookbackDays);
+    }
+
+    [Fact]
+    public void Out_of_range_sign_in_lookback_days_show_an_error_and_are_not_saved()
+    {
+        var vm = Create();
+
+        vm.SignInLookbackDays = 31;
+
+        Assert.Contains("between 1 and 30", vm.OptionsErrorText);
+        Assert.Contains("Not saved", vm.OptionsErrorText);
+        Assert.Equal(7, new SettingsStore(_dir).Load(out _).CheckOptions.SignInLookbackDays);
     }
 
     [Fact]

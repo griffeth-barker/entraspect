@@ -11,6 +11,7 @@ public sealed class CheckOptionsTests
         Assert.Equal(7, options.ExpiryCriticalDays);
         Assert.Equal(7, options.NewGroupGraceDays);
         Assert.Equal(30, options.ReportOnlyWarningDays);
+        Assert.Equal(7, options.SignInLookbackDays);
     }
 
     [Theory]
@@ -114,5 +115,30 @@ public sealed class CheckOptionsTests
         var options = CheckOptions.Normalize(new CheckOptions { ExpiryWarningDays = 5, ExpiryCriticalDays = 10, ReportOnlyWarningDays = 0 });
 
         Assert.Equal(0, options.ReportOnlyWarningDays);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    public void Valid_sign_in_lookback_days_are_kept_and_accepted(int days)
+    {
+        var options = new CheckOptions { SignInLookbackDays = days };
+
+        Assert.Equal(days, CheckOptions.Normalize(options).SignInLookbackDays);
+        Assert.Null(CheckOptions.Validate(options));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(31)]
+    public void Out_of_range_sign_in_lookback_days_fall_back_to_default_and_are_rejected(int days)
+    {
+        var options = new CheckOptions { ReportOnlyWarningDays = 3, SignInLookbackDays = days };
+
+        var normalized = CheckOptions.Normalize(options);
+
+        Assert.Equal(7, normalized.SignInLookbackDays);
+        Assert.Equal(3, normalized.ReportOnlyWarningDays);
+        Assert.Equal("Sign-in lookback days must be between 1 and 30.", CheckOptions.Validate(options));
     }
 }

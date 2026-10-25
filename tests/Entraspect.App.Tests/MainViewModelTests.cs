@@ -23,6 +23,7 @@ public sealed class MainViewModelTests : IDisposable
     private const string HighPrivilegeCheckId = "sp-high-privilege-app-permissions";
 
     private const string MfaCheckId = "users-mfa-not-registered";
+    private const string MfaRequiredCheckId = "users-mfa-not-required";
     private const string CaPolicyCheckId = "ca-policy-hygiene";
     private const string FakePassword = "fake-pfx-password-for-test";
     private const string ClientId = "00000000-0000-0000-0000-0000000000c1";
@@ -39,7 +40,7 @@ public sealed class MainViewModelTests : IDisposable
 
     private IDirectoryReader _reader = new FakeReader(OneExpiringApp());
     private IReadOnlyList<string> _granted =
-        ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
     private Exception? _connectError;
     private TenantLicence _licence = TenantLicence.Unknown;
 
@@ -78,8 +79,8 @@ public sealed class MainViewModelTests : IDisposable
             new[] { "Users", "Groups", "App registrations", "Enterprise apps", "Conditional Access" },
             vm.MenuItems.Skip(1).Select(i => i.Title));
         Assert.Equal(
-            MfaCheckId,
-            Assert.IsType<CheckPageViewModel>(Assert.Single(vm.MenuItems[1].Children).Page).Check.Id);
+            new[] { MfaCheckId, MfaRequiredCheckId },
+            vm.MenuItems[1].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
             new[] { "group-no-members", "group-no-owners" },
             vm.MenuItems[2].Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
@@ -319,7 +320,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_permission_shows_banners_on_connect_before_any_scan()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -343,7 +344,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_audit_log_permission_shows_the_banner_on_mfa_not_registered()
     {
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Policy.Read.All", "User.Read.All"];
+        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -353,7 +354,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(["AuditLog.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
-            "AuditLog.Read.All: needed by MFA not registered",
+            "AuditLog.Read.All: needed by MFA not registered, MFA not required",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
@@ -379,7 +380,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_policy_and_user_permissions_show_the_banner_on_policy_hygiene()
     {
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All"];
+        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -389,8 +390,29 @@ public sealed class MainViewModelTests : IDisposable
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(["Policy.Read.All", "User.Read.All"], page.Banner.MissingPermissions);
         Assert.Equal(
-            ["Policy.Read.All: needed by Policy hygiene", "User.Read.All: needed by Policy hygiene"],
+            [
+                "Policy.Read.All: needed by MFA not required, Policy hygiene",
+                "User.Read.All: needed by MFA not required, Policy hygiene",
+            ],
             vm.Overview.Banner.Details);
+        Assert.False(CheckPage(vm).Banner.IsOpen);
+    }
+
+    [Fact]
+    public async Task Missing_role_management_permission_shows_the_banner_on_mfa_not_required()
+    {
+        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        var page = (CheckPageViewModel)vm.MenuItems.SelectMany(i => i.Children)
+            .Single(i => i.Page is CheckPageViewModel p && p.Check.Id == MfaRequiredCheckId).Page!;
+        Assert.True(page.Banner.IsOpen);
+        Assert.Equal(["RoleManagement.Read.Directory"], page.Banner.MissingPermissions);
+        Assert.Equal(
+            "RoleManagement.Read.Directory: needed by MFA not required",
+            Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }
 
@@ -398,7 +420,7 @@ public sealed class MainViewModelTests : IDisposable
     public async Task Unlicensed_check_shows_not_available_without_banner_badge_or_problem()
     {
         _licence = TenantLicence.Free;
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "LicenseAssignment.Read.All", "Policy.Read.All", "User.Read.All"];
+        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "LicenseAssignment.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -498,7 +520,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Banner_buttons_open_the_api_permissions_page_and_copy_the_names()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
@@ -516,7 +538,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_a_check_removes_it_from_the_overview_banner_and_is_saved()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.True(vm.Overview.Banner.IsOpen);

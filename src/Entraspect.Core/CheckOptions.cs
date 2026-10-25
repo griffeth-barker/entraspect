@@ -14,9 +14,17 @@ public sealed class CheckOptions
     /// </summary>
     public int ReportOnlyWarningDays { get; init; } = 30;
 
+    /// <summary>How many days of sign-in logs checks read, from 1 to 30. Longer periods are slower in busy tenants.</summary>
+    public int SignInLookbackDays { get; init; } = 7;
+
+    public const int MinSignInLookbackDays = 1;
+
+    public const int MaxSignInLookbackDays = 30;
+
     /// <summary>Returns null if <paramref name="options"/> is valid, otherwise what is wrong, for Settings.</summary>
     public static string? Validate(CheckOptions options) =>
-        ExpiryError(options) ?? NewGroupGraceError(options) ?? ReportOnlyError(options);
+        ExpiryError(options) ?? NewGroupGraceError(options) ?? ReportOnlyError(options) ??
+        SignInLookbackError(options);
 
     private static string? ExpiryError(CheckOptions options) =>
         options.ExpiryCriticalDays < 0
@@ -31,12 +39,18 @@ public sealed class CheckOptions
     private static string? ReportOnlyError(CheckOptions options) =>
         options.ReportOnlyWarningDays < 0 ? "Report-only warning days can't be negative." : null;
 
+    private static string? SignInLookbackError(CheckOptions options) =>
+        options.SignInLookbackDays is < MinSignInLookbackDays or > MaxSignInLookbackDays
+            ? $"Sign-in lookback days must be between {MinSignInLookbackDays} and {MaxSignInLookbackDays}."
+            : null;
+
     /// <summary>
     /// Returns a valid copy of <paramref name="options"/>, or the defaults if it is null. Each rule only resets the
     /// options it covers, so add new options here with their own rule. Expiry: <c>0 &lt;= ExpiryCriticalDays &lt;=
     /// ExpiryWarningDays</c>, otherwise both expiry values fall back to their defaults. New group grace:
     /// <c>NewGroupGraceDays &gt;= 0</c>, otherwise it falls back to its default. Report-only warning:
-    /// <c>ReportOnlyWarningDays &gt;= 0</c>, otherwise it falls back to its default.
+    /// <c>ReportOnlyWarningDays &gt;= 0</c>, otherwise it falls back to its default. Sign-in lookback:
+    /// <c>1 &lt;= SignInLookbackDays &lt;= 30</c>, otherwise it falls back to its default.
     /// </summary>
     public static CheckOptions Normalize(CheckOptions? options)
     {
@@ -49,6 +63,7 @@ public sealed class CheckOptions
         var expiryValid = ExpiryError(options) is null;
         var graceValid = NewGroupGraceError(options) is null;
         var reportOnlyValid = ReportOnlyError(options) is null;
+        var lookbackValid = SignInLookbackError(options) is null;
 
         return new CheckOptions
         {
@@ -56,6 +71,7 @@ public sealed class CheckOptions
             ExpiryCriticalDays = expiryValid ? options.ExpiryCriticalDays : defaults.ExpiryCriticalDays,
             NewGroupGraceDays = graceValid ? options.NewGroupGraceDays : defaults.NewGroupGraceDays,
             ReportOnlyWarningDays = reportOnlyValid ? options.ReportOnlyWarningDays : defaults.ReportOnlyWarningDays,
+            SignInLookbackDays = lookbackValid ? options.SignInLookbackDays : defaults.SignInLookbackDays,
         };
     }
 }

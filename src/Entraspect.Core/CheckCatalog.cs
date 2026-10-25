@@ -26,6 +26,7 @@ public static class CheckCatalog
         new ICheck[]
         {
             new Checks.UsersMfaNotRegisteredCheck(),
+            new Checks.UsersMfaNotRequiredCheck(timeProvider),
             new Checks.GroupNoMembersCheck(timeProvider),
             new Checks.GroupNoOwnersCheck(timeProvider),
             new Checks.AppNoOwnersCheck(),

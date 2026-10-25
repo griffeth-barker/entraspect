@@ -13,7 +13,8 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                "users-mfa-not-registered", "group-no-members", "group-no-owners", "app-no-owners",
+                "users-mfa-not-registered", "users-mfa-not-required", "group-no-members", "group-no-owners",
+                "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
                 "sp-high-privilege-app-permissions", "ca-policy-hygiene",
             },
@@ -21,7 +22,7 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
+                CheckCategory.Users, CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
                 CheckCategory.EnterpriseApps, CheckCategory.ConditionalAccess,
             },
@@ -56,8 +57,8 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                "AuditLog.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "Application.Read.All",
-                "Policy.Read.All", "User.Read.All",
+                "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "GroupMember.Read.All",
+                "RoleManagement.Read.Directory", "Member.Read.Hidden", "Application.Read.All",
             },
             permissions);
     }
@@ -155,6 +156,31 @@ public sealed class CheckCatalogTests
         Assert.Null(check.Labels.SubObjectType);
         Assert.Null(check.Labels.DueDate);
         Assert.Equal(new[] { "AuditLog.Read.All" }, check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Mfa_not_required_columns_are_named_like_the_user_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "users-mfa-not-required");
+
+        Assert.Equal("MFA not required", check.Title);
+        Assert.Equal(CheckCategory.Users, check.Category);
+        Assert.Equal(LicenceRequirement.EntraIdP1, check.RequiredLicence);
+        Assert.Contains("who isn't required to use MFA", check.Description);
+        Assert.Contains("beta", check.Description);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Last single-factor sign-in"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.DueDate));
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Equal(
+            new[]
+            {
+                "Policy.Read.All", "User.Read.All", "GroupMember.Read.All", "RoleManagement.Read.Directory",
+                "AuditLog.Read.All",
+            },
+            check.RequiredPermissions);
     }
 
     [Theory]

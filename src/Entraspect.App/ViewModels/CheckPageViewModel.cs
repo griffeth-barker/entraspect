@@ -20,6 +20,8 @@ public partial class CheckPageViewModel : ViewModelBase
 
     private readonly TimeDisplay _time;
     private IReadOnlyList<FindingRow> _allRows = [];
+    private CheckResult? _result;
+    private bool _isLicensed = true;
 
     // The filter being edited, or null when adding a new one.
     private ActiveFilter? _editingFilter;
@@ -42,6 +44,16 @@ public partial class CheckPageViewModel : ViewModelBase
     public string Title => Check.Title;
 
     public string Description => Check.Description;
+
+    /// <summary>The status line for a check the tenant isn't licensed for.</summary>
+    public string NotAvailableText
+    {
+        get
+        {
+            var needs = Licensing.Needs(Check.RequiredLicence);
+            return $"Not available: {char.ToLowerInvariant(needs[0])}{needs[1..]}";
+        }
+    }
 
     /// <summary>The due column header with the zone, for example "Expires (UTC)".</summary>
     public string DueHeader => $"{Labels.DueDate} ({_time.ZoneLabel})";
@@ -100,23 +112,38 @@ public partial class CheckPageViewModel : ViewModelBase
 
     partial void OnSearchTextChanged(string value) => ApplyFilters();
 
-    /// <summary>Shows the permission banner when any required permission isn't granted.</summary>
+    /// <summary>
+    /// Shows the permission banner when any required permission isn't granted, unless the tenant isn't licensed for
+    /// the check: then the status line says so and there is no banner.
+    /// </summary>
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
-    public void SetGrantedPermissions(IReadOnlyCollection<string>? granted)
+    public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
     {
-        Banner.ShowForCheck(granted is null
+        var licensed = Licensing.IsLicensed(Check, licence);
+        Banner.ShowForCheck(granted is null || !licensed
             ? []
             : Check.RequiredPermissions.Where(p => !granted.Contains(p)).ToList());
+
+        if (licensed != _isLicensed)
+        {
+            _isLicensed = licensed;
+            SetResult(_result);
+        }
     }
 
     public void SetResult(CheckResult? result)
     {
+        _result = result;
         ErrorText = string.Empty;
         _allRows = [];
         var lastRun = result?.CompletedAt is { } completed ? _time.DateTime(completed) : string.Empty;
 
         switch (result?.Status)
         {
+            case null when !_isLicensed:
+            case CheckResultStatus.MissingLicence:
+                StatusText = NotAvailableText;
+                break;
             case null:
                 StatusText = NotRunText;
                 break;

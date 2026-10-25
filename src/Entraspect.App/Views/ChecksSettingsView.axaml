@@ -38,8 +38,22 @@
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
+                                    <StackPanel Orientation="Horizontal"
+                                                IsVisible="{Binding LicencePermission, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                        <ContentControl Content="{Binding LicencePermission}">
+                                            <ContentControl.ContentTemplate>
+                                                <DataTemplate x:DataType="vm:PermissionStatusViewModel">
+                                                    <views:PermissionStatusView />
+                                                </DataTemplate>
+                                            </ContentControl.ContentTemplate>
+                                        </ContentControl>
+                                        <views:InfoTip Text="{x:Static vm:PermissionStatusViewModel.LicenceToolTip}" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding LicenceNote}" Classes="muted" FontSize="12"
+                                               IsVisible="{Binding !IsLicensed}" />
                                 </StackPanel>
                                 <ToggleSwitch Grid.Column="1" IsChecked="{Binding IsEnabled}"
+                                              IsEnabled="{Binding IsLicensed}"
                                               OnContent="On" OffContent="Off" VerticalAlignment="Top" />
                             </Grid>
                         </Border>

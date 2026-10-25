@@ -34,6 +34,7 @@ public sealed class MainViewModelTests : IDisposable
     private IReadOnlyList<string> _granted =
         ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "AuditLog.Read.All"];
     private Exception? _connectError;
+    private TenantLicence _licence = TenantLicence.Unknown;
 
     public void Dispose()
     {
@@ -341,6 +342,48 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Unlicensed_check_shows_not_available_without_banner_badge_or_problem()
+    {
+        _licence = TenantLicence.Free;
+        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "LicenseAssignment.Read.All"];
+        var vm = CreateConnectableViewModel();
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        var (item, page) = MfaItemAndPage(vm);
+        Assert.False(page.Banner.IsOpen);
+        Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
+        Assert.False(vm.Overview.Banner.IsOpen);
+        Assert.False(vm.ChecksSettingsItem.HasWarning);
+        Assert.False(vm.ChecksSettings.Rows.Single(r => r.Check.Id == MfaCheckId).IsLicensed);
+        Assert.False(vm.ExcessPermissions.HasUnusedReadPermissions);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        Assert.Equal("Not available: needs an Entra ID P1 or P2 licence.", page.StatusText);
+        Assert.Equal(string.Empty, page.ErrorText);
+        Assert.False(item.HasBadge);
+        Assert.DoesNotContain(vm.Overview.Problems, p => p.Target == item);
+        var users = vm.Overview.Categories.Single(c => c.Title == "Users");
+        Assert.Equal((0, 0, 0), (users.Critical, users.Warning, users.Info));
+    }
+
+    [Fact]
+    public async Task Licensed_tenant_runs_the_licence_gated_check()
+    {
+        _licence = TenantLicence.EntraIdP1;
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        var (item, page) = MfaItemAndPage(vm);
+        Assert.StartsWith("Last run", page.StatusText);
+        Assert.True(item.HasBadge);
+        Assert.Equal(0, item.BadgeValue);
+    }
+
+    [Fact]
     public async Task Granted_permissions_hide_the_banners()
     {
         var vm = CreateConnectableViewModel();
@@ -518,6 +561,7 @@ public sealed class MainViewModelTests : IDisposable
             Reader = _reader,
             ClientId = profile.ClientId,
             GrantedPermissions = _granted,
+            TenantLicence = _licence,
         });
     }
 
@@ -526,6 +570,13 @@ public sealed class MainViewModelTests : IDisposable
     private static NavItemViewModel CheckItem(MainViewModel vm) =>
         vm.MenuItems.SelectMany(i => i.Children)
             .Single(i => i.Kind == NavItemKind.Check && ((CheckPageViewModel)i.Page!).Check.Id == CheckId);
+
+    private static (NavItemViewModel Item, CheckPageViewModel Page) MfaItemAndPage(MainViewModel vm)
+    {
+        var item = vm.MenuItems.SelectMany(i => i.Children)
+            .Single(i => i.Page is CheckPageViewModel p && p.Check.Id == MfaCheckId);
+        return (item, (CheckPageViewModel)item.Page!);
+    }
 
     private static CheckSettingsRow AppCheckRow(MainViewModel vm) => vm.ChecksSettings.Rows.Single(r => r.Check.Id == CheckId);
 

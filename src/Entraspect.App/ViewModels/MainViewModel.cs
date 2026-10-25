@@ -183,6 +183,9 @@ public partial class MainViewModel : ViewModelBase
     /// <summary>Granted application permissions of the current connection, empty when not connected.</summary>
     public IReadOnlyList<string> GrantedPermissions => _connection?.GrantedPermissions ?? [];
 
+    /// <summary>The connected tenant's licence, <see cref="TenantLicence.Unknown"/> when not connected or not read.</summary>
+    public TenantLicence TenantLicence => _connection?.TenantLicence ?? TenantLicence.Unknown;
+
     partial void OnSelectedNavItemChanged(NavItemViewModel? oldValue, NavItemViewModel? newValue)
     {
         // Sections only expand; a disabled page can't be opened. Either way keep the previous selection.
@@ -273,7 +276,8 @@ public partial class MainViewModel : ViewModelBase
             connection.GrantedPermissions,
             _settings.Current.CheckOptions,
             _timeProvider,
-            progress);
+            progress,
+            connection.TenantLicence);
 
         IsScanning = true;
         ScanErrorText = string.Empty;
@@ -387,6 +391,7 @@ public partial class MainViewModel : ViewModelBase
         Overview.SetConnection(_connectedProfile, _connectedAt is { } at ? Time.DateTime(at) : null);
         ConnectedProfileTitle = _connectedProfile is { } p ? $"{p.Name} ({p.TenantId})" : string.Empty;
         OnPropertyChanged(nameof(GrantedPermissions));
+        OnPropertyChanged(nameof(TenantLicence));
 
         foreach (var item in AllItems().Where(i => i.RequiresConnection))
         {
@@ -397,22 +402,24 @@ public partial class MainViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Updates everything that depends on the granted permissions and the enabled checks: the missing-permission
-    /// banners, the granted or missing labels, and the excess permissions banners.
+    /// Updates everything that depends on the granted permissions, the tenant licence and the enabled checks: the
+    /// missing-permission banners, the granted or missing labels, the unlicensed checks, and the excess permissions
+    /// banners.
     /// </summary>
     private void RefreshPermissions()
     {
         IReadOnlyCollection<string>? granted = _connection is null
             ? null
             : new HashSet<string>(_connection.GrantedPermissions, StringComparer.Ordinal);
+        var licence = TenantLicence;
 
         foreach (var (checkId, (_, page)) in _checkPages)
         {
             page.IsDisabled = !_settings.IsCheckEnabled(checkId);
-            page.SetGrantedPermissions(granted);
+            page.SetConnection(granted, licence);
         }
 
-        ChecksSettings.SetGrantedPermissions(granted);
+        ChecksSettings.SetConnection(granted, licence);
         About.IsConnected = granted is not null;
 
         if (granted is null)
@@ -424,10 +431,10 @@ public partial class MainViewModel : ViewModelBase
         }
 
         // Missing permissions only count for enabled checks; unused ones are judged against every check.
-        var missing = PermissionReview.Review(EnabledChecks(), granted).MissingPermissions;
+        var missing = PermissionReview.Review(EnabledChecks(), granted, licence).MissingPermissions;
         Overview.Banner.ShowForOverview(missing);
         ChecksSettingsItem.SetWarning(missing.Count > 0);
-        ExcessPermissions.SetReview(PermissionReview.Review(Checks, granted));
+        ExcessPermissions.SetReview(PermissionReview.Review(Checks, granted, licence));
     }
 
     private List<ICheck> EnabledChecks() => Checks.Where(c => _settings.IsCheckEnabled(c.Id)).ToList();

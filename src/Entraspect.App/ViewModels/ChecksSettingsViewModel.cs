@@ -6,7 +6,10 @@ using Entraspect.Core;
 
 namespace Entraspect.App.ViewModels;
 
-/// <summary>One check on Settings > Checks: its enable toggle, category and required permissions.</summary>
+/// <summary>
+/// One check on Settings > Checks: its enable toggle, category and required permissions. A check the tenant isn't
+/// licensed for has its toggle grayed out with a note; its saved on/off choice is kept.
+/// </summary>
 public partial class CheckSettingsRow : ObservableObject
 {
     private readonly SettingsState _settings;
@@ -19,7 +22,8 @@ public partial class CheckSettingsRow : ObservableObject
         _settings = settings;
         _reportError = reportError;
         IsEnabled = settings.IsCheckEnabled(check.Id);
-        SetGrantedPermissions(null);
+        LicenceNote = Licensing.Needs(check.RequiredLicence);
+        SetConnection(null, TenantLicence.Unknown);
     }
 
     public ICheck Check { get; }
@@ -30,6 +34,16 @@ public partial class CheckSettingsRow : ObservableObject
 
     public ObservableCollection<PermissionStatusViewModel> Permissions { get; } = [];
 
+    /// <summary>The licence permission label, for checks that need a licence; null otherwise.</summary>
+    [ObservableProperty]
+    public partial PermissionStatusViewModel? LicencePermission { get; set; }
+
+    /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
+    [ObservableProperty]
+    public partial bool IsLicensed { get; set; } = true;
+
+    public string LicenceNote { get; }
+
     [ObservableProperty]
     public partial bool IsEnabled { get; set; }
 
@@ -37,13 +51,22 @@ public partial class CheckSettingsRow : ObservableObject
     partial void OnIsEnabledChanged(bool value) => _reportError(_settings.SetCheckEnabled(Check.Id, value));
 
     /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
-    public void SetGrantedPermissions(IReadOnlyCollection<string>? granted)
+    /// <param name="licence">The connected tenant's licence; <see cref="TenantLicence.Unknown"/> when not connected.</param>
+    public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
     {
         Permissions.Clear();
         foreach (var permission in Check.RequiredPermissions)
         {
             Permissions.Add(new PermissionStatusViewModel(permission, granted?.Contains(permission)));
         }
+
+        LicencePermission = Check.RequiredLicence == LicenceRequirement.None
+            ? null
+            : new PermissionStatusViewModel(
+                CheckCatalog.LicencePermission,
+                granted?.Contains(CheckCatalog.LicencePermission),
+                isOptional: true);
+        IsLicensed = Licensing.IsLicensed(Check, licence);
     }
 }
 
@@ -97,11 +120,12 @@ public partial class ChecksSettingsViewModel : ViewModelBase
 
     partial void OnNewGroupGraceDaysChanged(decimal? value) => SaveOptions();
 
-    public void SetGrantedPermissions(IReadOnlyCollection<string>? granted)
+    /// <param name="granted">The connection's granted permissions, or null when not connected.</param>
+    public void SetConnection(IReadOnlyCollection<string>? granted, TenantLicence licence)
     {
         foreach (var row in Rows)
         {
-            row.SetGrantedPermissions(granted);
+            row.SetConnection(granted, licence);
         }
     }
 

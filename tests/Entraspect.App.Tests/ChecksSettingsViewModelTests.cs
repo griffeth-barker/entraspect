@@ -85,12 +85,58 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         var permission = Assert.Single(row.Permissions);
         Assert.False(permission.IsGranted || permission.IsMissing);
 
-        vm.SetGrantedPermissions(Array.Empty<string>());
+        vm.SetConnection(Array.Empty<string>(), TenantLicence.Unknown);
         Assert.True(Assert.Single(row.Permissions).IsMissing);
 
-        vm.SetGrantedPermissions(new[] { "Application.Read.All" });
+        vm.SetConnection(new[] { "Application.Read.All" }, TenantLicence.Unknown);
         Assert.True(Assert.Single(row.Permissions).IsGranted);
     }
+
+    [Fact]
+    public void Unlicensed_check_grays_out_its_toggle_and_keeps_its_saved_choice()
+    {
+        var vm = Create();
+        var row = MfaRow(vm);
+        Assert.True(row.IsLicensed);
+        Assert.True(row.IsEnabled);
+
+        vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.Free);
+
+        Assert.False(row.IsLicensed);
+        Assert.True(row.IsEnabled);
+        Assert.Equal("Needs an Entra ID P1 or P2 licence.", row.LicenceNote);
+        Assert.Empty(new SettingsStore(_dir).Load(out _).DisabledCheckIds);
+        Assert.True(AppCheckRow(vm).IsLicensed);
+
+        vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.EntraIdP1);
+        Assert.True(row.IsLicensed);
+
+        vm.SetConnection(new[] { "AuditLog.Read.All" }, TenantLicence.Unknown);
+        Assert.True(row.IsLicensed);
+    }
+
+    [Fact]
+    public void Licence_permission_label_shows_only_on_licence_gated_checks_and_is_never_red()
+    {
+        var vm = Create();
+        Assert.Null(AppCheckRow(vm).LicencePermission);
+
+        var label = MfaRow(vm).LicencePermission!;
+        Assert.Equal("LicenseAssignment.Read.All", label.Name);
+        Assert.False(label.IsGranted || label.IsMissing);
+
+        vm.SetConnection(Array.Empty<string>(), TenantLicence.Unknown);
+        label = MfaRow(vm).LicencePermission!;
+        Assert.False(label.IsGranted);
+        Assert.False(label.IsMissing);
+        Assert.Equal(PermissionStatusViewModel.LicenceToolTip, label.ToolTipText);
+
+        vm.SetConnection(new[] { "LicenseAssignment.Read.All" }, TenantLicence.Free);
+        Assert.True(MfaRow(vm).LicencePermission!.IsGranted);
+    }
+
+    private static CheckSettingsRow MfaRow(ChecksSettingsViewModel vm) =>
+        vm.Rows.Single(r => r.Check.Id == "users-mfa-not-registered");
 
     private const string AppCheckId = "app-credential-expiry";
 

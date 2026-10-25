@@ -208,10 +208,10 @@ public sealed class CheckPageViewModelTests
     public void Banner_shows_only_the_missing_permissions_while_connected()
     {
         var page = CreatePage("A.Read.All", "B.Read.All");
-        page.SetGrantedPermissions(null);
+        page.SetConnection(null, TenantLicence.Unknown);
         Assert.False(page.Banner.IsOpen);
 
-        page.SetGrantedPermissions(new[] { "A.Read.All" });
+        page.SetConnection(new[] { "A.Read.All" }, TenantLicence.Unknown);
 
         Assert.True(page.Banner.IsOpen);
         Assert.Equal(new[] { "B.Read.All" }, page.Banner.MissingPermissions);

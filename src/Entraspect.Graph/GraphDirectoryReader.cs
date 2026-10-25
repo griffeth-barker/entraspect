@@ -35,17 +35,15 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGraphApplicationPermissionGrantsAsync(cancellationToken));
 
-    // Implemented in spec 007 step 3.
     public Task<IReadOnlyList<ConditionalAccessPolicy>> GetConditionalAccessPoliciesAsync(
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Reading Conditional Access policies isn't available yet.");
+        ReadAsync(() => ReadConditionalAccessPoliciesAsync(cancellationToken));
 
-    // Implemented in spec 007 step 3.
     public Task<IReadOnlyList<string>> GetMissingUserIdsAsync(
         IReadOnlyCollection<string> userIds,
         IProgress<int>? progress = null,
         CancellationToken cancellationToken = default) =>
-        throw new DirectoryReadException("Looking up users isn't available yet.");
+        ReadAsync(() => ReadMissingUserIdsAsync(userIds, progress, cancellationToken));
 
     /// <summary>The application (client) ID of Microsoft Graph, the same in every tenant.</summary>
     public const string MicrosoftGraphAppId = "00000003-0000-0000-c000-000000000000";
@@ -202,6 +200,121 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// <c>GET /identity/conditionalAccess/policies</c>, following every page. Graph's default page size is used.
+    /// </summary>
+    private async Task<IReadOnlyList<ConditionalAccessPolicy>> ReadConditionalAccessPoliciesAsync(
+        CancellationToken cancellationToken)
+    {
+        var result = new List<ConditionalAccessPolicy>();
+        var requests = _client.Identity.ConditionalAccess.Policies;
+
+        ConditionalAccessPolicyCollectionResponse? response = await requests.GetAsync(config =>
+        {
+            config.QueryParameters.Select =
+            [
+                "id", "displayName", "state", "createdDateTime", "modifiedDateTime", "conditions",
+            ];
+        }, cancellationToken).ConfigureAwait(false);
+
+        while (response is not null)
+        {
+            if (response.Value is not null)
+            {
+                result.AddRange(response.Value.Select(MapConditionalAccessPolicy));
+            }
+
+            response = string.IsNullOrEmpty(response.OdataNextLink)
+                ? null
+                : await requests.WithUrl(response.OdataNextLink)
+                    .GetAsync(_ => { }, cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Maps a Graph policy defensively: missing lists are empty, blank entries are dropped, and a missing state counts
+    /// as enabled so the policy's other rules still apply.
+    /// </summary>
+    public static ConditionalAccessPolicy MapConditionalAccessPolicy(Microsoft.Graph.Models.ConditionalAccessPolicy policy)
+    {
+        var users = policy.Conditions?.Users;
+        var applications = policy.Conditions?.Applications;
+        var clientApplications = policy.Conditions?.ClientApplications;
+
+        return new ConditionalAccessPolicy
+        {
+            Id = policy.Id ?? string.Empty,
+            DisplayName = policy.DisplayName ?? string.Empty,
+            State = policy.State switch
+            {
+                Microsoft.Graph.Models.ConditionalAccessPolicyState.Disabled => ConditionalAccessPolicyState.Disabled,
+                Microsoft.Graph.Models.ConditionalAccessPolicyState.EnabledForReportingButNotEnforced =>
+                    ConditionalAccessPolicyState.ReportOnly,
+                _ => ConditionalAccessPolicyState.Enabled,
+            },
+            CreatedDateTime = policy.CreatedDateTime,
+            ModifiedDateTime = policy.ModifiedDateTime,
+            IncludeUsers = Values(users?.IncludeUsers),
+            ExcludeUsers = Values(users?.ExcludeUsers),
+            IncludeGroups = Values(users?.IncludeGroups),
+            ExcludeGroups = Values(users?.ExcludeGroups),
+            IncludeRoles = Values(users?.IncludeRoles),
+            IncludeGuestsOrExternalUsers = IncludesGuestsOrExternalUsers(users?.IncludeGuestsOrExternalUsers),
+            IncludeApplications = Values(applications?.IncludeApplications),
+            IncludeApplicationsByFilter = IsIncludeFilter(applications?.ApplicationFilter),
+            IncludeUserActions = Values(applications?.IncludeUserActions),
+            IncludeAuthenticationContexts = Values(applications?.IncludeAuthenticationContextClassReferences),
+            TargetsServicePrincipals =
+                Values(clientApplications?.IncludeServicePrincipals)
+                    .Any(v => !string.Equals(v, "None", StringComparison.OrdinalIgnoreCase)) ||
+                IsIncludeFilter(clientApplications?.ServicePrincipalFilter),
+        };
+    }
+
+    /// <summary>Whether the policy includes guests or external users by type; an empty type list includes no one.</summary>
+    private static bool IncludesGuestsOrExternalUsers(ConditionalAccessGuestsOrExternalUsers? guests) =>
+        guests?.GuestOrExternalUserTypes is { } types && types != ConditionalAccessGuestOrExternalUserTypes.None;
+
+    private static bool IsIncludeFilter(ConditionalAccessFilter? filter) =>
+        filter?.Mode == FilterMode.Include && !string.IsNullOrWhiteSpace(filter.Rule);
+
+    private static List<string> Values(IEnumerable<string>? values) =>
+        values?.Where(v => !string.IsNullOrWhiteSpace(v)).ToList() ?? [];
+
+    /// <summary>
+    /// <c>GET /users/{id}?$select=id</c> for each distinct ID, one after another; a 404 means the user doesn't exist.
+    /// Any other error fails the read. Never uses <c>POST /directoryObjects/getByIds</c> or <c>POST /$batch</c>.
+    /// </summary>
+    private async Task<IReadOnlyList<string>> ReadMissingUserIdsAsync(
+        IReadOnlyCollection<string> userIds,
+        IProgress<int>? progress,
+        CancellationToken cancellationToken)
+    {
+        var missing = new List<string>();
+        var done = 0;
+
+        foreach (var id in userIds.Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                await _client.Users[id].GetAsync(config =>
+                {
+                    config.QueryParameters.Select = ["id"];
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+            {
+                missing.Add(id);
+            }
+
+            progress?.Report(++done);
+        }
+
+        return missing;
     }
 
     /// <summary>App role IDs to their values (permission names, for example <c>Mail.Send</c>).</summary>

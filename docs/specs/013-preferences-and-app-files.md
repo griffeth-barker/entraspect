@@ -40,9 +40,9 @@ Today Settings > Preferences has two radio buttons, UTC and local time (`AppSett
 - Reloading profiles doesn't disconnect. If the connected profile was removed or renamed, the connection keeps working, and Reconnect follows the same rules as when the profile is deleted in the app.
 - Tests: the open calls go to the fake `IUserInteraction` with the right path; a missing file is created first; reload applies valid changes; invalid JSON and invalid values show an error and leave both the file and the loaded state unchanged. Use a temporary folder.
 
-## Step 4: Logo on the About page (waits for the logo)
+## Step 4: Logo on the About page
 
-Don't start this step until the user has added the logo to the repository.
+The logo artwork is in `assets/`. The About page uses `entraspect-icon-with-lettermark-cropped-xp.png` (the logo with its lettermark, transparent background) and the window icon is `entraspect-icon-square.png`.
 
 - Show the logo at the top of Settings > About, next to or above "About entraspect", at a size that fits the page without scrolling on a small window.
 - Use it as the window icon too.
@@ -69,3 +69,5 @@ Don't start this step until the user has added the logo to the repository.
 - **Open folder:** a button to show the app data folder in Finder or File Explorer, next to its path on About.
 - **Theme follows the OS at runtime:** "Use system setting" should switch when the OS switches while entraspect is open. Confirm Avalonia does this on macOS, Windows and Linux.
 - **Reload and profiles without a certificate:** Reload validates profiles like the profile form, which needs a .pfx path or a thumbprint. A legacy profile with neither still loads at startup (with "Add a certificate to use this profile."), but makes Reload fail until it is fixed or removed. Should Reload accept it the way startup does?
+- **Logo in dark theme:** the lettermark's "entra" is dark gray, which may be hard to read on the dark theme's background. A light-on-dark variant would follow the theme.
+- **Packaging icons:** macOS `.icns` and Windows `.ico` files made from `entraspect-icon-square.png`.

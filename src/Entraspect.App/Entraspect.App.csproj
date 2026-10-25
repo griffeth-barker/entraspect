@@ -9,6 +9,10 @@
   <ItemGroup>
     <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
+    <!-- The logo artwork lives in the repository's assets folder; the app uses two of its variants. -->
+    <AvaloniaResource Include="..\..\assets\entraspect-icon-square.png" Link="Assets\entraspect-icon-square.png" />
+    <AvaloniaResource Include="..\..\assets\entraspect-icon-with-lettermark-cropped-xp.png"
+                      Link="Assets\entraspect-icon-with-lettermark-cropped-xp.png" />
   </ItemGroup>
 
   <ItemGroup>

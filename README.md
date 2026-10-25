@@ -10,6 +10,13 @@ Status: early development. See `docs/specs/` for the roadmap.
   - **Critical:** an admin.
   - **Warning:** a member.
   - **Info:** a guest. Guests may do MFA in their home tenant, depending on your cross-tenant access settings.
+- **MFA not required** (users): enabled users, including users synced from on-premises Active Directory, whom no enforced Conditional Access policy requires to use MFA for every app. It answers "who isn't required to use MFA", not "who isn't registered for MFA", and reports what Conditional Access and legacy per-user MFA require, with recent successful single-factor sign-ins as evidence. Per-user MFA state and sign-ins come from beta Microsoft Graph, which can change without notice. Needs Entra ID P1 or P2.
+  - **Critical:** a user with an active directory role, directly or through a role-assignable group.
+  - **Warning:** a member.
+  - **Info:** a guest, or a user with legacy per-user MFA (Microsoft recommends moving to Conditional Access).
+  - A user whom policies require to use MFA only in some cases (for example only outside trusted locations, only for some apps, or with "MFA or a compliant device") is one level lower, and the finding names those policies. Report-only policies that would require MFA are named too.
+  - Single-factor sign-ins in the last 7 days (the sign-in lookback, set in **Settings** > **Checks**) are counted in the message, with the most recent in its own column.
+  - With security defaults on, there is one Info finding and no per-user findings.
 - **Groups with no members** (groups): groups with no direct members, including groups synced from on-premises Active Directory.
   - **Warning:** an assigned group with no members. For a synced group, members outside the sync scope aren't in Entra ID, so cloud policies and assignments that use the group reach no one.
   - **Info:** a dynamic group with no members; its membership rule matches no one.
@@ -45,13 +52,13 @@ Both expiry checks use the same expiry windows, set in **Settings** > **Checks**
 
 ## Read-only by design
 
-entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All`, `User.Read.All` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints and sends no telemetry.
+entraspect only uses Microsoft Graph read permissions (currently `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All`, `User.Read.All`, `RoleManagement.Read.Directory` and, optionally, `LicenseAssignment.Read.All`). It never creates, changes or deletes anything in your tenant. It talks only to Microsoft sign-in and Microsoft Graph endpoints (v1.0, and beta where a check says so) and sends no telemetry.
 
 ## Setup
 
 entraspect signs in as an app registration in your tenant, using a certificate (app-only). It doesn't support signing in as a user or client secrets. You need:
 
-- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All` and `User.Read.All`, with admin consent. `LicenseAssignment.Read.All` is optional: with it, entraspect reads your tenant's licences at connect and grays out checks your licence doesn't cover.
+- A dedicated app registration with the Microsoft Graph application permissions `Application.Read.All`, `GroupMember.Read.All`, `Member.Read.Hidden`, `AuditLog.Read.All`, `Policy.Read.All`, `User.Read.All` and `RoleManagement.Read.Directory`, with admin consent. `LicenseAssignment.Read.All` is optional: with it, entraspect reads your tenant's licences at connect and grays out checks your licence doesn't cover.
 - A certificate: the public part uploaded to the app registration, the private key in your operating system's certificate store or a `.pfx` file.
 
 entraspect checks the permissions granted to the app registration when it connects. If a check's permission is missing, that check doesn't run, and entraspect tells you which permission to add and links to the app registration's API permissions page. It also warns if the app registration has permissions it doesn't need, especially write permissions.
@@ -65,7 +72,7 @@ See [docs/setup.md](docs/setup.md) for step-by-step instructions and troubleshoo
 - **Settings > Connection profiles:** add a profile (tenant ID, client ID, certificate) and connect. entraspect starts here.
 - **Overview:** the connected tenant, **Scan**, and Critical, Warning and Info counts for each section.
 - **Check pages**, grouped by object type in the navigation (Users, Groups, App registrations, Enterprise apps and Conditional Access): each check's findings, with Search and Add filter like the Entra admin center.
-- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period and report-only warning days. **Settings > Preferences:** show times in UTC or local time.
+- **Settings > Checks:** turn checks on or off, see which permissions each one needs, and set the expiry windows, new group grace period, report-only warning days and sign-in lookback days. **Settings > Preferences:** show times in UTC or local time.
 
 Results stay in memory and are never written to disk.
 

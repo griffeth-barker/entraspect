@@ -496,14 +496,21 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         return missing;
     }
 
-    /// <summary><c>GET /users?$select=id,displayName,userPrincipalName,userType,accountEnabled&amp;$top=999</c>, following every page.</summary>
+    /// <summary>
+    /// <c>GET /users?$select=id,displayName,userPrincipalName,userType,accountEnabled,createdDateTime,externalUserState,externalUserStateChangeDateTime&amp;$top=999</c>,
+    /// following every page.
+    /// </summary>
     private async Task<IReadOnlyList<DirectoryUser>> ReadUsersAsync(CancellationToken cancellationToken)
     {
         var result = new List<DirectoryUser>();
 
         UserCollectionResponse? response = await _client.Users.GetAsync(config =>
         {
-            config.QueryParameters.Select = ["id", "displayName", "userPrincipalName", "userType", "accountEnabled"];
+            config.QueryParameters.Select =
+            [
+                "id", "displayName", "userPrincipalName", "userType", "accountEnabled", "createdDateTime",
+                "externalUserState", "externalUserStateChangeDateTime",
+            ];
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
 
@@ -535,7 +542,22 @@ public sealed class GraphDirectoryReader : IDirectoryReader
                 : UserType.Member,
             // Missing means enabled, so the user is checked rather than silently skipped.
             AccountEnabled = user.AccountEnabled ?? true,
+            CreatedDateTime = user.CreatedDateTime,
+            ExternalUserState = MapExternalUserState(user.ExternalUserState),
+            ExternalUserStateChangeDateTime = user.ExternalUserStateChangeDateTime,
         };
+
+    /// <summary>
+    /// Null when Graph has no invitation state; <see cref="ExternalUserState.Unknown"/> for a value entraspect doesn't
+    /// know. Case is ignored.
+    /// </summary>
+    public static ExternalUserState? MapExternalUserState(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        null or "" => null,
+        "PENDINGACCEPTANCE" => ExternalUserState.PendingAcceptance,
+        "ACCEPTED" => ExternalUserState.Accepted,
+        _ => ExternalUserState.Unknown,
+    };
 
     /// <summary>
     /// <c>GET /roleManagement/directory/roleAssignments?$select=roleDefinitionId,principalId</c>, following every
@@ -637,21 +659,46 @@ public sealed class GraphDirectoryReader : IDirectoryReader
 
     /// <summary>
     /// <c>GET /users?$filter=userType eq 'Guest'&amp;$select=id,signInActivity&amp;$top=500</c>, following every page;
-    /// 500 is the largest page Graph allows when <c>signInActivity</c> is selected. Read as JSON so that Graph's
-    /// "never" values (an empty string or <c>0001-01-01T00:00:00Z</c>) can't fail the read. <c>signInActivity</c>
-    /// needs an Entra ID P1 or P2 licence; without one Graph returns 403, which fails only the check that reads it.
+    /// 500 is the largest page Graph allows when <c>signInActivity</c> is selected. If Graph rejects the filter with
+    /// HTTP 400, it falls back to <c>GET /users?$select=id,userType,signInActivity&amp;$top=500</c> and keeps the
+    /// guests. Read as JSON so that Graph's "never" values (an empty string or <c>0001-01-01T00:00:00Z</c>) can't fail
+    /// the read. <c>signInActivity</c> needs an Entra ID P1 or P2 licence; without one Graph returns 403, which fails
+    /// only the check that reads it.
     /// </summary>
     private async Task<IReadOnlyList<GuestSignInActivity>> ReadGuestSignInActivityAsync(
         CancellationToken cancellationToken)
     {
+        try
+        {
+            return await ReadSignInActivityPagesAsync(GuestSignInActivityUrl(), guestsOnly: false, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 400)
+        {
+            // The docs don't say the userType filter may be combined with selecting signInActivity. If Graph rejects
+            // the request, read every user's activity and keep the guests here.
+            return await ReadSignInActivityPagesAsync(
+                AllUsersSignInActivityUrl(), guestsOnly: true, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>The first page of every user's sign-in activity, with the user type, for the fallback read.</summary>
+    public static string AllUsersSignInActivityUrl() =>
+        $"{V1BaseUrl}/users?$select=id,userType,signInActivity&$top=500";
+
+    private async Task<IReadOnlyList<GuestSignInActivity>> ReadSignInActivityPagesAsync(
+        string firstPage,
+        bool guestsOnly,
+        CancellationToken cancellationToken)
+    {
         var result = new List<GuestSignInActivity>();
-        string? url = GuestSignInActivityUrl();
+        string? url = firstPage;
 
         while (url is not null)
         {
             cancellationToken.ThrowIfCancellationRequested();
             using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
-            url = AddGuestSignInActivity(page.RootElement, result, guestsOnly: false);
+            url = AddGuestSignInActivity(page.RootElement, result, guestsOnly);
         }
 
         return result;

@@ -1,6 +1,6 @@
 # Spec 007: Conditional Access policy hygiene
 
-**Status:** Ready (depends on specs 002 and 003)
+**Status:** Done (rule findings not yet tested on a licensed tenant; see "Tests still to do")
 **Goal:** A check in the Conditional Access nav section that finds policies that are switched off, stuck in report-only, can never apply, or refer to users or groups that no longer exist.
 
 **Out of scope for this spec:** whether a policy applied to real sign-ins (spec 009), overlapping or conflicting policies, coverage gaps (for example "no policy requires MFA for admins"), named locations, authentication strengths, references to applications and directory roles.
@@ -54,6 +54,14 @@ Tests for every rule, the special values, the report-only boundary, a policy wit
 - No test makes a network call.
 - Only permissions from earlier specs plus `Policy.Read.All` and `User.Read.All` are requested or documented.
 - Manual check with test policies: a disabled policy (Info), a report-only policy with `ReportOnlyWarningDays` set to 0 (Warning), a policy that only includes an empty group (Warning), and a policy that excludes a user who was then deleted (Info).
+
+## Tests still to do
+
+Tested by the user on 2026-10-25 against a dev tenant without Entra ID P1 or P2: connecting, the permission banner for `Policy.Read.All` and `User.Read.All`, and the unlicensed state (check grayed out, licence note shown) all work. Once the tenant has a P1 or P2 licence (a trial is enough), run the remaining manual checks:
+
+- The four acceptance criteria above: a disabled policy (Info), a report-only policy with `ReportOnlyWarningDays` set to 0 (Warning), a policy that only includes an empty group (Warning), and a policy that excludes a user who was then deleted (Info).
+- The scan bar shows "looking up user N of M" while the check looks up users.
+- Without `LicenseAssignment.Read.All` on an unlicensed tenant, note the Graph error code the check fails with, and add it to `CheckFailureMessage` if it isn't `Authentication_RequestFromNonPremiumTenantOrB2CTenant`.
 
 ## Open questions
 

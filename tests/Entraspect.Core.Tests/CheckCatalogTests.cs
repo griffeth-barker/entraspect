@@ -13,8 +13,9 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[]
             {
-                "guests-admin-roles", "guests-inactive", "users-mfa-not-registered", "users-mfa-not-required",
-                "guests-pending-invites", "group-no-members", "group-no-owners",
+                "users-disabled-access", "guests-admin-roles", "guests-inactive", "users-inactive",
+                "users-mfa-not-registered", "users-mfa-not-required", "guests-pending-invites", "users-risky",
+                "group-no-members", "group-no-owners",
                 "group-single-owner", "group-license-errors", "group-dynamic-paused", "group-public",
                 "group-sync-errors", "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
@@ -26,7 +27,8 @@ public sealed class CheckCatalogTests
             new[]
             {
                 CheckCategory.Users, CheckCategory.Users, CheckCategory.Users, CheckCategory.Users,
-                CheckCategory.Users, CheckCategory.Groups, CheckCategory.Groups,
+                CheckCategory.Users, CheckCategory.Users, CheckCategory.Users, CheckCategory.Users,
+                CheckCategory.Groups, CheckCategory.Groups,
                 CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups, CheckCategory.Groups,
                 CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
@@ -65,7 +67,7 @@ public sealed class CheckCatalogTests
             new[]
             {
                 "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All", "AuditLog.Read.All",
-                "Policy.Read.All", "Member.Read.Hidden", "Application.Read.All",
+                "Policy.Read.All", "IdentityRiskyUser.Read.All", "Member.Read.Hidden", "Application.Read.All",
             },
             permissions);
     }
@@ -308,5 +310,60 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
             check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Inactive_users_columns_are_named_like_the_user_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "users-inactive");
+
+        Assert.Equal("Inactive users", check.Title);
+        Assert.Equal(CheckCategory.Users, check.Category);
+        Assert.Equal(LicenceRequirement.EntraIdP1, check.RequiredLicence);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Last sign-in", "Source"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.DueDate, check.Labels.Value));
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Equal(
+            new[] { "User.Read.All", "AuditLog.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
+            check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Disabled_users_with_access_columns_are_named_like_the_user_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "users-disabled-access");
+
+        Assert.Equal("Disabled users with access", check.Title);
+        Assert.Equal(CheckCategory.Users, check.Category);
+        Assert.Equal(LicenceRequirement.None, check.RequiredLicence);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Access", "Source"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.SubObjectDisplayName, check.Labels.Value));
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(
+            new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
+            check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Risky_users_columns_are_named_like_the_user_list()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "users-risky");
+
+        Assert.Equal("Risky users", check.Title);
+        Assert.Equal(CheckCategory.Users, check.Category);
+        Assert.Equal(LicenceRequirement.EntraIdP2, check.RequiredLicence);
+        Assert.Equal(
+            ("Display name", "User principal name", "Object ID", "Risk updated", "Risk level"),
+            (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
+                check.Labels.DueDate, check.Labels.Value));
+        Assert.Null(check.Labels.SubObjectDisplayName);
+        Assert.Null(check.Labels.SubObjectType);
+        Assert.Equal(new[] { "IdentityRiskyUser.Read.All" }, check.RequiredPermissions);
     }
 }

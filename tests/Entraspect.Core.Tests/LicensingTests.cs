@@ -32,14 +32,18 @@ public sealed class LicensingTests
 
         string[] licensed =
         [
-            "guests-inactive", "users-mfa-not-registered", "users-mfa-not-required", "group-license-errors",
-            "ca-policy-hygiene", "ca-unused-policies",
+            "guests-inactive", "users-inactive", "users-mfa-not-registered", "users-mfa-not-required",
+            "group-license-errors", "ca-policy-hygiene", "ca-unused-policies",
         ];
+        string[] p2 = ["users-risky"];
         Assert.All(
             checks.Where(c => licensed.Contains(c.Id)),
             c => Assert.Equal(LicenceRequirement.EntraIdP1, c.RequiredLicence));
         Assert.All(
-            checks.Where(c => !licensed.Contains(c.Id)),
+            checks.Where(c => p2.Contains(c.Id)),
+            c => Assert.Equal(LicenceRequirement.EntraIdP2, c.RequiredLicence));
+        Assert.All(
+            checks.Where(c => !licensed.Contains(c.Id) && !p2.Contains(c.Id)),
             c => Assert.Equal(LicenceRequirement.None, c.RequiredLicence));
     }
 

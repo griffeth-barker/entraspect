@@ -100,6 +100,7 @@ public sealed class ScanRunner
                     Status = CheckResultStatus.Failed,
                     ErrorMessage = ex.Message,
                     StatusCode = ex.StatusCode,
+                    ErrorCode = ex.ErrorCode,
                     CompletedAt = _timeProvider.GetUtcNow(),
                 });
             }

@@ -53,6 +53,20 @@ public sealed class ScanRunnerTests
     }
 
     [Fact]
+    public async Task Failed_check_keeps_the_error_code()
+    {
+        var failing = new FakeCheck(
+            "c1",
+            run: (_, _, _) => throw new DirectoryReadException("no licence", 403, errorCode: "Some_Code"));
+        var runner = new ScanRunner(new FakeDirectoryReader(System.Array.Empty<AppRegistration>()), new ICheck[] { failing }, new[] { "Application.Read.All" }, Options, _time);
+
+        var results = await runner.RunAsync();
+
+        Assert.Equal(CheckResultStatus.Failed, results[0].Status);
+        Assert.Equal("Some_Code", results[0].ErrorCode);
+    }
+
+    [Fact]
     public async Task Cancellation_cancels_running_and_not_yet_run_checks()
     {
         using var cts = new CancellationTokenSource();

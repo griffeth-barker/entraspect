@@ -133,7 +133,7 @@ public partial class OverviewViewModel : ViewModelBase
 
     private static string? Reason(CheckResult result) => result.Status switch
     {
-        CheckResultStatus.Failed => $"Failed: {result.ErrorMessage}",
+        CheckResultStatus.Failed => $"Failed: {CheckFailureMessage.For(result)}",
         CheckResultStatus.MissingPermissions =>
             $"Not run: missing permission(s) {string.Join(", ", result.MissingPermissions)}",
         _ => null,

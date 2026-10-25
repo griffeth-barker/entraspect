@@ -25,5 +25,8 @@ public sealed class CheckResult
     /// <summary>HTTP status code from the directory service if the check failed on a read, otherwise null.</summary>
     public int? StatusCode { get; init; }
 
+    /// <summary>Error code from the directory service if the check failed on a read and one was given.</summary>
+    public string? ErrorCode { get; init; }
+
     public System.DateTimeOffset? CompletedAt { get; init; }
 }

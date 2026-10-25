@@ -1,5 +1,7 @@
 using Entraspect.Core;
 using Microsoft.Graph.Models;
+using Microsoft.Graph.Models.ODataErrors;
+using Microsoft.Kiota.Abstractions;
 
 namespace Entraspect.Graph.Tests;
 
@@ -107,5 +109,39 @@ public sealed class GraphDirectoryReaderTests
         var result = GraphDirectoryReader.MapApplication(application);
 
         Assert.All(result.Credentials, c => Assert.Equal(keyId.ToString(), c.DisplayName));
+    }
+
+    [Fact]
+    public void ToDirectoryReadException_keeps_the_OData_error_code_and_message()
+    {
+        var error = new ODataError
+        {
+            ResponseStatusCode = 403,
+            Error = new MainError
+            {
+                Code = "Authentication_RequestFromNonPremiumTenantOrB2CTenant",
+                Message = "Tenant does not have a SKU required for this call.",
+            },
+        };
+
+        var result = GraphDirectoryReader.ToDirectoryReadException(error);
+
+        Assert.Equal(403, result.StatusCode);
+        Assert.Equal("Authentication_RequestFromNonPremiumTenantOrB2CTenant", result.ErrorCode);
+        Assert.Equal(
+            "Microsoft Graph returned HTTP 403: Tenant does not have a SKU required for this call.",
+            result.Message);
+        Assert.Same(error, result.InnerException);
+    }
+
+    [Fact]
+    public void ToDirectoryReadException_without_an_OData_error_has_no_error_code()
+    {
+        var result = GraphDirectoryReader.ToDirectoryReadException(
+            new ApiException("Service unavailable") { ResponseStatusCode = 503 });
+
+        Assert.Equal(503, result.StatusCode);
+        Assert.Null(result.ErrorCode);
+        Assert.Equal("Microsoft Graph returned HTTP 503: Service unavailable", result.Message);
     }
 }

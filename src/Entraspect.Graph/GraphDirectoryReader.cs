@@ -33,16 +33,24 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
         catch (ApiException ex)
         {
-            var detail = ex is ODataError { Error.Message: { } message } ? message : ex.Message;
-            throw new DirectoryReadException(
-                $"Microsoft Graph returned HTTP {ex.ResponseStatusCode}: {detail}",
-                ex.ResponseStatusCode,
-                ex);
+            throw ToDirectoryReadException(ex);
         }
         catch (AuthenticationFailedException ex)
         {
             throw new DirectoryReadException($"Sign-in failed: {ex.Message}", innerException: ex);
         }
+    }
+
+    /// <summary>The Graph error as a <see cref="DirectoryReadException"/>, with the OData error code when given.</summary>
+    public static DirectoryReadException ToDirectoryReadException(ApiException ex)
+    {
+        var error = (ex as ODataError)?.Error;
+        var detail = error?.Message is { Length: > 0 } message ? message : ex.Message;
+        return new DirectoryReadException(
+            $"Microsoft Graph returned HTTP {ex.ResponseStatusCode}: {detail}",
+            ex.ResponseStatusCode,
+            ex,
+            string.IsNullOrEmpty(error?.Code) ? null : error.Code);
     }
 
     private async Task<IReadOnlyList<AppRegistration>> ReadAppRegistrationsAsync(CancellationToken cancellationToken)

@@ -131,10 +131,11 @@ public partial class CheckPageViewModel : ViewModelBase
                 break;
             case CheckResultStatus.Failed:
                 StatusText = $"Last run {lastRun} failed";
-                ErrorText = result.StatusCode == 403
+                // A missing licence also comes back as 403; it isn't a permission problem.
+                ErrorText = result.StatusCode == 403 && !CheckFailureMessage.IsLicenceRequired(result.ErrorCode)
                     ? $"{result.ErrorMessage}\n\nAccess was denied. The app registration is likely missing " +
                       $"{string.Join(", ", Check.RequiredPermissions)}, or admin consent has not been granted."
-                    : result.ErrorMessage ?? "Unknown error.";
+                    : CheckFailureMessage.For(result);
                 break;
             case CheckResultStatus.MissingPermissions:
                 // The permission banner already explains what is missing.

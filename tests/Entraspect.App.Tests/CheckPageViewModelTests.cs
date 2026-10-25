@@ -189,6 +189,23 @@ public sealed class CheckPageViewModelTests
         Assert.Empty(page.Findings);
     }
 
+    [Fact]
+    public void A_licence_failure_says_the_licence_is_needed_not_the_permission()
+    {
+        var page = CreatePage();
+
+        page.SetResult(new CheckResult
+        {
+            CheckId = "fake",
+            Status = CheckResultStatus.Failed,
+            ErrorMessage = "Microsoft Graph returned HTTP 403: Tenant does not have a SKU required.",
+            StatusCode = 403,
+            ErrorCode = "Authentication_RequestFromNonPremiumTenantOrB2CTenant",
+        });
+
+        Assert.Equal("This check needs an Entra ID P1 or P2 licence.", page.ErrorText);
+    }
+
     private static readonly TimeZoneInfo PlusTwoHours =
         TimeZoneInfo.CreateCustomTimeZone("Test+2", TimeSpan.FromHours(2), "Test+2", "Test+2");
 

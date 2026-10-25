@@ -425,6 +425,19 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task Overview_gives_the_licence_message_for_a_tenant_without_the_licence()
+    {
+        _reader = new FailingReader("Authentication_RequestFromNonPremiumTenantOrB2CTenant");
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        await vm.ScanCommand.ExecuteAsync(null);
+
+        var problem = vm.Overview.Problems.Single(p => p.Target == CheckItem(vm));
+        Assert.Equal("Failed: This check needs an Entra ID P1 or P2 licence.", problem.Reason);
+    }
+
+    [Fact]
     public async Task Local_time_preference_is_saved_and_reformats_shown_times()
     {
         var vm = CreateConnectableViewModel();
@@ -532,16 +545,19 @@ public sealed class MainViewModelTests : IDisposable
             Task.FromResult<IReadOnlyList<EnterpriseApp>>([]);
     }
 
-    private sealed class FailingReader : IDirectoryReader
+    private sealed class FailingReader(string? errorCode = null) : IDirectoryReader
     {
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(CancellationToken cancellationToken = default) =>
-            throw new DirectoryReadException("fake read failure", 500);
+            throw Failure();
 
         public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
-            throw new DirectoryReadException("fake read failure", 500);
+            throw Failure();
 
         public Task<IReadOnlyList<EnterpriseApp>> GetEnterpriseAppsAsync(CancellationToken cancellationToken = default) =>
-            throw new DirectoryReadException("fake read failure", 500);
+            throw Failure();
+
+        private DirectoryReadException Failure() =>
+            new("fake read failure", errorCode is null ? 500 : 403, errorCode: errorCode);
     }
 
     private sealed class BlockingReader : IDirectoryReader

@@ -34,6 +34,10 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
     }
 
+    // Implemented in spec 003 step 3.
+    public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
+        throw new DirectoryReadException("Reading groups isn't available yet.");
+
     private async Task<IReadOnlyList<AppRegistration>> ReadAppRegistrationsAsync(CancellationToken cancellationToken)
     {
         var result = new List<AppRegistration>();

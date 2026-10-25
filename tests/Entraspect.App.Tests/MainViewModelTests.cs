@@ -505,11 +505,17 @@ public sealed class MainViewModelTests : IDisposable
             Reads++;
             return Task.FromResult(apps);
         }
+
+        public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DirectoryGroup>>([]);
     }
 
     private sealed class FailingReader : IDirectoryReader
     {
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(CancellationToken cancellationToken = default) =>
+            throw new DirectoryReadException("fake read failure", 500);
+
+        public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
             throw new DirectoryReadException("fake read failure", 500);
     }
 
@@ -518,6 +524,13 @@ public sealed class MainViewModelTests : IDisposable
         public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

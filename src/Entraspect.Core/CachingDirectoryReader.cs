@@ -13,6 +13,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
 {
     private readonly IDirectoryReader _inner;
     private IReadOnlyList<AppRegistration>? _appRegistrations;
+    private IReadOnlyList<DirectoryGroup>? _groups;
 
     public CachingDirectoryReader(IDirectoryReader inner) => _inner = inner;
 
@@ -21,5 +22,10 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     {
         return _appRegistrations ??=
             await _inner.GetAppRegistrationsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
+    {
+        return _groups ??= await _inner.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
     }
 }

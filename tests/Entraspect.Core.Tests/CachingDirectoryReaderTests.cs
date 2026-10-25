@@ -11,17 +11,26 @@ public sealed class CachingDirectoryReaderTests
     {
         public int Calls { get; private set; }
 
+        public int GroupCalls { get; private set; }
+
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
         {
             Calls++;
             return Task.FromResult<IReadOnlyList<AppRegistration>>(Array.Empty<AppRegistration>());
         }
+
+        public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
+        {
+            GroupCalls++;
+            return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
+        }
     }
 
     private sealed class FailingThenOkReader : IDirectoryReader
     {
         private bool _failed;
+        private bool _groupsFailed;
 
         public Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(
             CancellationToken cancellationToken = default)
@@ -33,6 +42,17 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<AppRegistration>>(Array.Empty<AppRegistration>());
+        }
+
+        public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
+        {
+            if (!_groupsFailed)
+            {
+                _groupsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
         }
     }
 
@@ -50,6 +70,18 @@ public sealed class CachingDirectoryReaderTests
     }
 
     [Fact]
+    public async Task Fetches_groups_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetGroupsAsync();
+        await caching.GetGroupsAsync();
+
+        Assert.Equal(1, inner.GroupCalls);
+    }
+
+    [Fact]
     public async Task Does_not_cache_failed_read()
     {
         var inner = new FailingThenOkReader();
@@ -57,6 +89,18 @@ public sealed class CachingDirectoryReaderTests
 
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetAppRegistrationsAsync());
         var result = await caching.GetAppRegistrationsAsync();
+
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_group_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupsAsync());
+        var result = await caching.GetGroupsAsync();
 
         Assert.NotNull(result);
     }

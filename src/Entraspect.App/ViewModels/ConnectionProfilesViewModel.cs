@@ -9,7 +9,7 @@ using Entraspect.Graph;
 namespace Entraspect.App.ViewModels;
 
 /// <summary>A saved profile as listed on Settings > Connection profiles.</summary>
-public sealed class ProfileListItem
+public sealed partial class ProfileListItem : ObservableObject
 {
     public ProfileListItem(ConnectionProfile profile)
     {
@@ -22,11 +22,16 @@ public sealed class ProfileListItem
     public string Name => Profile.Name;
 
     public bool NeedsCertificate => ConnectionProfilesViewModel.NeedsCertificate(Profile);
+
+    /// <summary>True for the profile entraspect is connected with; its card shows Reconnect and Disconnect.</summary>
+    [ObservableProperty]
+    public partial bool IsConnected { get; set; }
 }
 
 /// <summary>
-/// Settings > Connection profiles: the saved profiles, each with edit and delete, an add button by the heading, and profiles.json to edit in a text
-/// editor and reload. Connect here or in the header connects the selected profile. Profiles never contain passwords.
+/// Settings > Connection profiles: the saved profiles, each with edit and delete, an add button by the heading, and
+/// profiles.json to edit in a text editor and reload. Connect connects the selected profile and is hidden while
+/// connected; the connected profile's card has Reconnect and Disconnect. Profiles never contain passwords.
 /// </summary>
 public partial class ConnectionProfilesViewModel : ViewModelBase
 {
@@ -37,6 +42,9 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
 
     // The name of the profile being edited, or null when adding a new one.
     private string? _editingName;
+
+    // The name of the connected profile, or null when not connected.
+    private string? _connectedName;
 
     public ConnectionProfilesViewModel(
         ProfileStore store,
@@ -50,7 +58,11 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
         Profiles = new ObservableCollection<ProfileListItem>(
             store.Load(out var error).Select(p => new ProfileListItem(p)));
         ErrorText = error ?? string.Empty;
-        Profiles.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasNoProfiles));
+        Profiles.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasNoProfiles));
+            MarkConnectedProfile();
+        };
 
         // The app starts on this page with the last used profile selected.
         SelectedProfile = Profiles.FirstOrDefault(p => p.Name == lastUsedProfileName) ?? Profiles.FirstOrDefault();
@@ -67,11 +79,34 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
     public partial ProfileListItem? SelectedProfile { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsNotEditing))]
+    [NotifyPropertyChangedFor(nameof(IsNotEditing), nameof(ShowConnect))]
     [NotifyCanExecuteChangedFor(nameof(AddCommand), nameof(EditCommand), nameof(DeleteCommand), nameof(ReloadCommand))]
     public partial bool IsEditing { get; set; }
 
     public bool IsNotEditing => !IsEditing;
+
+    /// <summary>True while connected, whether or not a card matches the connected profile.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowConnect))]
+    public partial bool HasConnection { get; private set; }
+
+    /// <summary>
+    /// True when a card shows the connected profile. False while connected with a profile that was since renamed or
+    /// removed; the status card then keeps Reconnect and Disconnect.
+    /// </summary>
+    [ObservableProperty]
+    public partial bool HasConnectedCard { get; private set; }
+
+    /// <summary>Connect is hidden while connected; Disconnect comes first.</summary>
+    public bool ShowConnect => IsNotEditing && !HasConnection;
+
+    /// <summary>Marks the card of the profile entraspect is connected with, or none when <paramref name="name"/> is null.</summary>
+    public void SetConnectedProfile(string? name)
+    {
+        _connectedName = name;
+        HasConnection = name is not null;
+        MarkConnectedProfile();
+    }
 
     [ObservableProperty]
     public partial string EditorTitle { get; set; } = string.Empty;
@@ -341,6 +376,16 @@ public partial class ConnectionProfilesViewModel : ViewModelBase
             ErrorText = $"Could not save profiles: {ex.Message}";
             return false;
         }
+    }
+
+    private void MarkConnectedProfile()
+    {
+        foreach (var item in Profiles)
+        {
+            item.IsConnected = _connectedName is not null && item.Name == _connectedName;
+        }
+
+        HasConnectedCard = Profiles.Any(p => p.IsConnected);
     }
 
     private void Fill(ConnectionProfile? profile)

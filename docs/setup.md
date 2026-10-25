@@ -110,7 +110,7 @@ entraspect opens on **Settings** > **Connection profiles**. Overview and the che
 4. Select **Save**. Profiles are saved without passwords.
 5. Select the profile and select **Connect**. If it uses a `.pfx` file, enter the password in the dialog. entraspect asks for it on every connect and never saves it.
 
-The status card at the top of **Connection profiles** shows the connection. Sign-in errors appear there, with their `AADSTS` code (see [Troubleshooting](#troubleshooting)). Use **Reconnect** after changing the app registration's permissions, and **Disconnect** to switch profiles. entraspect remembers the last profile you connected with and selects it next time. Each profile in the list has edit and delete buttons; editing shows its tenant ID, client ID and certificate.
+The status card at the top of **Connection profiles** shows the connection. Sign-in errors appear there, with their `AADSTS` code (see [Troubleshooting](#troubleshooting)). The connected profile's card says **Connected** and has **Reconnect** and **Disconnect**; **Connect** is hidden until you disconnect. Use **Reconnect** after changing the app registration's permissions, and **Disconnect** to switch profiles. entraspect remembers the last profile you connected with and selects it next time. Each profile in the list has edit and delete buttons; editing shows its tenant ID, client ID and certificate.
 
 ## 5. Scan
 

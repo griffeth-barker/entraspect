@@ -35,8 +35,11 @@
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <ProgressBar IsIndeterminate="True" IsVisible="{Binding IsConnecting}" Width="120" />
                             <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsConnecting}" />
-                            <Button Content="Reconnect" Command="{Binding ReconnectCommand}" IsVisible="{Binding IsConnected}" />
-                            <Button Content="Disconnect" Command="{Binding DisconnectCommand}" IsVisible="{Binding IsConnected}" />
+                            <!-- Normally on the connected profile's card; here only when no card matches it. -->
+                            <Button Content="Reconnect" Command="{Binding ReconnectCommand}"
+                                    IsVisible="{Binding ShowStatusConnectionButtons}" />
+                            <Button Content="Disconnect" Command="{Binding DisconnectCommand}"
+                                    IsVisible="{Binding ShowStatusConnectionButtons}" />
                         </StackPanel>
                     </Grid>
                     <TextBlock Text="{Binding ConnectionErrorText}" Classes="error"
@@ -61,10 +64,15 @@
                             <StackPanel Spacing="3" VerticalAlignment="Center">
                                 <!-- Only the name; the tenant and client IDs show when the profile is edited. -->
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="15" />
+                                <TextBlock Text="Connected" Classes="muted" IsVisible="{Binding IsConnected}" />
                                 <TextBlock Text="{x:Static vm:ConnectionProfilesViewModel.AddCertificateText}"
                                            IsVisible="{Binding NeedsCertificate}" Classes="error" />
                             </StackPanel>
                             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                                <Button Content="Reconnect" Margin="0,0,4,0" IsVisible="{Binding IsConnected}"
+                                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).ReconnectCommand}" />
+                                <Button Content="Disconnect" Margin="0,0,8,0" IsVisible="{Binding IsConnected}"
+                                        Command="{Binding $parent[Window].((vm:MainViewModel)DataContext).DisconnectCommand}" />
                                 <Button Classes="iconButton"
                                         Command="{Binding $parent[UserControl].((vm:ConnectionProfilesViewModel)DataContext).EditCommand}"
                                         CommandParameter="{Binding}"
@@ -86,7 +94,7 @@
                        IsVisible="{Binding HasNoProfiles}" />
 
             <Button Content="Connect" Command="{Binding ConnectCommand}" Classes="accent"
-                    IsVisible="{Binding IsNotEditing}" />
+                    IsVisible="{Binding ShowConnect}" />
 
             <!-- Editing profiles.json by hand, set apart from the everyday actions above. -->
             <Border Height="1" Margin="0,8" Background="{DynamicResource DividerStrokeColorDefaultBrush}"

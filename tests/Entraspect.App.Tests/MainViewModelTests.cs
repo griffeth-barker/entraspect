@@ -875,6 +875,38 @@ public sealed class MainViewModelTests : IDisposable
     }
 
     [Fact]
+    public async Task The_connected_profiles_card_has_the_connection_buttons_and_connect_is_hidden()
+    {
+        var vm = CreateConnectableViewModel();
+        Assert.True(vm.Profiles.ShowConnect);
+
+        await vm.ConnectCommand.ExecuteAsync(null);
+
+        Assert.True(Assert.Single(vm.Profiles.Profiles).IsConnected);
+        Assert.False(vm.Profiles.ShowConnect);
+        Assert.False(vm.ShowStatusConnectionButtons);
+
+        vm.DisconnectCommand.Execute(null);
+
+        Assert.False(Assert.Single(vm.Profiles.Profiles).IsConnected);
+        Assert.True(vm.Profiles.ShowConnect);
+        Assert.False(vm.ShowStatusConnectionButtons);
+    }
+
+    [Fact]
+    public async Task Without_a_card_for_the_connected_profile_the_status_card_keeps_the_buttons()
+    {
+        var vm = CreateConnectableViewModel();
+        await vm.ConnectCommand.ExecuteAsync(null);
+        new ProfileStore(_dir).Save([]);
+
+        vm.Profiles.ReloadCommand.Execute(null);
+
+        Assert.True(vm.ShowStatusConnectionButtons);
+        Assert.False(vm.Profiles.ShowConnect);
+    }
+
+    [Fact]
     public async Task Reloading_profiles_does_not_disconnect()
     {
         var vm = CreateConnectableViewModel();

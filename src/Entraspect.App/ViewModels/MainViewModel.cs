@@ -101,6 +101,14 @@ public partial class MainViewModel : ViewModelBase
             RefreshTimes();
         };
 
+        Profiles.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ConnectionProfilesViewModel.HasConnectedCard))
+            {
+                OnPropertyChanged(nameof(ShowStatusConnectionButtons));
+            }
+        };
+
         ConnectionErrorText = _settings.LoadError ?? string.Empty;
         UpdateConnectionState();
         SelectedNavItem = ConnectionProfilesItem;
@@ -143,7 +151,7 @@ public partial class MainViewModel : ViewModelBase
     public partial ViewModelBase? CurrentPage { get; set; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsNotConnected))]
+    [NotifyPropertyChangedFor(nameof(ConnectionStatusText), nameof(IsNotConnected), nameof(ShowStatusConnectionButtons))]
     [NotifyCanExecuteChangedFor(
         nameof(ConnectCommand), nameof(ReconnectCommand), nameof(DisconnectCommand), nameof(ScanCommand))]
     public partial bool IsConnected { get; set; }
@@ -186,6 +194,12 @@ public partial class MainViewModel : ViewModelBase
     public partial string ConnectedProfileTitle { get; set; } = string.Empty;
 
     public bool IsNotConnected => !IsConnected;
+
+    /// <summary>
+    /// Reconnect and Disconnect sit on the connected profile's card. While connected with a profile that was since
+    /// renamed or removed, no card matches, so the status card shows them instead.
+    /// </summary>
+    public bool ShowStatusConnectionButtons => IsConnected && !Profiles.HasConnectedCard;
 
     public bool IsBusy => IsConnecting || IsScanning;
 
@@ -464,6 +478,7 @@ public partial class MainViewModel : ViewModelBase
         IsConnected = _connection is not null;
         Overview.SetConnection(_connectedProfile, _connectedAt is { } at ? Time.DateTime(at) : null);
         ConnectedProfileTitle = _connectedProfile is { } p ? $"{p.Name} ({p.TenantId})" : string.Empty;
+        Profiles.SetConnectedProfile(_connectedProfile?.Name);
         OnPropertyChanged(nameof(GrantedPermissions));
         OnPropertyChanged(nameof(TenantLicence));
 

@@ -9,8 +9,8 @@ namespace Entraspect.Graph;
 
 /// <summary>
 /// Connects to a tenant using app-only certificate auth and returns a Core-owned <see cref="DirectoryConnection"/>.
-/// The token is requested up front, so sign-in errors appear at connect time. Graph SDK and Azure.Identity types
-/// never leave this project.
+/// The token is requested up front, so sign-in errors appear at connect time, and the tenant's licence is read when
+/// the permission for it is granted. Graph SDK and Azure.Identity types never leave this project.
 /// </summary>
 public static class DirectoryConnector
 {
@@ -30,12 +30,14 @@ public static class DirectoryConnector
                 cancellationToken).ConfigureAwait(false);
 
             var roles = JwtRoleParser.ParseRoles(token.Token);
+            var licence = await TenantLicenceReader.ReadAsync(client, roles, cancellationToken).ConfigureAwait(false);
 
             return new DirectoryConnection
             {
                 Reader = new GraphDirectoryReader(client),
                 ClientId = profile.ClientId,
                 GrantedPermissions = roles,
+                TenantLicence = licence,
             };
         }
         catch (AuthenticationFailedException ex)

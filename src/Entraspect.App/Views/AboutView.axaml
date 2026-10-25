@@ -12,16 +12,13 @@
             </Grid.ColumnDefinitions>
         <StackPanel Spacing="8">
             <!-- The logo with its lettermark is the page heading, so there is no "About entraspect" title.
-                 Transparent background; 1095 x 228 pixels, shown 48 high. -->
-            <Image Source="/Assets/entraspect-icon-with-lettermark-cropped-xp.png" Height="48"
+                 Transparent background; 1095 x 228 pixels, shown 64 high. -->
+            <Image Source="/Assets/entraspect-icon-with-lettermark-cropped-xp.png" Height="64"
                    HorizontalAlignment="Left" Stretch="Uniform" Margin="0,0,0,4"
                    AutomationProperties.Name="entraspect"
                    RenderOptions.BitmapInterpolationMode="HighQuality" />
-            <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" />
-            <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Read-only: entraspect never changes your tenant." />
-                <views:InfoTip Text="{Binding ReadOnlyText}" />
-            </StackPanel>
+            <TextBlock Text="{Binding DescriptionText}" TextWrapping="Wrap" MaxWidth="640" HorizontalAlignment="Left" />
+            <TextBlock Text="{Binding Version, StringFormat='Version {0}'}" Classes="muted" />
 
             <ContentControl Content="{Binding ExcessPermissions}" IsVisible="{Binding IsConnected}" Margin="0,4,0,0" />
 

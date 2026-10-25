@@ -7,14 +7,16 @@ using Entraspect.App.Services;
 namespace Entraspect.App.ViewModels;
 
 /// <summary>
-/// Settings > About: version, the read-only statement, the excess permissions banner when connected, and the app
+/// Settings > About: the logo, version and what entraspect is for, the excess permissions banner when connected, and the app
 /// data folder with settings.json to edit in a text editor and reload. Required permissions are on Settings > Checks.
 /// </summary>
 public partial class AboutViewModel : ViewModelBase
 {
-    public const string ReadOnlyStatement =
-        "entraspect is read-only. It only uses Microsoft Graph read permissions and never changes your tenant: it " +
-        "doesn't add or consent permissions, and doesn't create, update or delete anything.";
+    public const string Description =
+        "entraspect is a read-only tool that scans a Microsoft Entra ID tenant for hygiene issues that are easy to " +
+        "miss: expiring app secrets and certificates, users without MFA, empty or ownerless groups, and Conditional " +
+        "Access policies that don't do what you expect. It shows what needs attention, so you can fix it in the " +
+        "Entra admin center.";
 
     private readonly SettingsState _settings;
     private readonly TimeDisplay _time;
@@ -40,7 +42,7 @@ public partial class AboutViewModel : ViewModelBase
         ?? typeof(AboutViewModel).Assembly.GetName().Version?.ToString()
         ?? "unknown";
 
-    public string ReadOnlyText => ReadOnlyStatement;
+    public string DescriptionText => Description;
 
     public ExcessPermissionsViewModel ExcessPermissions { get; }
 

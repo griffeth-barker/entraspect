@@ -170,7 +170,6 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         Assert.True(row.IsEnabled);
         row.IsOn = true;
         Assert.False(row.IsOn);
-        Assert.Equal("Needs an Entra ID P1 or P2 licence.", row.LicenceNote);
         Assert.Empty(new SettingsStore(_dir).Load(out _).DisabledCheckIds);
         Assert.True(AppCheckRow(vm).IsLicensed);
 
@@ -213,6 +212,7 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
         var vm = Create();
 
         Assert.Equal("P1", MfaRow(vm).LicenceLabel);
+        Assert.Equal("Requires an Entra ID P1 or P2 licence.", MfaRow(vm).LicenceToolTip);
         Assert.Null(AppCheckRow(vm).LicenceLabel);
     }
 
@@ -232,18 +232,6 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
 
         vm.SetConnection(null, TenantLicence.Unknown);
         Assert.False(AppCheckRow(vm).HasMissingPermission);
-    }
-
-    [Fact]
-    public void The_licence_note_shows_under_the_name_only_while_unlicensed()
-    {
-        var vm = Create();
-        Assert.Null(MfaRow(vm).UnlicensedNote);
-
-        vm.SetConnection(Array.Empty<string>(), TenantLicence.Free);
-
-        Assert.Equal("Needs an Entra ID P1 or P2 licence.", MfaRow(vm).UnlicensedNote);
-        Assert.Null(AppCheckRow(vm).UnlicensedNote);
     }
 
     private static CheckSettingsRow MfaRow(ChecksSettingsViewModel vm) =>

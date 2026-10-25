@@ -10,7 +10,7 @@ namespace Entraspect.App.ViewModels;
 /// <summary>
 /// One check on Settings > Checks, shown as an expandable card: its name, licence pill and enable toggle, with its
 /// required permissions when expanded. A check the tenant isn't licensed for has its toggle grayed out in the off
-/// position with a note; its saved on/off choice is kept, so the check comes back as it was if the tenant gets the
+/// position; its saved on/off choice is kept, so the check comes back as it was if the tenant gets the
 /// licence.
 /// </summary>
 public partial class CheckSettingsRow : ObservableObject
@@ -28,7 +28,6 @@ public partial class CheckSettingsRow : ObservableObject
         _settings = settings;
         _reportError = reportError;
         IsEnabled = settings.IsCheckEnabled(check.Id);
-        LicenceNote = Licensing.Needs(check.RequiredLicence);
         LicenceLabel = check.RequiredLicence switch
         {
             LicenceRequirement.EntraIdP1 => "P1",
@@ -52,7 +51,7 @@ public partial class CheckSettingsRow : ObservableObject
 
     /// <summary>False when the connected tenant doesn't have the licence this check needs.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsOn), nameof(UnlicensedNote))]
+    [NotifyPropertyChangedFor(nameof(IsOn))]
     public partial bool IsLicensed { get; set; } = true;
 
     /// <summary>
@@ -78,13 +77,13 @@ public partial class CheckSettingsRow : ObservableObject
         }
     }
 
-    public string LicenceNote { get; }
-
     /// <summary>"P1" or "P2", the gray pill next to the name of a check that needs that licence; null otherwise.</summary>
     public string? LicenceLabel { get; }
 
-    /// <summary>Shown under the name while the tenant isn't licensed for this check, so the grayed toggle is explained.</summary>
-    public string? UnlicensedNote => IsLicensed ? null : LicenceNote;
+    /// <summary>The licence pill's hover text.</summary>
+    public string LicenceToolTip => Check.RequiredLicence == LicenceRequirement.EntraIdP2
+        ? "Requires an Entra ID P2 licence."
+        : "Requires an Entra ID P1 or P2 licence.";
 
     /// <summary>The saved on/off choice.</summary>
     [ObservableProperty]

@@ -5,6 +5,14 @@
              xmlns:ui="using:FluentAvalonia.UI.Controls"
              x:Class="Entraspect.App.Views.ChecksSettingsView"
              x:DataType="vm:ChecksSettingsViewModel">
+    <UserControl.Resources>
+        <!-- Shorter check cards than FluentAvalonia's Windows Settings defaults (68 and 48 minimum height, 16 and
+             10 vertical padding), so more checks fit on screen. -->
+        <x:Double x:Key="SettingsExpanderMinHeight">40</x:Double>
+        <Thickness x:Key="SettingsExpanderPadding">16,4,16,4</Thickness>
+        <x:Double x:Key="SettingsExpanderItemMinHeight">40</x:Double>
+        <Thickness x:Key="SettingsExpanderItemPadding">16,6,16,6</Thickness>
+    </UserControl.Resources>
     <ScrollViewer>
         <!-- Fills the width up to a maximum, aligned left. -->
         <Grid>
@@ -27,12 +35,12 @@
                                     <DataTemplate x:DataType="vm:CheckSettingsRow">
                                         <!-- Collapsed: the name with its licence pill (and a red pill when a permission
                                              is missing), and the toggle. Expanded: the permissions it needs. -->
-                                        <ui:FASettingsExpander Margin="0,0,0,4" Description="{Binding UnlicensedNote}">
+                                        <ui:FASettingsExpander Margin="0,0,0,4">
                                             <ui:FASettingsExpander.Header>
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold"
                                                                VerticalAlignment="Center" />
-                                                    <Border Classes="label neutral" ToolTip.Tip="{Binding LicenceNote}"
+                                                    <Border Classes="label neutral" ToolTip.Tip="{Binding LicenceToolTip}"
                                                             IsVisible="{Binding LicenceLabel, Converter={x:Static ObjectConverters.IsNotNull}}">
                                                         <TextBlock Text="{Binding LicenceLabel}" FontSize="12" />
                                                     </Border>

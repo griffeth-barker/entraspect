@@ -75,7 +75,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
         string groupId,
         CancellationToken cancellationToken = default) =>
-        throw new NotSupportedException("Reading group owners is added in spec 019 step 3.");
+        ReadAsync(() => ReadGroupOwnersAsync(groupId, cancellationToken));
 
     public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadSecurityDefaultsEnabledAsync(cancellationToken));
@@ -912,6 +912,95 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }
 
         return result;
+    }
+
+    /// <summary>The first page of a group's owners.</summary>
+    public static string GroupOwnersUrl(string groupId) =>
+        $"{V1BaseUrl}/groups/{Uri.EscapeDataString(groupId)}/owners";
+
+    /// <summary>
+    /// <c>GET /groups/{id}/owners</c>, following every page. No <c>$select</c>: the docs say query parameters other
+    /// than <c>$expand</c> need advanced query (<c>ConsistencyLevel: eventual</c>). Read as JSON so that an owner of a
+    /// kind the SDK doesn't know keeps its type and name. A 404 (the group was deleted since it was listed) means no
+    /// owners.
+    /// </summary>
+    private async Task<IReadOnlyList<GroupOwner>> ReadGroupOwnersAsync(
+        string groupId,
+        CancellationToken cancellationToken)
+    {
+        var result = new List<GroupOwner>();
+        string? url = GroupOwnersUrl(groupId);
+
+        try
+        {
+            while (url is not null)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using var page = await GetJsonAsync(url, cancellationToken).ConfigureAwait(false);
+                url = AddGroupOwners(page.RootElement, result);
+            }
+        }
+        catch (ApiException ex) when (ex.ResponseStatusCode == 404)
+        {
+            return [];
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Adds one page of group owners to <paramref name="result"/> and returns the next page's link, or null on the last
+    /// page. An owner without an ID is skipped; missing or unexpected values never throw.
+    /// </summary>
+    public static string? AddGroupOwners(JsonElement page, ICollection<GroupOwner> result)
+    {
+        if (page.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (page.TryGetProperty("value", out var value) && value.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var element in value.EnumerateArray())
+            {
+                if (MapGroupOwner(element) is { } owner)
+                {
+                    result.Add(owner);
+                }
+            }
+        }
+
+        return String(page, "@odata.nextLink") is { Length: > 0 } next ? next : null;
+    }
+
+    /// <summary>
+    /// A group owner, or null without an ID. <c>#microsoft.graph.user</c> is a user and
+    /// <c>#microsoft.graph.servicePrincipal</c> a service principal, ignoring case; any other or missing type is
+    /// <see cref="GroupOwnerKind.Other"/>. The UPN is kept for users only.
+    /// </summary>
+    public static GroupOwner? MapGroupOwner(JsonElement owner)
+    {
+        if (String(owner, "id") is not { Length: > 0 } id)
+        {
+            return null;
+        }
+
+        var kind = String(owner, "@odata.type")?.Trim().ToUpperInvariant() switch
+        {
+            "#MICROSOFT.GRAPH.USER" => GroupOwnerKind.User,
+            "#MICROSOFT.GRAPH.SERVICEPRINCIPAL" => GroupOwnerKind.ServicePrincipal,
+            _ => GroupOwnerKind.Other,
+        };
+
+        return new GroupOwner
+        {
+            Id = id,
+            Kind = kind,
+            DisplayName = String(owner, "displayName") is { Length: > 0 } name ? name : null,
+            UserPrincipalName = kind == GroupOwnerKind.User && String(owner, "userPrincipalName") is { Length: > 0 } upn
+                ? upn
+                : null,
+        };
     }
 
     /// <summary><c>GET /policies/identitySecurityDefaultsEnforcementPolicy?$select=isEnabled</c>.</summary>

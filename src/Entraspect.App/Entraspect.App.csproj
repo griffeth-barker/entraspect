@@ -1,13 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Models\" />
     <AvaloniaResource Include="Assets\**" />
     <!-- The logo artwork lives in the repository's assets folder; the app uses two of its variants. -->
     <AvaloniaResource Include="..\..\assets\entraspect-icon-square.png" Link="Assets\entraspect-icon-square.png" />

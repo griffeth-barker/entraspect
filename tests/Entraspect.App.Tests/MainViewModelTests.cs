@@ -111,7 +111,7 @@ public sealed class MainViewModelTests : IDisposable
             new[]
             {
                 "roles-admin-counts", "roles-licensed-admins", "roles-admins-no-phishing-resistant-mfa",
-                "roles-synced-admins",
+                "roles-group-owners", "roles-synced-admins",
             },
             roles.Children.Select(c => Assert.IsType<CheckPageViewModel>(c.Page).Check.Id));
         Assert.Equal(
@@ -654,7 +654,7 @@ public sealed class MainViewModelTests : IDisposable
                 "Cross-tenant partners, External collaboration",
                 "User.Read.All: needed by Disabled users with access, Guests with admin roles, Inactive guests, " +
                 "Inactive users, MFA not required, Pending guest invitations, Admin role counts, Licensed admins, " +
-                "No phishing-resistant MFA, Synced admins, Policy hygiene",
+                "No phishing-resistant MFA, Role group owners, Synced admins, Policy hygiene",
             ],
             vm.Overview.Banner.Details);
         Assert.False(CheckPage(vm).Banner.IsOpen);
@@ -675,7 +675,7 @@ public sealed class MainViewModelTests : IDisposable
         Assert.Equal(
             "RoleManagement.Read.Directory: needed by Disabled users with access, Guests with admin roles, " +
             "Inactive users, MFA not required, Admin role counts, Licensed admins, No phishing-resistant MFA, " +
-            "Synced admins",
+            "Role group owners, Synced admins",
             Assert.Single(vm.Overview.Banner.Details));
         Assert.False(CheckPage(vm).Banner.IsOpen);
     }

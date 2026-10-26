@@ -48,6 +48,7 @@ public static class CheckCatalog
             new Checks.RolesAdminCountsCheck(),
             new Checks.RolesLicensedAdminsCheck(),
             new Checks.RolesAdminsNoPhishingResistantMfaCheck(),
+            new Checks.RolesGroupOwnersCheck(),
             new Checks.RolesSyncedAdminsCheck(),
             new Checks.ConditionalAccessPolicyHygieneCheck(timeProvider),
             new Checks.ConditionalAccessUnusedPoliciesCheck(timeProvider),

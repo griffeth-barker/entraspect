@@ -20,7 +20,8 @@ public sealed class CheckCatalogTests
                 "group-sync-errors", "app-no-owners",
                 "app-credential-expiry", "app-risky-redirect-uris", "saml-signing-certificate-expiry",
                 "sp-high-privilege-app-permissions", "roles-admin-counts", "roles-licensed-admins",
-                "roles-admins-no-phishing-resistant-mfa", "roles-synced-admins", "ca-policy-hygiene", "ca-unused-policies",
+                "roles-admins-no-phishing-resistant-mfa", "roles-group-owners", "roles-synced-admins", "ca-policy-hygiene",
+                "ca-unused-policies",
                 "cross-tenant-access-defaults", "cross-tenant-access-partners", "external-collaboration-settings",
             },
             checks.Select(c => c.Id));
@@ -34,7 +35,8 @@ public sealed class CheckCatalogTests
                 CheckCategory.Groups, CheckCategory.AppRegistrations,
                 CheckCategory.AppRegistrations, CheckCategory.AppRegistrations, CheckCategory.EnterpriseApps,
                 CheckCategory.EnterpriseApps, CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins,
-                CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins, CheckCategory.ConditionalAccess,
+                CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins, CheckCategory.RolesAndAdmins,
+                CheckCategory.ConditionalAccess,
                 CheckCategory.ConditionalAccess,
                 CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities, CheckCategory.ExternalIdentities,
             },
@@ -385,6 +387,24 @@ public sealed class CheckCatalogTests
             (check.Labels.ObjectDisplayName, check.Labels.UserPrincipalName, check.Labels.ObjectId,
                 check.Labels.SubObjectDisplayName, check.Labels.Value));
         Assert.Null(check.Labels.SubObjectType);
+        Assert.Null(check.Labels.DueDate);
+        Assert.Equal(
+            new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
+            check.RequiredPermissions);
+    }
+
+    [Fact]
+    public void Role_group_owners_names_its_columns_after_the_group_and_its_owner()
+    {
+        var check = CheckCatalog.All(new FakeTimeProvider()).Single(c => c.Id == "roles-group-owners");
+
+        Assert.Equal("Role group owners", check.Title);
+        Assert.Equal(CheckCategory.RolesAndAdmins, check.Category);
+        Assert.Equal(LicenceRequirement.None, check.RequiredLicence);
+        Assert.Equal(
+            ("Group", "Object ID", "Owner", "Owner type", "Owner UPN", "Roles"),
+            (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
+                check.Labels.SubObjectType, check.Labels.UserPrincipalName, check.Labels.Value));
         Assert.Null(check.Labels.DueDate);
         Assert.Equal(
             new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },

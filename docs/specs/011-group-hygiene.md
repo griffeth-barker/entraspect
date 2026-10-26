@@ -3,7 +3,7 @@
 **Status:** Ready (depends on specs 002 and 003)
 **Goal:** Five more checks in the Groups nav section, built on the group data spec 003 already reads: dynamic groups with paused processing, groups with on-premises sync errors, groups with licence assignment errors, groups with only one owner, and public Microsoft 365 groups.
 
-**Out of scope for this spec:** role-assignable group risks, dynamic rule processing errors (beta only), groups whose members are all disabled, group expiration policy, external senders, inactive groups. See Open questions.
+**Out of scope for this spec:** role-assignable group risks (owners are covered by spec 019), dynamic rule processing errors (beta only), groups whose members are all disabled, group expiration policy, external senders, inactive groups. See Open questions.
 
 **Graph permissions:** none new. Everything comes from `GET /groups`, which `GroupMember.Read.All` (spec 003) already covers. Group-based licensing needs Entra ID P1 or P2.
 
@@ -78,7 +78,7 @@ Tests with a fake reader and `FakeTimeProvider`: each kind, synced groups (singl
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)
 
-- **Role-assignable group risks (candidate for its own spec):** owners of a group that can be assigned to Entra roles can add themselves to it, and so effectively hold its roles. A guest in such a group is also risky. Needs owner and member IDs, user types (`User.Read.All`) and the group's role assignments (`RoleManagement.Read.Directory`).
+- **Role-assignable group risks (owners: see [spec 019](019-role-group-owners.md)):** owners of a group that can be assigned to Entra roles can add themselves to it, and so effectively hold its roles. A guest in such a group is also risky. Needs owner and member IDs, user types (`User.Read.All`) and the group's role assignments (`RoleManagement.Read.Directory`).
 - **Dynamic rule processing errors:** only beta exposes rule processing failures (`membershipRuleProcessingStatus`). Would need a beta exception named in a spec.
 - **Groups whose members are all disabled:** effectively empty, like spec 003's question about owners who can't act. Needs `User.Read.All`.
 - **Expiring Microsoft 365 groups:** `expirationDateTime` combined with the expiration policy, especially for groups with no owners to renew them.

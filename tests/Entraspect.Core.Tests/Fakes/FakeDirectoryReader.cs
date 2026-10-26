@@ -147,6 +147,26 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
         return Task.FromResult(GroupMembers.TryGetValue(groupId, out var members) ? members : []);
     }
 
+    /// <summary>Owners by group ID. Any other ID has no owners.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<GroupOwner>> GroupOwners { get; init; } =
+        new Dictionary<string, IReadOnlyList<GroupOwner>>();
+
+    /// <summary>The group IDs passed to each <see cref="GetGroupOwnersAsync"/> call.</summary>
+    public List<string> GroupOwnerReads { get; } = [];
+
+    /// <summary>When set, <see cref="GetGroupOwnersAsync"/> throws it.</summary>
+    public DirectoryReadException? GroupOwnersFailure { get; init; }
+
+    public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
+        string groupId,
+        CancellationToken cancellationToken = default)
+    {
+        GroupOwnerReads.Add(groupId);
+        return GroupOwnersFailure is { } failure
+            ? throw failure
+            : Task.FromResult(GroupOwners.TryGetValue(groupId, out var owners) ? owners : []);
+    }
+
     public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(SecurityDefaultsEnabled);
 

@@ -147,4 +147,87 @@ public sealed class RoleHoldersTests
     {
         Assert.Empty(await GetAsync(Reader(), []));
     }
+
+    [Fact]
+    public void Principal_roles_stay_with_the_principal_and_group_members_are_not_read()
+    {
+        var held = RoleHolders.GetPrincipalRoles(
+            [Assign(GlobalReader, RoleGroupId), Assign(PrivilegedRoles.GlobalAdministrator, UserId), Assign(GlobalReader, ServicePrincipalId)],
+            Definitions);
+
+        Assert.Equal(3, held.Count);
+        Assert.Equal(new HeldRole(GlobalReader, "Global Reader", RoleTier.Privileged), Assert.Single(held[RoleGroupId]));
+        Assert.Equal(PrivilegedRoles.GlobalAdministrator, Assert.Single(held[UserId]).Id);
+        Assert.Equal(GlobalReader, Assert.Single(held[ServicePrincipalId]).Id);
+    }
+
+    [Fact]
+    public void Principal_roles_are_distinct_whatever_the_case_and_ordered_highest_tier_first_then_by_name()
+    {
+        var held = RoleHolders.GetPrincipalRoles(
+            [
+                Assign(CustomRoleId, RoleGroupId),
+                Assign(DirectoryReaders, RoleGroupId),
+                Assign(GlobalReader, RoleGroupId.ToUpperInvariant()),
+                Assign(GlobalReader.ToUpperInvariant(), RoleGroupId),
+                Assign(PrivilegedRoles.GlobalAdministrator, RoleGroupId),
+            ],
+            Definitions);
+
+        Assert.Equal(
+            ["Global Administrator", "Global Reader", "Directory Readers", "Helpdesk Lite"],
+            Assert.Single(held).Value.Select(r => r.Name));
+        Assert.True(held.ContainsKey(RoleGroupId.ToUpperInvariant()));
+    }
+
+    [Fact]
+    public void Principal_roles_match_built_in_roles_on_template_id_and_fall_back_to_the_id_without_a_name()
+    {
+        const string DefinitionId = "dddddddd-0000-0000-0000-000000000001";
+        var definitions = new DirectoryRoleDefinition[]
+        {
+            new() { Id = DefinitionId, TemplateId = GlobalReader, DisplayName = "Global Reader" },
+            new() { Id = CustomRoleId, DisplayName = null },
+        };
+
+        var held = RoleHolders.GetPrincipalRoles(
+            [Assign(DefinitionId, RoleGroupId), Assign(GlobalReader, UserId), Assign(CustomRoleId, UserId)],
+            definitions);
+
+        Assert.Equal(new HeldRole(DefinitionId, "Global Reader", RoleTier.Privileged), Assert.Single(held[RoleGroupId]));
+        Assert.Equal(
+            [new HeldRole(GlobalReader, "Global Reader", RoleTier.Privileged), new HeldRole(CustomRoleId, CustomRoleId, RoleTier.Other)],
+            held[UserId]);
+    }
+
+    [Fact]
+    public void Principal_roles_are_empty_without_assignments()
+    {
+        Assert.Empty(RoleHolders.GetPrincipalRoles([], Definitions));
+    }
+
+    [Fact]
+    public void Direct_holders_match_on_template_id_or_on_a_definition_with_that_template_id()
+    {
+        const string DefinitionId = "dddddddd-0000-0000-0000-000000000001";
+        var definitions = new DirectoryRoleDefinition[]
+        {
+            new() { Id = DefinitionId, TemplateId = PrivilegedRoles.PrivilegedRoleAdministrator, DisplayName = null },
+            new() { Id = GlobalReader, TemplateId = GlobalReader, DisplayName = "Global Reader" },
+        };
+
+        var holders = RoleHolders.GetDirectHolders(
+            [
+                Assign(PrivilegedRoles.GlobalAdministrator.ToUpperInvariant(), UserId),
+                Assign(DefinitionId, OtherUserId),
+                Assign(GlobalReader, ServicePrincipalId),
+                Assign(CustomRoleId, RoleGroupId),
+            ],
+            definitions,
+            [PrivilegedRoles.GlobalAdministrator, PrivilegedRoles.PrivilegedRoleAdministrator]);
+
+        Assert.Equal(2, holders.Count);
+        Assert.Contains(UserId.ToUpperInvariant(), holders);
+        Assert.Contains(OtherUserId, holders);
+    }
 }

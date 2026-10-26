@@ -33,6 +33,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private IReadOnlyList<RiskyUser>? _riskyUsers;
     private readonly Dictionary<string, IReadOnlyList<string>> _groupTransitiveUserIds =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IReadOnlyList<GroupOwner>> _groupOwners = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PerUserMfaState> _perUserMfaStates = new(StringComparer.OrdinalIgnoreCase);
 
     // Each user ID looked up so far, and whether it was missing.
@@ -153,6 +154,20 @@ public sealed class CachingDirectoryReader : IDirectoryReader
         }
 
         return userIds;
+    }
+
+    /// <summary>Reads each group's owners at most once per scan.</summary>
+    public async Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
+        string groupId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_groupOwners.TryGetValue(groupId, out var owners))
+        {
+            owners = await _inner.GetGroupOwnersAsync(groupId, cancellationToken).ConfigureAwait(false);
+            _groupOwners[groupId] = owners;
+        }
+
+        return owners;
     }
 
     public async Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)

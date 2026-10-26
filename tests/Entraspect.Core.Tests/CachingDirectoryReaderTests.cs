@@ -123,6 +123,17 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<string>>([$"member-of-{groupId}"]);
         }
 
+        public List<string> GroupOwnerReads { get; } = [];
+
+        public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
+            string groupId,
+            CancellationToken cancellationToken = default)
+        {
+            GroupOwnerReads.Add(groupId);
+            return Task.FromResult<IReadOnlyList<GroupOwner>>(
+                [new GroupOwner { Id = $"owner-of-{groupId}", Kind = GroupOwnerKind.User }]);
+        }
+
         public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
         {
             SecurityDefaultsCalls++;
@@ -352,6 +363,7 @@ public sealed class CachingDirectoryReaderTests
             "group" => 4,
             "defaults" => 8,
             "mfa" => 16,
+            "owners" => 64,
             _ => 32,
         };
 
@@ -374,6 +386,14 @@ public sealed class CachingDirectoryReaderTests
         {
             FailOnce("group");
             return Task.FromResult<IReadOnlyList<string>>(["u1"]);
+        }
+
+        public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
+            string groupId,
+            CancellationToken cancellationToken = default)
+        {
+            FailOnce("owners");
+            return Task.FromResult<IReadOnlyList<GroupOwner>>([new GroupOwner { Id = "o1", Kind = GroupOwnerKind.User }]);
         }
 
         public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default)
@@ -821,6 +841,20 @@ public sealed class CachingDirectoryReaderTests
     }
 
     [Fact]
+    public async Task Reads_each_groups_owners_only_once()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        Assert.Equal("owner-of-g1", Assert.Single(await caching.GetGroupOwnersAsync("g1")).Id);
+        await caching.GetGroupOwnersAsync("G1");
+        await caching.GetGroupOwnersAsync("g2");
+
+        Assert.Equal(new[] { "g1", "g2" }, inner.GroupOwnerReads);
+        Assert.Empty(inner.GroupMemberReads);
+    }
+
+    [Fact]
     public async Task Reads_sign_ins_once_for_the_same_start()
     {
         var inner = new CountingReader();
@@ -847,6 +881,8 @@ public sealed class CachingDirectoryReaderTests
         Assert.NotNull(await caching.GetDirectoryRoleAssignmentsAsync());
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupTransitiveUserIdsAsync("g1"));
         Assert.Equal(new[] { "u1" }, await caching.GetGroupTransitiveUserIdsAsync("g1"));
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupOwnersAsync("g1"));
+        Assert.Equal("o1", Assert.Single(await caching.GetGroupOwnersAsync("g1")).Id);
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetSecurityDefaultsEnabledAsync());
         Assert.True(await caching.GetSecurityDefaultsEnabledAsync());
         await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetPerUserMfaStateAsync("u1"));

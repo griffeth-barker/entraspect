@@ -1197,6 +1197,9 @@ public sealed class MainViewModelTests : IDisposable
         public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<string>>([]);
 
+        public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(string groupId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<GroupOwner>>([]);
+
         public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult(false);
 
@@ -1264,6 +1267,9 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(string groupId, CancellationToken cancellationToken = default) =>
             throw Failure();
 
         public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
@@ -1377,6 +1383,13 @@ public sealed class MainViewModelTests : IDisposable
         }
 
         public async Task<IReadOnlyList<string>> GetGroupTransitiveUserIdsAsync(string groupId, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return [];
+        }
+
+        public async Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(string groupId, CancellationToken cancellationToken = default)
         {
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);

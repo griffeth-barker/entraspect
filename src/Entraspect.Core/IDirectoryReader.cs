@@ -59,6 +59,12 @@ public interface IDirectoryReader
         string groupId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The group's owners, users and other kinds. Empty if the group doesn't exist, for example because it was deleted
+    /// since it was listed.
+    /// </summary>
+    Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(string groupId, CancellationToken cancellationToken = default);
+
     /// <summary>Whether security defaults are turned on for the tenant.</summary>
     Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default);
 

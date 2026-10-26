@@ -72,6 +72,11 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupTransitiveUserIdsAsync(groupId, cancellationToken));
 
+    public Task<IReadOnlyList<GroupOwner>> GetGroupOwnersAsync(
+        string groupId,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Reading group owners is added in spec 019 step 3.");
+
     public Task<bool> GetSecurityDefaultsEnabledAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadSecurityDefaultsEnabledAsync(cancellationToken));
 

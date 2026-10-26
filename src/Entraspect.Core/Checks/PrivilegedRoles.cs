@@ -29,12 +29,15 @@ public static class PrivilegedRoles
     /// <summary>The template ID of Global Administrator.</summary>
     public const string GlobalAdministrator = "62e90394-69f5-4237-9190-012177145e10";
 
+    /// <summary>The template ID of Privileged Role Administrator.</summary>
+    public const string PrivilegedRoleAdministrator = "e8611ab8-c189-46e8-94e1-60213ab1f814";
+
     /// <summary>Roles that can take over the tenant, by template ID, with their names.</summary>
     public static IReadOnlyDictionary<string, string> Tier0 { get; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             [GlobalAdministrator] = "Global Administrator",
-            ["e8611ab8-c189-46e8-94e1-60213ab1f814"] = "Privileged Role Administrator",
+            [PrivilegedRoleAdministrator] = "Privileged Role Administrator",
             ["7be44c8a-adaf-4e2a-84d6-ab2649e08a13"] = "Privileged Authentication Administrator",
             ["8ac3fc64-6eca-42ea-9e69-59f4c7b60eb2"] = "Hybrid Identity Administrator",
             ["e00e864a-17c5-4a4b-9c06-f5b95a8d5bd8"] = "Partner Tier2 Support",

@@ -53,14 +53,64 @@ public static class RoleHolders
             }
         }
 
-        return held.ToDictionary(
+        return Ordered(held);
+    }
+
+    /// <summary>
+    /// The distinct roles assigned directly to each principal (user, group or service principal) through an active
+    /// assignment, at any scope, keyed by principal ID (case-insensitive). Group members aren't read: a group's roles
+    /// stay with the group. Each principal's roles are ordered highest tier first, then by name.
+    /// </summary>
+    public static IReadOnlyDictionary<string, IReadOnlyList<HeldRole>> GetPrincipalRoles(
+        IReadOnlyList<DirectoryRoleAssignment> assignments,
+        IReadOnlyList<DirectoryRoleDefinition> definitions)
+    {
+        var roles = Roles(definitions);
+        var held = new Dictionary<string, Dictionary<string, HeldRole>>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var assignment in assignments)
+        {
+            if (!held.TryGetValue(assignment.PrincipalId, out var principalRoles))
+            {
+                principalRoles = new Dictionary<string, HeldRole>(StringComparer.OrdinalIgnoreCase);
+                held[assignment.PrincipalId] = principalRoles;
+            }
+
+            principalRoles.TryAdd(assignment.RoleDefinitionId, Role(assignment.RoleDefinitionId, roles));
+        }
+
+        return Ordered(held);
+    }
+
+    /// <summary>
+    /// The IDs of the principals assigned, directly and actively, at any scope, one of the built-in roles with the
+    /// given template IDs. An assignment matches by template ID, or by the ID of a definition with that template ID.
+    /// </summary>
+    public static IReadOnlySet<string> GetDirectHolders(
+        IReadOnlyList<DirectoryRoleAssignment> assignments,
+        IReadOnlyList<DirectoryRoleDefinition> definitions,
+        IReadOnlyCollection<string> templateIds)
+    {
+        var wanted = templateIds.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var roles = Roles(definitions);
+
+        return assignments
+            .Where(a => wanted.Contains(a.RoleDefinitionId) ||
+                (roles.GetValueOrDefault(a.RoleDefinitionId)?.TemplateId is { Length: > 0 } templateId &&
+                    wanted.Contains(templateId)))
+            .Select(a => a.PrincipalId)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyList<HeldRole>> Ordered(
+        Dictionary<string, Dictionary<string, HeldRole>> held) =>
+        held.ToDictionary(
             entry => entry.Key,
             entry => (IReadOnlyList<HeldRole>)entry.Value.Values
                 .OrderByDescending(r => r.Tier)
                 .ThenBy(r => r.Name, StringComparer.CurrentCultureIgnoreCase)
                 .ToList(),
             StringComparer.OrdinalIgnoreCase);
-    }
 
     private static HeldRole Role(string roleDefinitionId, Dictionary<string, DirectoryRoleDefinition> roles)
     {

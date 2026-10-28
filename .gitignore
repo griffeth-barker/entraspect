@@ -483,3 +483,14 @@ $RECYCLE.BIN/
 
 # Serena MCP local state
 .serena/
+
+# Certificates and private keys (docs/setup.md creates these in the current folder)
+*.pem
+*.key
+*.p12
+*.cer
+*.crt
+
+# Claude Code local state
+.claude/worktrees/
+.claude/settings.local.json

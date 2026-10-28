@@ -262,6 +262,10 @@ The tests use fake data and never connect to a tenant or the network.
 
 Each check is one class in `src/Entraspect.Core/Checks/`, registered in `CheckCatalog`, with a matching test file. New features start as a spec in `docs/specs/`. [AGENTS.md](AGENTS.md) has the project's rules and conventions (read-only Graph access, no secrets in the repo, no network in tests, no telemetry); follow them in any contribution.
 
+## Security
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md). Please don't open a public issue for it.
+
 ## Licence
 
 entraspect is released under the [MIT licence](LICENSE).

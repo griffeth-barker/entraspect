@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      avalonia:
+        patterns: ["Avalonia*", "FluentAvaloniaUI"]
+      microsoft-graph:
+        patterns: ["Microsoft.Graph*", "Azure.Identity"]
+      test:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk", "coverlet.*", "Microsoft.Extensions.TimeProvider.Testing"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

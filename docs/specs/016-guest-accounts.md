@@ -87,11 +87,10 @@ Tests with a fake reader and `FakeTimeProvider`: the inactive boundaries (exactl
 
 ## Tests still to do
 
-Not tested in the running app or against a tenant yet. Built and unit tested on 2026-10-25.
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without P1 or P2 and without `LicenseAssignment.Read.All`: Inactive guests fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message.
 
 - Graph accepts `$filter=userType eq 'Guest'` together with `$select=id,signInActivity` on v1.0 `GET /users`. If it answers HTTP 400, the read falls back to selecting `userType` for every user; check that the fallback returns the same guests.
 - The manual checks under Acceptance criteria: a pending invitation (with the setting at 1 day), a guest with Directory Readers (Critical; remove the role afterwards), an inactive guest on a P1 or P2 tenant, and Inactive guests grayed out without P1 or P2.
-- Without P1 or P2 and without `LicenseAssignment.Read.All`, Inactive guests fails with "This check needs an Entra ID P1 or P2 licence." Note the Graph error code from `GET /users?$select=signInActivity`, and add it to `CheckFailureMessage` if it isn't `Authentication_RequestFromNonPremiumTenantOrB2CTenant`.
 - Changing Inactive guests (days) and Pending invitations (days) on **Settings** > **Checks** changes the next scan's results.
 - The Invitation, Last sign-in, Invited and Role columns show, and Search and Add filter find their values.
 

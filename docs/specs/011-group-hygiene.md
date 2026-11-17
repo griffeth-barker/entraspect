@@ -74,6 +74,22 @@ Tests with a fake reader and `FakeTimeProvider`: each kind, synced groups (singl
 - Manual check: a Microsoft 365 group with one owner appears under Groups with one owner, a public Microsoft 365 group under Public groups, and a dynamic group whose processing has been paused under Paused dynamic groups.
 - Licence errors and sync errors may not be reproducible in the dev tenant (sync errors need a hybrid tenant). If so, say so when closing the spec; their unit tests stand in.
 
+## Tests still to do
+
+Built and unit tested on 2026-10-25. Not tested in the running app yet.
+
+On the current tenant (no P1 or P2). Set **New group grace days** to 0 on **Settings** > **Checks** first, so test groups created today aren't skipped:
+
+- A Microsoft 365 group with one owner appears under Groups with one owner; a security group with one owner appears too; adding a second owner removes both findings.
+- A public Microsoft 365 group appears under Public groups; making it private removes it.
+- If the dev tenant is hybrid, a synced security group with one owner appears under Groups with one owner. Sync errors needs a group with a real on-premises provisioning error; if the dev tenant isn't hybrid or has none, say so here and let the unit tests stand in.
+- The Property, Category and Occurred columns show on Sync errors (when it has findings), and Search and Add filter find their values.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- A dynamic group whose processing has been paused appears under Paused dynamic groups (dynamic membership needs P1). Resume processing and scan again: gone.
+- Licence errors runs. If a licence error can be reproduced (for example a group that assigns a licence with no seats left), the group appears as Warning; if not, say so here and let the unit tests stand in.
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)

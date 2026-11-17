@@ -88,6 +88,23 @@ No new endpoints: users with `onPremisesSyncEnabled` and `assignedLicenses` (spe
   - In a hybrid tenant, a synced user given a privileged role appears under Synced admins. If the dev tenant isn't hybrid, say so when closing the spec; the unit tests stand in.
   - Without P1 or P2, No phishing-resistant MFA is grayed out (spec 012).
 
+## Tests still to do
+
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without Entra ID P1 or P2: without `LicenseAssignment.Read.All`, No phishing-resistant MFA fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message; with it, the check is grayed out.
+
+On the current tenant (no P1 or P2):
+
+- Roles & admins appears as its own collapsible section, after Enterprise apps.
+- Admin role counts shows the number of Global Administrators in the Holders column. With one, it gives the "fewer than 2" Warning; assign a second test user Global Administrator and scan again: gone. Remove the role afterwards.
+- A test admin with a licence appears under Licensed admins (Info), with the count in the Licences column and their privileged roles in the Roles column, Tier 0 first.
+- If the dev tenant is hybrid, a synced user given a Privileged role appears under Synced admins as Warning, and as Critical with a Tier 0 role. If it isn't hybrid, say so here and let the unit tests stand in.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- An admin with only password and Microsoft Authenticator (push) registered appears under No phishing-resistant MFA (Warning for Tier 0, Info for Privileged). After registering a passkey or security key and waiting for the registration report to update, they don't. Note the `methodsRegistered` value the report gives for the method, and add it to `PhishingResistantMethods` if it's missing.
+- The page shows when Microsoft last updated the registration report.
+- Roles reached through a role-assignable group count once per user in Admin role counts and show in the Roles column (creating the group needs P1 or P2).
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)

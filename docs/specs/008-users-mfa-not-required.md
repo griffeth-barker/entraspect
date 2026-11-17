@@ -96,6 +96,22 @@ Tests: security defaults on, disabled user skipped, admin, member and guest with
   - A test user excluded from the policy with per-user MFA enforced appears as Info with the per-user MFA message.
   - A test user excluded from the policy who signs in with a password only shows the single-factor sign-in count after the sign-in reaches the logs.
 
+## Tests still to do
+
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without Entra ID P1 or P2: without `LicenseAssignment.Read.All` the check fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message; with it, the check is grayed out.
+
+On the current tenant (no P1 or P2):
+
+- The check's info tip says the per-user MFA state and sign-in data come from beta Graph.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- If security defaults are on, scan once before turning them off: the check gives only the security defaults Info finding. Conditional Access policies can't be created until security defaults are off.
+- The manual checks under Acceptance criteria: a member excluded through the test group (Warning, gone once removed from the group), an excluded admin (Critical), the named location condition ("in some cases"), report-only (the report-only note), per-user MFA enforced (Info, per-user MFA message), and a password-only sign-in (the single-factor count and the Last single-factor sign-in column).
+- Beta `GET /auditLogs/signIns` accepts the `$select` and the server-side filter (see Open questions). If Graph answers HTTP 400, remove the `$select`.
+- A policy that requires an authentication strength instead of MFA counts as requiring MFA (see Open questions).
+- The scan shows progress while it reads per-user MFA state.
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)

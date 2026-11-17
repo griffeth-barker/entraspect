@@ -104,6 +104,27 @@ Tests with a fake reader and `FakeTimeProvider`:
   - Without `IdentityRiskyUser.Read.All`, Risky users shows the permission banner and the other checks still run.
   - On a P1 or P2 tenant, a member with no recent sign-in appears under Inactive users. On a P2 tenant, a test user flagged by ID Protection (or confirmed compromised in the admin center) appears under Risky users.
 
+## Tests still to do
+
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without Entra ID P1 or P2: without `LicenseAssignment.Read.All`, Inactive users and Risky users fail with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and show the licence message; with it, both are grayed out.
+
+On the current tenant (no P1 or P2):
+
+- A disabled test user given a licence appears under Disabled users with access (Info, Access "Licences"). Given a Privileged role (for example Helpdesk Administrator) instead, it appears as Critical with the role in the Access column; a non-privileged role (for example Message Center Reader) is Warning. Remove the licence and roles and re-enable or delete the user afterwards.
+- A disabled user who holds a role through a role-assignable group appears too. Creating a role-assignable group needs P1 or P2, so this may have to wait for the trial.
+- If the dev tenant is hybrid, a disabled synced user's message says the account is managed in on-premises Active Directory, and the Source column says "Synced".
+- Without `IdentityRiskyUser.Read.All` and without `LicenseAssignment.Read.All` (so the licence is unknown), Risky users shows the permission banner and the other checks still run.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- A member with no successful sign-in for at least **Inactive user days** (minimum 30) appears under Inactive users as Warning, with the Last sign-in and Source columns filled. One who holds a Tier 0 or Privileged role appears as Critical, ending "Holds ROLE.". A disabled one with no role appears as Info with the "consider deleting it" note.
+- Changing **Inactive user days** on **Settings** > **Checks** changes the next scan's results.
+
+Once the tenant has a P2 licence:
+
+- A test user flagged by ID Protection, or confirmed compromised in the Entra admin center (**ID Protection** > **Risky users**), appears under Risky users: confirmed compromised as Critical; at risk with the Risk level and Risk updated columns filled. Dismiss the risk in the admin center afterwards.
+- Graph accepts the `$filter` with `or` on `GET /identityProtection/riskyUsers` (see Open questions). If it answers HTTP 400, the fallback reads every risky user; check it gives the same findings.
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)

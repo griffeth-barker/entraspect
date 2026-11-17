@@ -1,6 +1,6 @@
 # Spec 011: More group hygiene checks
 
-**Status:** Ready (depends on specs 002 and 003)
+**Status:** Done
 **Goal:** Five more checks in the Groups nav section, built on the group data spec 003 already reads: dynamic groups with paused processing, groups with on-premises sync errors, groups with licence assignment errors, groups with only one owner, and public Microsoft 365 groups.
 
 **Out of scope for this spec:** role-assignable group risks (owners are covered by spec 019), dynamic rule processing errors (beta only), groups whose members are all disabled, group expiration policy, external senders, inactive groups. See Open questions.

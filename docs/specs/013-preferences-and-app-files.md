@@ -1,6 +1,6 @@
 # Spec 013: Preferences and app files
 
-**Status:** Draft (step 4 waits for the logo)
+**Status:** Done
 **Goal:** More choice in Settings > Preferences (any time zone, light or dark theme), buttons to open `profiles.json` and `settings.json` for editing, and the entraspect logo on the About page once it exists.
 
 **Out of scope for this spec:** per-profile preferences, a built-in JSON editor, watching the files for changes (see Open questions), and any other app icon work beyond showing the logo.

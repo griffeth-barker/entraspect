@@ -1,6 +1,6 @@
 # Spec 018: Privileged access
 
-**Status:** Ready (depends on specs 005, 016 and 017)
+**Status:** Done
 **Goal:** A new **Roles & admins** section in the navigation, named and placed as in the Entra admin center, with four checks on who holds admin roles: how many Global Administrators and privileged assignments there are, admins synced from on-premises, admins without phishing-resistant MFA, and admins whose accounts are also licensed for everyday work.
 
 **Out of scope for this spec:** permanent versus eligible (PIM) assignments, admin units and scoped assignments as a separate concern, custom role permissions, break-glass account handling, inactive or disabled admins (spec 017 already raises them to Critical), guest admins (spec 016). See Open questions.

@@ -1,6 +1,6 @@
 # Spec 017: User hygiene
 
-**Status:** Ready (depends on specs 012 and 016)
+**Status:** Done
 **Goal:** Three more checks in the Users nav section: member accounts nobody has signed in to for a long time, disabled accounts that still hold roles or licences, and users Microsoft Entra ID Protection flags as risky. Also adds two shared pieces spec 018 builds on: a curated list of privileged roles, and one place that works out who holds which role.
 
 **Out of scope for this spec:** guest accounts (spec 016), admin-specific checks such as Global Administrator counts and synced admins (spec 018), risky sign-ins and risk detections, password age, disabled users who still own apps or groups, deleting or disabling anything (entraspect is read-only). See Open questions.

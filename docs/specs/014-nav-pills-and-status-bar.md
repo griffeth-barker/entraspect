@@ -1,6 +1,6 @@
 # Spec 014: Severity pills in the navigation and a status bar
 
-**Status:** Ready
+**Status:** Done
 **Goal:** Make the navigation and the results pages easier to read. Check counts in the navigation use the same severity pills as Overview, lined up in one column with the section chevrons. Scan and connection status moves out of the page body into a status bar along the bottom of the main pane.
 
 **Out of scope for this spec:** changing the Overview table or its pills, new filters or columns, a header or toolbar, notifications outside the window (dock or taskbar badges), and changing what a scan does.

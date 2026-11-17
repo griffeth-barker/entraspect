@@ -1,6 +1,6 @@
 # Spec 019: Owners of privileged role-assignable groups
 
-**Status:** Ready (depends on specs 017 and 018)
+**Status:** Done
 **Goal:** A check in **Roles & admins** that lists the owners of role-assignable groups holding a Tier 0 or Privileged role. A group owner can add members to the group, including themselves, so every owner of such a group can give anyone the group's roles.
 
 **Out of scope for this spec:** eligible (PIM) role assignments to groups, PIM for Groups (eligible membership or ownership), role-assignable groups holding only non-privileged or custom roles, groups that hold no role, and who can manage group owners through other roles (Groups Administrator and similar). See Open questions.

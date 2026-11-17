@@ -1,6 +1,6 @@
 # Spec 008: Users not required to use MFA
 
-**Status:** Ready (depends on specs 003 and 007)
+**Status:** Done
 **Goal:** A check in the Users nav section that lists enabled users whom no enforced Conditional Access policy requires to use multifactor authentication.
 
 This check answers "who isn't required to use MFA". Spec 005 answers the separate question "who isn't registered for MFA". A user can be registered but never asked, or required but not yet registered. The check page description must say which question this check answers.

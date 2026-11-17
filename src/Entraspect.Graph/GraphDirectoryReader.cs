@@ -36,6 +36,10 @@ public sealed class GraphDirectoryReader : IDirectoryReader
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupsAsync(cancellationToken));
 
+    public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+        CancellationToken cancellationToken = default) =>
+        ReadAsync(() => ReadGroupCountsAsync(cancellationToken));
+
     public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
         ReadAsync(() => ReadGroupIdsWithLicenseErrorsAsync(cancellationToken));
 
@@ -1624,11 +1628,9 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         };
 
     /// <summary>
-    /// Reads every group, then which groups have at least one direct member and how many owners. Both come from two
-    /// more group listings that expand <c>members</c> and <c>owners</c>: an expanded relationship of a directory
-    /// object returns at most 20 items and has no next link, which is enough to tell empty from not empty and one
-    /// owner from several. The relationships are expanded in separate listings because Graph doesn't promise more
-    /// than one expand per request. Never uses <c>POST /$batch</c>.
+    /// <c>GET /groups</c> with the properties the group checks use, following every page. Members and owners aren't
+    /// expanded here: Graph refuses those expands without <c>Group.Read.All</c>, so <see cref="ReadGroupCountsAsync"/>
+    /// reads them for the checks that need them.
     /// </summary>
     private async Task<IReadOnlyList<DirectoryGroup>> ReadGroupsAsync(CancellationToken cancellationToken)
     {
@@ -1643,17 +1645,44 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             config.QueryParameters.Top = 999;
         }, cancellationToken).ConfigureAwait(false);
 
-        var memberCounts = await ListRelatedCountsAsync("members", g => g.Members, cancellationToken)
-            .ConfigureAwait(false);
-        var ownerCounts = await ListRelatedCountsAsync("owners", g => g.Owners, cancellationToken)
-            .ConfigureAwait(false);
+        return groups.Select(MapGroup).ToList();
+    }
 
-        return groups
-            .Select(g => MapGroup(
-                g,
-                memberCounts.ContainsKey(g.Id ?? string.Empty),
-                ownerCounts.GetValueOrDefault(g.Id ?? string.Empty)))
-            .ToList();
+    /// <summary>
+    /// Which groups have at least one direct member and how many owners, from two group listings that expand
+    /// <c>members</c> and <c>owners</c>: an expanded relationship of a directory object returns at most 20 items and
+    /// has no next link, which is enough to tell empty from not empty and one owner from several. The relationships
+    /// are expanded in separate listings because Graph doesn't promise more than one expand per request. The owners
+    /// listing also selects what <see cref="OwnersAvailable"/> needs. Graph answers both expands with 403 unless
+    /// <c>Group.Read.All</c> is granted, although the List groups docs say <c>GroupMember.Read.All</c> is enough
+    /// (spec 020). Never uses <c>POST /$batch</c>.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<string, GroupCounts>> ReadGroupCountsAsync(
+        CancellationToken cancellationToken)
+    {
+        var withMembers = (await ListGroupsAsync(config =>
+            {
+                config.QueryParameters.Select = ["id"];
+                config.QueryParameters.Expand = ["members($select=id)"];
+                // Graph may return smaller pages when expanding; every page is followed either way.
+                config.QueryParameters.Top = 100;
+            }, cancellationToken).ConfigureAwait(false))
+            .Where(g => g.Id is not null && g.Members is { Count: > 0 })
+            .Select(g => g.Id!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var withOwners = await ListGroupsAsync(config =>
+        {
+            config.QueryParameters.Select =
+                ["id", "groupTypes", "securityEnabled", "mailEnabled", "onPremisesSyncEnabled"];
+            config.QueryParameters.Expand = ["owners($select=id)"];
+            config.QueryParameters.Top = 100;
+        }, cancellationToken).ConfigureAwait(false);
+
+        return withOwners
+            .Where(g => !string.IsNullOrEmpty(g.Id))
+            .Select(g => MapGroupCounts(g, withMembers.Contains(g.Id!)))
+            .ToDictionary(c => c.GroupId, StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1670,28 +1699,6 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         }, cancellationToken).ConfigureAwait(false);
 
         return groups.Where(g => !string.IsNullOrEmpty(g.Id)).Select(g => g.Id!).ToList();
-    }
-
-    /// <summary>
-    /// How many related objects each group has, by group ID, at most 20 (the expand limit). Groups with none aren't in
-    /// the result.
-    /// </summary>
-    private async Task<Dictionary<string, int>> ListRelatedCountsAsync(
-        string relationship,
-        Func<Group, List<DirectoryObject>?> related,
-        CancellationToken cancellationToken)
-    {
-        var groups = await ListGroupsAsync(config =>
-        {
-            config.QueryParameters.Select = ["id"];
-            config.QueryParameters.Expand = [$"{relationship}($select=id)"];
-            // Graph may return smaller pages when expanding; every page is followed either way.
-            config.QueryParameters.Top = 100;
-        }, cancellationToken).ConfigureAwait(false);
-
-        return groups
-            .Where(g => g.Id is not null && related(g) is { Count: > 0 })
-            .ToDictionary(g => g.Id!, g => related(g)!.Count, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<List<Group>> ListGroupsAsync(
@@ -1719,8 +1726,7 @@ public sealed class GraphDirectoryReader : IDirectoryReader
         return result;
     }
 
-    /// <param name="ownerCount">How many owners the owners listing returned for the group, at most 20.</param>
-    public static DirectoryGroup MapGroup(Group group, bool hasMembers, int ownerCount)
+    public static DirectoryGroup MapGroup(Group group)
     {
         var kind = MapGroupKind(group.GroupTypes, group.SecurityEnabled, group.MailEnabled);
         var isSynced = group.OnPremisesSyncEnabled == true;
@@ -1735,13 +1741,26 @@ public sealed class GraphDirectoryReader : IDirectoryReader
             IsSyncedFromOnPremises = isSynced,
             IsRoleAssignable = group.IsAssignableToRole == true,
             CreatedDateTime = group.CreatedDateTime,
-            HasMembers = hasMembers,
-            // Owners Graph does return are still counted for the other kinds, so groups with cloud owners are
-            // recognised; an empty list there is unknown.
-            OwnerCount = OwnersAvailable(kind, isSynced) || ownerCount > 0 ? ownerCount : null,
             Visibility = MapGroupVisibility(group.Visibility),
             IsDynamicProcessingPaused = IsProcessingPaused(isDynamic, group.MembershipRuleProcessingState),
             SyncErrors = MapGroupSyncErrors(group.OnPremisesProvisioningErrors),
+        };
+    }
+
+    /// <param name="group">A group from the owners listing, with its owners expanded (at most 20).</param>
+    /// <param name="hasMembers">Whether the members listing returned at least one member for the group.</param>
+    public static GroupCounts MapGroupCounts(Group group, bool hasMembers)
+    {
+        var kind = MapGroupKind(group.GroupTypes, group.SecurityEnabled, group.MailEnabled);
+        var ownerCount = group.Owners?.Count ?? 0;
+
+        return new GroupCounts
+        {
+            GroupId = group.Id ?? string.Empty,
+            HasMembers = hasMembers,
+            // Owners Graph does return are still counted for the other kinds, so groups with cloud owners are
+            // recognised; an empty list there is unknown.
+            OwnerCount = OwnersAvailable(kind, group.OnPremisesSyncEnabled == true) || ownerCount > 0 ? ownerCount : null,
         };
     }
 

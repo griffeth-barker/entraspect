@@ -209,8 +209,10 @@ public sealed class ChecksSettingsViewModelTests : IDisposable
                 "Paused dynamic groups", "Public groups", "Sync errors",
             },
             groupRows.Select(r => r.Title));
-        Assert.Equal(new[] { "GroupMember.Read.All", "Member.Read.Hidden" }, groupRows[0].Permissions.Select(p => p.Name));
-        Assert.All(groupRows.Skip(1), r => Assert.Equal(new[] { "GroupMember.Read.All" }, r.Permissions.Select(p => p.Name)));
+        // The checks that count members or owners need Group.Read.All (spec 020).
+        Assert.Equal(new[] { "Group.Read.All", "Member.Read.Hidden" }, groupRows[0].Permissions.Select(p => p.Name));
+        Assert.All(groupRows.Skip(1).Take(2), r => Assert.Equal(new[] { "Group.Read.All" }, r.Permissions.Select(p => p.Name)));
+        Assert.All(groupRows.Skip(3), r => Assert.Equal(new[] { "GroupMember.Read.All" }, r.Permissions.Select(p => p.Name)));
     }
 
     [Fact]

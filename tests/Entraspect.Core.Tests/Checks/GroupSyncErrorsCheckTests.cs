@@ -7,7 +7,7 @@ public sealed class GroupSyncErrorsCheckTests
 {
     private static readonly DateTimeOffset Occurred = new(2026, 1, 10, 8, 15, 0, TimeSpan.Zero);
 
-    private static Task<IReadOnlyList<Finding>> RunAsync(params DirectoryGroup[] groups) =>
+    private static Task<IReadOnlyList<Finding>> RunAsync(params TestGroup[] groups) =>
         new GroupSyncErrorsCheck().RunAsync(new FakeDirectoryReader(groups), new CheckOptions());
 
     private static GroupSyncError Error(

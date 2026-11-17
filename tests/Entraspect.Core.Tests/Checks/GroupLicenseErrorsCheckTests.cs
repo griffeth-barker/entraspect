@@ -6,7 +6,7 @@ namespace Entraspect.Core.Tests.Checks;
 
 public sealed class GroupLicenseErrorsCheckTests
 {
-    private static Task<IReadOnlyList<Finding>> RunAsync(IEnumerable<string> idsWithErrors, params DirectoryGroup[] groups) =>
+    private static Task<IReadOnlyList<Finding>> RunAsync(IEnumerable<string> idsWithErrors, params TestGroup[] groups) =>
         new GroupLicenseErrorsCheck().RunAsync(
             new FakeDirectoryReader(groups) { GroupIdsWithLicenseErrors = idsWithErrors.ToList() },
             new CheckOptions());

@@ -8,10 +8,10 @@ public sealed class GroupNoMembersCheckTests
 {
     private readonly FakeTimeProvider _time = new(Now);
 
-    private Task<IReadOnlyList<Finding>> RunAsync(params DirectoryGroup[] groups) =>
+    private Task<IReadOnlyList<Finding>> RunAsync(params TestGroup[] groups) =>
         RunAsync(new CheckOptions(), groups);
 
-    private async Task<IReadOnlyList<Finding>> RunAsync(CheckOptions options, params DirectoryGroup[] groups)
+    private async Task<IReadOnlyList<Finding>> RunAsync(CheckOptions options, params TestGroup[] groups)
     {
         var check = new GroupNoMembersCheck(_time);
         return await check.RunAsync(new FakeDirectoryReader(groups), options);
@@ -140,5 +140,14 @@ public sealed class GroupNoMembersCheckTests
             Group("3", hasMembers: false));
 
         Assert.Equal(new[] { "1", "3" }, findings.Select(f => f.ObjectId));
+    }
+
+    [Fact]
+    public async Task Group_missing_from_the_counts_is_skipped()
+    {
+        // Created between the group and count reads, so it has no counts yet.
+        var reader = new FakeDirectoryReader([Group("1", hasMembers: false).Group]);
+
+        Assert.Empty(await new GroupNoMembersCheck(_time).RunAsync(reader, new CheckOptions()));
     }
 }

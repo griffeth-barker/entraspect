@@ -5,7 +5,7 @@ namespace Entraspect.Core.Tests.Checks;
 
 public sealed class GroupDynamicPausedCheckTests
 {
-    private static Task<IReadOnlyList<Finding>> RunAsync(params DirectoryGroup[] groups) =>
+    private static Task<IReadOnlyList<Finding>> RunAsync(params TestGroup[] groups) =>
         new GroupDynamicPausedCheck().RunAsync(new FakeDirectoryReader(groups), new CheckOptions());
 
     [Theory]

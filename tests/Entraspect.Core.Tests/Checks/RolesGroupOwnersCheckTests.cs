@@ -24,8 +24,6 @@ public sealed class RolesGroupOwnersCheckTests
             IsDynamic = false,
             IsSyncedFromOnPremises = false,
             IsRoleAssignable = roleAssignable,
-            HasMembers = true,
-            OwnerCount = 1,
         };
 
     private static GroupOwner UserOwner(int n, string? displayName = null, string? upn = null) =>

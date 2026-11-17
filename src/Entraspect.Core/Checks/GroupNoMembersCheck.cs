@@ -24,8 +24,9 @@ public sealed class GroupNoMembersCheck : ICheck
 
     public CheckCategory Category => CheckCategory.Groups;
 
+    // Group.Read.All: Graph refuses the members expand that counts them with GroupMember.Read.All alone (spec 020).
     // Member.Read.Hidden: without it, groups with hidden membership look empty.
-    public IReadOnlyList<string> RequiredPermissions => new[] { "GroupMember.Read.All", "Member.Read.Hidden" };
+    public IReadOnlyList<string> RequiredPermissions => new[] { "Group.Read.All", "Member.Read.Hidden" };
 
     public FindingLabels Labels => GroupCheckRules.Labels;
 
@@ -35,12 +36,15 @@ public sealed class GroupNoMembersCheck : ICheck
         CancellationToken cancellationToken = default)
     {
         var groups = await reader.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
+        var counts = await reader.GetGroupCountsAsync(cancellationToken).ConfigureAwait(false);
         var now = _timeProvider.GetUtcNow();
         var findings = new List<Finding>();
 
         foreach (var group in groups)
         {
-            if (group.HasMembers || GroupCheckRules.IsNew(group, options, now))
+            // A group missing from the counts was created between the two reads, so it is new anyway.
+            if (!counts.TryGetValue(group.Id, out var groupCounts) || groupCounts.HasMembers ||
+                GroupCheckRules.IsNew(group, options, now))
             {
                 continue;
             }

@@ -15,6 +15,7 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     private readonly IDirectoryReader _inner;
     private IReadOnlyList<AppRegistration>? _appRegistrations;
     private IReadOnlyList<DirectoryGroup>? _groups;
+    private IReadOnlyDictionary<string, GroupCounts>? _groupCounts;
     private IReadOnlyList<string>? _groupIdsWithLicenseErrors;
     private IReadOnlyList<EnterpriseApp>? _enterpriseApps;
     private IReadOnlyList<UserRegistration>? _userRegistrations;
@@ -51,6 +52,12 @@ public sealed class CachingDirectoryReader : IDirectoryReader
     public async Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default)
     {
         return _groups ??= await _inner.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return _groupCounts ??= await _inner.GetGroupCountsAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(

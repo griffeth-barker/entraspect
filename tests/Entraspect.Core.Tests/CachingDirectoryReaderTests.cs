@@ -33,6 +33,18 @@ public sealed class CachingDirectoryReaderTests
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
         }
 
+        public int GroupCountCalls { get; private set; }
+
+        public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            GroupCountCalls++;
+            return Task.FromResult<IReadOnlyDictionary<string, GroupCounts>>(new Dictionary<string, GroupCounts>
+            {
+                ["g1"] = new() { GroupId = "g1", HasMembers = true, OwnerCount = 1 },
+            });
+        }
+
         public int LicenseErrorCalls { get; private set; }
 
         public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(
@@ -241,6 +253,7 @@ public sealed class CachingDirectoryReaderTests
     {
         private bool _failed;
         private bool _groupsFailed;
+        private bool _groupCountsFailed;
         private bool _licenseErrorsFailed;
         private bool _enterpriseAppsFailed;
         private bool _userRegistrationsFailed;
@@ -269,6 +282,18 @@ public sealed class CachingDirectoryReaderTests
             }
 
             return Task.FromResult<IReadOnlyList<DirectoryGroup>>(Array.Empty<DirectoryGroup>());
+        }
+
+        public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            if (!_groupCountsFailed)
+            {
+                _groupCountsFailed = true;
+                throw new DirectoryReadException("fail");
+            }
+
+            return Task.FromResult<IReadOnlyDictionary<string, GroupCounts>>(new Dictionary<string, GroupCounts>());
         }
 
         public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(
@@ -532,6 +557,31 @@ public sealed class CachingDirectoryReaderTests
         await caching.GetGroupsAsync();
 
         Assert.Equal(1, inner.GroupCalls);
+    }
+
+    [Fact]
+    public async Task Fetches_group_counts_only_once_and_apart_from_the_groups()
+    {
+        var inner = new CountingReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await caching.GetGroupCountsAsync();
+        var result = await caching.GetGroupCountsAsync();
+
+        Assert.True(result["g1"].HasMembers);
+        Assert.Equal(1, inner.GroupCountCalls);
+        Assert.Equal(0, inner.GroupCalls);
+    }
+
+    [Fact]
+    public async Task Does_not_cache_failed_group_count_read()
+    {
+        var inner = new FailingThenOkReader();
+        var caching = new CachingDirectoryReader(inner);
+
+        await Assert.ThrowsAsync<DirectoryReadException>(() => caching.GetGroupCountsAsync());
+
+        Assert.NotNull(await caching.GetGroupCountsAsync());
     }
 
     [Fact]

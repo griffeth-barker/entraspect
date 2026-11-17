@@ -87,10 +87,10 @@ Tests with a fake reader and `FakeTimeProvider`: the inactive boundaries (exactl
 
 ## Tests still to do
 
-Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without P1 or P2 and without `LicenseAssignment.Read.All`: Inactive guests fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message.
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without P1 or P2 and without `LicenseAssignment.Read.All`, Inactive guests fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message; with it, Inactive guests is grayed out.
 
 - Graph accepts `$filter=userType eq 'Guest'` together with `$select=id,signInActivity` on v1.0 `GET /users`. If it answers HTTP 400, the read falls back to selecting `userType` for every user; check that the fallback returns the same guests.
-- The manual checks under Acceptance criteria: a pending invitation (with the setting at 1 day), a guest with Directory Readers (Critical; remove the role afterwards), an inactive guest on a P1 or P2 tenant, and Inactive guests grayed out without P1 or P2.
+- The manual checks under Acceptance criteria: a pending invitation (with the setting at 1 day), a guest with Directory Readers (Critical; remove the role afterwards), and an inactive guest on a P1 or P2 tenant.
 - Changing Inactive guests (days) and Pending invitations (days) on **Settings** > **Checks** changes the next scan's results.
 - The Invitation, Last sign-in, Invited and Role columns show, and Search and Add filter find their values.
 

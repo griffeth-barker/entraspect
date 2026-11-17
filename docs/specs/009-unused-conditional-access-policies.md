@@ -51,11 +51,7 @@ Tests: enabled unused, enabled used, report-only both ways, no sign-ins, no CA d
 
 ## Tests still to do
 
-Not tested in the running app yet: the user's dev tenant has no Entra ID P1 or P2 licence. Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 without `LicenseAssignment.Read.All`: the check fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message.
-
-On the current tenant (no P1 or P2):
-
-- With `LicenseAssignment.Read.All` granted, Unused policies is grayed out on **Settings** > **Checks** and in the navigation with the licence note, Scan isn't clickable on its page, and a scan skips it.
+Built and unit tested on 2026-10-25. Tested by the user on 2026-11-16 on a dev tenant without Entra ID P1 or P2: without `LicenseAssignment.Read.All` the check fails with `Authentication_RequestFromNonPremiumTenantOrB2CTenant` and shows the licence message; with it, Unused policies is grayed out on **Settings** > **Checks** and in the navigation with the licence note, and a scan skips it.
 
 Once the tenant has a P1 or P2 licence (a trial is enough):
 

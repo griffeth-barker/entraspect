@@ -7,6 +7,8 @@
 
 **Graph permissions:** none new. Everything comes from `GET /groups`, which `GroupMember.Read.All` (spec 003) already covers. Group-based licensing needs Entra ID P1 or P2.
 
+**Corrected by [spec 020](020-group-counts-permission.md):** owner counts need `Group.Read.All`, which Graph requires for the owners expand although the docs list `GroupMember.Read.All`. Groups with one owner requires `Group.Read.All` in place of `GroupMember.Read.All`; the other four checks are unchanged.
+
 **Hybrid tenants:** many organisations sync groups from on-premises Active Directory. Include synced groups wherever Graph gives usable data, as in spec 003.
 
 Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dotnet test` pass, then commit before starting the next step.

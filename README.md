@@ -191,7 +191,8 @@ entraspect needs these Microsoft Graph **application** permissions, with admin c
 | --- | --- |
 | `Application.Read.All` | App registration and enterprise app checks |
 | `AuditLog.Read.All` | Sign-in activity, the MFA registration report and sign-in logs (Inactive guests and users, MFA checks, No phishing-resistant MFA, Unused policies) |
-| `GroupMember.Read.All` | Group checks, and members of role-assignable groups and groups named in policies |
+| `Group.Read.All` | Groups with no members, no owners or one owner, and Policy hygiene (member and owner counts) |
+| `GroupMember.Read.All` | The other group checks, and members of role-assignable groups and groups named in policies |
 | `IdentityRiskyUser.Read.All` | Risky users |
 | `Member.Read.Hidden` | Groups with no members (groups with hidden membership) |
 | `Policy.Read.All` | Conditional Access, security defaults, and External Identities settings |

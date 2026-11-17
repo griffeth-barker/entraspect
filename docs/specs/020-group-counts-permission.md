@@ -1,6 +1,6 @@
 # Spec 020: Group member and owner counts need Group.Read.All
 
-**Status:** Ready (fixes specs 003, 007 and 011)
+**Status:** Done (not yet tested on a tenant; see "Tests still to do"). Fixes specs 003, 007 and 011.
 **Goal:** The group checks that use member or owner counts declare the permission those counts really need, and the checks that don't use them keep working without it.
 
 **Out of scope for this spec:** counting members or owners with one call per group, replacing `GroupMember.Read.All` in checks that don't read the counts, and `Member.Read.Hidden` (unchanged). See Open questions.

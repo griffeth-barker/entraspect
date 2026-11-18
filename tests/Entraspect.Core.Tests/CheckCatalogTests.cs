@@ -72,7 +72,8 @@ public sealed class CheckCatalogTests
             new[]
             {
                 "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All", "AuditLog.Read.All",
-                "Policy.Read.All", "IdentityRiskyUser.Read.All", "Member.Read.Hidden", "Application.Read.All",
+                "Policy.Read.All", "IdentityRiskyUser.Read.All", "Group.Read.All", "Member.Read.Hidden",
+                "Application.Read.All",
             },
             permissions);
     }
@@ -198,9 +199,9 @@ public sealed class CheckCatalogTests
     }
 
     [Theory]
-    [InlineData("group-no-members", new[] { "GroupMember.Read.All", "Member.Read.Hidden" })]
-    [InlineData("group-no-owners", new[] { "GroupMember.Read.All" })]
-    [InlineData("group-single-owner", new[] { "GroupMember.Read.All" })]
+    [InlineData("group-no-members", new[] { "Group.Read.All", "Member.Read.Hidden" })]
+    [InlineData("group-no-owners", new[] { "Group.Read.All" })]
+    [InlineData("group-single-owner", new[] { "Group.Read.All" })]
     [InlineData("group-license-errors", new[] { "GroupMember.Read.All" })]
     [InlineData("group-dynamic-paused", new[] { "GroupMember.Read.All" })]
     [InlineData("group-public", new[] { "GroupMember.Read.All" })]
@@ -259,7 +260,7 @@ public sealed class CheckCatalogTests
             (check.Labels.ObjectDisplayName, check.Labels.ObjectId, check.Labels.SubObjectDisplayName,
                 check.Labels.SubObjectType, check.Labels.DueDate));
         Assert.Null(check.Labels.UserPrincipalName);
-        Assert.Equal(new[] { "Policy.Read.All", "User.Read.All", "GroupMember.Read.All" }, check.RequiredPermissions);
+        Assert.Equal(new[] { "Policy.Read.All", "User.Read.All", "Group.Read.All" }, check.RequiredPermissions);
     }
 
     [Fact]
@@ -448,5 +449,45 @@ public sealed class CheckCatalogTests
         Assert.Equal(
             new[] { "User.Read.All", "RoleManagement.Read.Directory", "GroupMember.Read.All" },
             check.RequiredPermissions);
+    }
+
+    [Fact]
+    public async Task Only_checks_that_require_group_read_all_read_group_counts()
+    {
+        // Graph refuses the member and owner expands without Group.Read.All (spec 020), so a check that reads the
+        // counts without declaring it would fail with a 403 while Settings showed every permission as granted.
+        var readers = new List<string>();
+        foreach (var check in CheckCatalog.All(new FakeTimeProvider()))
+        {
+            var reader = new FakeDirectoryReader([new DirectoryGroup
+            {
+                Id = "g1",
+                DisplayName = "Group",
+                Kind = GroupKind.Security,
+                IsDynamic = false,
+                IsSyncedFromOnPremises = false,
+                IsRoleAssignable = false,
+            }]);
+            await check.RunAsync(reader, new CheckOptions());
+            if (reader.GroupCountsReads > 0)
+            {
+                readers.Add(check.Id);
+                Assert.Contains("Group.Read.All", check.RequiredPermissions);
+            }
+        }
+
+        Assert.Equal(new[] { "group-no-members", "group-no-owners", "group-single-owner" }, readers);
+    }
+
+    [Fact]
+    public void Group_read_all_is_used_when_granted()
+    {
+        var checks = CheckCatalog.All(new FakeTimeProvider());
+        var granted = checks.SelectMany(c => c.RequiredPermissions).Distinct().ToList();
+
+        var review = PermissionReview.Review(checks, granted);
+
+        Assert.Contains("Group.Read.All", granted);
+        Assert.DoesNotContain("Group.Read.All", review.UnusedReadPermissions);
     }
 }

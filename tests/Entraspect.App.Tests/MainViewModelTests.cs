@@ -38,7 +38,7 @@ public sealed class MainViewModelTests : IDisposable
 
     private IDirectoryReader _reader = new FakeReader(OneExpiringApp());
     private IReadOnlyList<string> _granted =
-        ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        ["Application.Read.All", "Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
     private Exception? _connectError;
     private TenantLicence _licence = TenantLicence.Unknown;
 
@@ -578,7 +578,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_permission_shows_banners_on_connect_before_any_scan()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -602,7 +602,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_audit_log_permission_shows_the_banner_on_mfa_not_registered()
     {
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Application.Read.All", "Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -639,7 +639,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_policy_and_user_permissions_show_the_banner_on_policy_hygiene()
     {
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Application.Read.All", "Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -663,7 +663,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Missing_role_management_permission_shows_the_banner_on_mfa_not_required()
     {
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
+        _granted = ["Application.Read.All", "Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -684,7 +684,7 @@ public sealed class MainViewModelTests : IDisposable
     public async Task Unlicensed_check_shows_not_available_without_banner_badge_or_problem()
     {
         _licence = TenantLicence.Free;
-        _granted = ["Application.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "LicenseAssignment.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Application.Read.All", "Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "LicenseAssignment.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
 
         await vm.ConnectCommand.ExecuteAsync(null);
@@ -786,7 +786,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Banner_buttons_open_the_api_permissions_page_and_copy_the_names()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
 
@@ -804,7 +804,7 @@ public sealed class MainViewModelTests : IDisposable
     [Fact]
     public async Task Disabling_a_check_removes_it_from_the_overview_banner_and_is_saved()
     {
-        _granted = ["GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
+        _granted = ["Group.Read.All", "GroupMember.Read.All", "Member.Read.Hidden", "IdentityRiskyUser.Read.All", "AuditLog.Read.All", "Policy.Read.All", "User.Read.All", "RoleManagement.Read.Directory"];
         var vm = CreateConnectableViewModel();
         await vm.ConnectCommand.ExecuteAsync(null);
         Assert.True(vm.Overview.Banner.IsOpen);
@@ -1167,6 +1167,10 @@ public sealed class MainViewModelTests : IDisposable
         public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<DirectoryGroup>>([]);
 
+        public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyDictionary<string, GroupCounts>>(new Dictionary<string, GroupCounts>());
+
         public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<string>>([]);
 
@@ -1237,6 +1241,10 @@ public sealed class MainViewModelTests : IDisposable
             throw Failure();
 
         public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
+            throw Failure();
+
+        public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+            CancellationToken cancellationToken = default) =>
             throw Failure();
 
         public Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default) =>
@@ -1322,6 +1330,14 @@ public sealed class MainViewModelTests : IDisposable
             Started.TrySetResult();
             await Task.Delay(Timeout.Infinite, cancellationToken);
             return [];
+        }
+
+        public async Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+            CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return new Dictionary<string, GroupCounts>();
         }
 
         public async Task<IReadOnlyList<string>> GetGroupIdsWithLicenseErrorsAsync(CancellationToken cancellationToken = default)

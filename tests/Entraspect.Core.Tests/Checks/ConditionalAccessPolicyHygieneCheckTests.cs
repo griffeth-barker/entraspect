@@ -17,7 +17,7 @@ public sealed class ConditionalAccessPolicyHygieneCheckTests
     private const string DeletedGroup = "dddddddd-0000-0000-0000-000000000002";
     private const string GlobalAdminRole = "62e90394-69f5-4237-9190-012177145e10";
 
-    private static readonly DirectoryGroup[] Groups =
+    private static readonly TestGroup[] Groups =
     [
         Group(GroupWithMembers, hasMembers: true),
         Group(EmptyGroup, hasMembers: false),
@@ -67,7 +67,7 @@ public sealed class ConditionalAccessPolicyHygieneCheckTests
         commaSeparated.Length == 0 ? [] : commaSeparated.Split(',');
 
     private static FakeDirectoryReader Reader(params ConditionalAccessPolicy[] policies) =>
-        new([], Groups, policies: policies, existingUserIds: [UserA, UserB]);
+        new([], Groups.Select(g => g.Group).ToList(), policies: policies, existingUserIds: [UserA, UserB], groupCounts: CountsOf(Groups));
 
     private Task<IReadOnlyList<Finding>> RunAsync(params ConditionalAccessPolicy[] policies) =>
         RunAsync(new CheckOptions(), policies);
@@ -367,5 +367,32 @@ public sealed class ConditionalAccessPolicyHygieneCheckTests
     public void Special_values_are_not_object_ids(string value, bool expected)
     {
         Assert.Equal(expected, ConditionalAccessPolicyHygieneCheck.IsObjectId(value));
+    }
+
+    [Fact]
+    public async Task Group_missing_from_the_counts_is_not_known_to_be_empty()
+    {
+        // A group created between the group and count reads has no counts; it isn't treated as empty.
+        var reader = new FakeDirectoryReader(
+            [],
+            Groups.Select(g => g.Group).ToList(),
+            policies: [Policy(includeUsers: ["None"], includeGroups: [EmptyGroup])],
+            existingUserIds: [UserA, UserB],
+            groupCounts: CountsOf(Groups.Where(g => g.Group.Id != EmptyGroup)));
+
+        Assert.Empty(await new ConditionalAccessPolicyHygieneCheck(_time).RunAsync(reader, new CheckOptions()));
+    }
+
+    [Fact]
+    public async Task Group_counts_are_read_only_when_a_policy_names_a_group()
+    {
+        var withoutGroups = Reader(Policy());
+        var withGroups = Reader(Policy(includeUsers: [], includeGroups: [GroupWithMembers]));
+
+        await new ConditionalAccessPolicyHygieneCheck(_time).RunAsync(withoutGroups, new CheckOptions());
+        await new ConditionalAccessPolicyHygieneCheck(_time).RunAsync(withGroups, new CheckOptions());
+
+        Assert.Equal(0, withoutGroups.GroupCountsReads);
+        Assert.Equal(1, withGroups.GroupCountsReads);
     }
 }

@@ -36,10 +36,10 @@ public sealed class ConditionalAccessPolicyHygieneCheck : ICheck
 
     public CheckCategory Category => CheckCategory.ConditionalAccess;
 
-    // GroupMember.Read.All: group membership presence and which groups exist. User.Read.All: whether users exist
-    // (User.ReadBasic.All is delegated only).
+    // Group.Read.All: which groups exist, and whether they have members, which Graph refuses to count with
+    // GroupMember.Read.All alone (spec 020). User.Read.All: whether users exist (User.ReadBasic.All is delegated only).
     public IReadOnlyList<string> RequiredPermissions =>
-        new[] { "Policy.Read.All", "User.Read.All", "GroupMember.Read.All" };
+        new[] { "Policy.Read.All", "User.Read.All", "Group.Read.All" };
 
     // Conditional Access needs Entra ID P1 or P2.
     public LicenceRequirement RequiredLicence => LicenceRequirement.EntraIdP1;
@@ -72,10 +72,14 @@ public sealed class ConditionalAccessPolicyHygieneCheck : ICheck
         // Disabled policies get only the disabled finding, so their users and groups aren't looked up.
         var active = policies.Where(p => p.State != ConditionalAccessPolicyState.Disabled).ToList();
 
-        var groups = active.Any(p => p.IncludeGroups.Concat(p.ExcludeGroups).Any(IsObjectId))
+        var namesGroups = active.Any(p => p.IncludeGroups.Concat(p.ExcludeGroups).Any(IsObjectId));
+        var groups = namesGroups
             ? (await reader.GetGroupsAsync(cancellationToken).ConfigureAwait(false))
                 .ToDictionary(g => g.Id, StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, DirectoryGroup>(StringComparer.OrdinalIgnoreCase);
+        var groupCounts = namesGroups
+            ? await reader.GetGroupCountsAsync(cancellationToken).ConfigureAwait(false)
+            : new Dictionary<string, GroupCounts>(StringComparer.OrdinalIgnoreCase);
 
         var userIds = active
             .SelectMany(p => p.IncludeUsers.Concat(p.ExcludeUsers))
@@ -94,7 +98,7 @@ public sealed class ConditionalAccessPolicyHygieneCheck : ICheck
         var findings = new List<Finding>();
         foreach (var policy in policies)
         {
-            AddFindings(policy, options, now, groups, missingUsers, findings);
+            AddFindings(policy, options, now, groups, groupCounts, missingUsers, findings);
         }
 
         return findings;
@@ -111,6 +115,7 @@ public sealed class ConditionalAccessPolicyHygieneCheck : ICheck
         CheckOptions options,
         DateTimeOffset now,
         IReadOnlyDictionary<string, DirectoryGroup> groups,
+        IReadOnlyDictionary<string, GroupCounts> groupCounts,
         IReadOnlySet<string> missingUsers,
         List<Finding> findings)
     {
@@ -158,9 +163,11 @@ public sealed class ConditionalAccessPolicyHygieneCheck : ICheck
         }
 
         // Deleted groups apply to no one either; they get their own findings below. If every included group is
-        // deleted, only those are reported.
-        var existingGroups = includedGroups.Where(groups.ContainsKey).Select(id => groups[id]).ToList();
-        if (!includesUsersDirectly && existingGroups.Count > 0 && existingGroups.All(g => !g.HasMembers))
+        // deleted, only those are reported. A group missing from the counts (created between the two reads) isn't
+        // known to be empty.
+        var existingGroups = includedGroups.Where(groups.ContainsKey).ToList();
+        if (!includesUsersDirectly && existingGroups.Count > 0 &&
+            existingGroups.All(id => groupCounts.TryGetValue(id, out var counts) && !counts.HasMembers))
         {
             findings.Add(MakeFinding(
                 policy,

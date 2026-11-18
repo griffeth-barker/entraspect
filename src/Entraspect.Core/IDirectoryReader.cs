@@ -8,8 +8,15 @@ public interface IDirectoryReader
 {
     Task<IReadOnlyList<AppRegistration>> GetAppRegistrationsAsync(CancellationToken cancellationToken = default);
 
-    /// <summary>Every group, with whether it has direct members and how many owners.</summary>
+    /// <summary>Every group, without its members or owners.</summary>
     Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether each group has direct members and how many owners, by group ID (case-insensitive), for every group.
+    /// Separate from <see cref="GetGroupsAsync"/> because Graph needs <c>Group.Read.All</c> for it, so that only the
+    /// checks that use the counts need that permission.
+    /// </summary>
+    Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The IDs of the groups with members who have licence assignment errors from group-based licensing. Separate from

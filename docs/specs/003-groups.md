@@ -7,6 +7,8 @@
 
 **Graph permissions:** adds `GroupMember.Read.All` and `Member.Read.Hidden` (application). The Graph docs list `Group-NestingSupport.ReadWrite.All` as the least-privileged permission for listing groups; it is a write permission and must not be used. `GroupMember.Read.All` also covers listing groups, members and owners. `Member.Read.Hidden` is needed to list the members of groups with hidden membership, which otherwise look empty. (`Group.Read.All` is also acceptable to the project owner, but nothing here needs it.)
 
+**Corrected by [spec 020](020-group-counts-permission.md):** Graph refuses the member and owner expands on `GET /groups` without `Group.Read.All`, although the docs list `GroupMember.Read.All`. Groups with no members and Groups with no owners require `Group.Read.All` in place of `GroupMember.Read.All`, and the counts are read by `GetGroupCountsAsync`.
+
 **Hybrid tenants:** many organisations sync groups from on-premises Active Directory. Include synced groups wherever Graph gives usable data, and say plainly where it doesn't.
 
 Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dotnet test` pass, then commit before starting the next step.

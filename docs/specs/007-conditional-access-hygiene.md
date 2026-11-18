@@ -7,6 +7,8 @@
 
 **Graph permissions:** adds `Policy.Read.All` and `User.Read.All` (application). Also uses `GroupMember.Read.All` from spec 003. `User.ReadBasic.All` would be enough for the lookups, but it is delegated only, so app-only auth needs `User.Read.All`. Conditional Access needs Entra ID P1 or P2.
 
+**Corrected by [spec 020](020-group-counts-permission.md):** Graph refuses the member expand that tells empty groups apart without `Group.Read.All`, so Policy hygiene requires `Group.Read.All` in place of `GroupMember.Read.All`.
+
 Follow AGENTS.md. Complete one step at a time, make sure `dotnet build` and `dotnet test` pass, then commit before starting the next step.
 
 ## Step 1: Core models and readers

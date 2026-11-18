@@ -26,7 +26,8 @@ public sealed class GroupNoOwnersCheck : ICheck
 
     public CheckCategory Category => CheckCategory.Groups;
 
-    public IReadOnlyList<string> RequiredPermissions => new[] { "GroupMember.Read.All" };
+    // Group.Read.All: Graph refuses the owners expand that counts them with GroupMember.Read.All alone (spec 020).
+    public IReadOnlyList<string> RequiredPermissions => new[] { "Group.Read.All" };
 
     public FindingLabels Labels => GroupCheckRules.Labels;
 
@@ -36,12 +37,19 @@ public sealed class GroupNoOwnersCheck : ICheck
         CancellationToken cancellationToken = default)
     {
         var groups = await reader.GetGroupsAsync(cancellationToken).ConfigureAwait(false);
+        var counts = await reader.GetGroupCountsAsync(cancellationToken).ConfigureAwait(false);
         var now = _timeProvider.GetUtcNow();
         var findings = new List<Finding>();
 
         foreach (var group in groups)
         {
-            var finding = Evaluate(group, options, now);
+            // A group missing from the counts was created between the two reads, so it is new anyway.
+            if (!counts.TryGetValue(group.Id, out var groupCounts))
+            {
+                continue;
+            }
+
+            var finding = Evaluate(group, groupCounts, options, now);
             if (finding is not null)
             {
                 findings.Add(finding);
@@ -51,9 +59,9 @@ public sealed class GroupNoOwnersCheck : ICheck
         return findings;
     }
 
-    private Finding? Evaluate(DirectoryGroup group, CheckOptions options, DateTimeOffset now)
+    private Finding? Evaluate(DirectoryGroup group, GroupCounts counts, CheckOptions options, DateTimeOffset now)
     {
-        if (group.HasOwners is not false || GroupCheckRules.IsNew(group, options, now))
+        if (counts.HasOwners is not false || GroupCheckRules.IsNew(group, options, now))
         {
             return null;
         }

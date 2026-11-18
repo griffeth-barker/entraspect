@@ -5,7 +5,7 @@ namespace Entraspect.Core.Tests.Checks;
 
 public sealed class GroupPublicCheckTests
 {
-    private static Task<IReadOnlyList<Finding>> RunAsync(params DirectoryGroup[] groups) =>
+    private static Task<IReadOnlyList<Finding>> RunAsync(params TestGroup[] groups) =>
         new GroupPublicCheck().RunAsync(new FakeDirectoryReader(groups), new CheckOptions());
 
     [Fact]

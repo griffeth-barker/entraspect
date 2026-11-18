@@ -87,6 +87,21 @@ Tests with a fake reader:
   - Remove the owners: no findings.
   - Clean up the test group afterwards in the Entra admin center.
 
+## Tests still to do
+
+Built and unit tested on 2026-10-26. Not tested in the running app yet. The check needs no licence, but creating a role-assignable group needs P1 or P2.
+
+On the current tenant (no P1 or P2):
+
+- With no role-assignable groups, Role group owners runs and finds nothing.
+
+Once the tenant has a P1 or P2 licence (a trial is enough):
+
+- The manual checks under Acceptance criteria: a non-admin owner of a group holding Helpdesk Administrator (Warning, Roles column), adding Global Administrator to the group (Critical, Global Administrator listed first), an owner with a direct Global Administrator assignment (not listed), and no owners (no findings).
+- The Group, Owner, Owner type, Owner UPN and Roles columns show, and Search and Add filter find their values.
+- Make an app's service principal an owner of the group (see Open questions on service principal owners in v1.0). Note whether it is listed, with Owner type "Service principal". If it isn't, add that to Open questions.
+- Clean up the test group afterwards in the Entra admin center.
+
 ## Open questions
 
 (Agents: add anything you think is out of scope or ambiguous here instead of implementing it.)

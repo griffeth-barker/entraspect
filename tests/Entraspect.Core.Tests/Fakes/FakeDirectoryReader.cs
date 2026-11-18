@@ -1,9 +1,12 @@
+using Entraspect.Core.Tests.Checks;
+
 namespace Entraspect.Core.Tests;
 
 internal sealed class FakeDirectoryReader : IDirectoryReader
 {
     private readonly IReadOnlyList<AppRegistration> _apps;
     private readonly IReadOnlyList<DirectoryGroup> _groups;
+    private readonly IReadOnlyDictionary<string, GroupCounts> _groupCounts;
     private readonly IReadOnlyList<EnterpriseApp> _enterpriseApps;
     private readonly IReadOnlyList<UserRegistration> _userRegistrations;
     private readonly IReadOnlyList<AppPermissionGrant> _grants;
@@ -17,10 +20,12 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
         IReadOnlyList<UserRegistration>? userRegistrations = null,
         IReadOnlyList<AppPermissionGrant>? grants = null,
         IReadOnlyList<ConditionalAccessPolicy>? policies = null,
-        IEnumerable<string>? existingUserIds = null)
+        IEnumerable<string>? existingUserIds = null,
+        IReadOnlyDictionary<string, GroupCounts>? groupCounts = null)
     {
         _apps = apps;
         _groups = groups ?? [];
+        _groupCounts = groupCounts ?? new Dictionary<string, GroupCounts>(StringComparer.OrdinalIgnoreCase);
         _enterpriseApps = enterpriseApps ?? [];
         _userRegistrations = userRegistrations ?? [];
         _grants = grants ?? [];
@@ -30,6 +35,12 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
 
     public FakeDirectoryReader(IReadOnlyList<DirectoryGroup> groups)
         : this([], groups)
+    {
+    }
+
+    /// <summary>The groups, with their counts from <see cref="GetGroupCountsAsync"/>.</summary>
+    public FakeDirectoryReader(IReadOnlyList<TestGroup> groups)
+        : this([], groups.Select(g => g.Group).ToList(), groupCounts: GroupTestData.CountsOf(groups))
     {
     }
 
@@ -49,6 +60,16 @@ internal sealed class FakeDirectoryReader : IDirectoryReader
 
     public Task<IReadOnlyList<DirectoryGroup>> GetGroupsAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(_groups);
+
+    /// <summary>The number of <see cref="GetGroupCountsAsync"/> calls.</summary>
+    public int GroupCountsReads { get; private set; }
+
+    public Task<IReadOnlyDictionary<string, GroupCounts>> GetGroupCountsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        GroupCountsReads++;
+        return Task.FromResult(_groupCounts);
+    }
 
     /// <summary>What <see cref="GetGroupIdsWithLicenseErrorsAsync"/> returns.</summary>
     public IReadOnlyList<string> GroupIdsWithLicenseErrors { get; init; } = [];
